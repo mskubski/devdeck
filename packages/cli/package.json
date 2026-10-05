@@ -1,0 +1,16 @@
+{
+  "name": "@devdeck/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "devdeck": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@devdeck/shared": "0.1.0"
+  }
+}

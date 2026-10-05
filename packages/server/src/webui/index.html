@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DevDeck</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <span class="logo">DevDeck</span>
+    <nav id="nav" class="hidden">
+      <a href="#/projects">Projekte</a>
+      <a href="#/machines">Maschinen</a>
+      <a href="#/audit">Audit</a>
+    </nav>
+    <span id="userinfo" class="userinfo"></span>
+    <button id="logout" class="btn ghost hidden">Abmelden</button>
+  </header>
+
+  <main id="main">
+    <section id="view-login" class="card login-card hidden">
+      <h1>Anmeldung</h1>
+      <form id="loginform">
+        <label>E-Mail <input type="email" name="email" autocomplete="username" required /></label>
+        <label>Passwort <input type="password" name="password" autocomplete="current-password" required /></label>
+        <button class="btn" type="submit">Anmelden</button>
+        <p id="loginerror" class="error"></p>
+      </form>
+    </section>
+
+    <section id="view-app" class="hidden">
+      <div id="content"></div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
