@@ -10,6 +10,7 @@ import { createApp } from './app.js';
 import type { AppContext } from './context.js';
 import { hashPassword } from './auth/passwords.js';
 import { audit } from './services/audit.js';
+import { sweepExpiredCommands, sweepOfflineAgents } from './services/provisioning.js';
 import type { UserRecord } from './auth/middleware.js';
 
 export interface RunningServer {
@@ -94,6 +95,16 @@ export async function startServer(
     const s = app.listen(port, host, () => resolve(s));
     s.on('error', reject);
   });
+  // Hintergrund-Sweeper: offline-Maschinen + abgelaufene Commands
+  const sweeper = setInterval(() => {
+    try {
+      sweepOfflineAgents(ctx.db);
+      sweepExpiredCommands(ctx.db);
+    } catch {
+      /* Fehler nie den Betrieb stoppen */
+    }
+  }, 60_000);
+  sweeper.unref();
   console.warn(`[DevDeck] Server läuft auf http://${host}:${port} (Schema v${SCHEMA_VERSION})`);
   return {
     app,
@@ -101,6 +112,7 @@ export async function startServer(
     db: ctx.db,
     server,
     close: async () => {
+      clearInterval(sweeper);
       await new Promise<void>((resolve) => server.close(() => resolve()));
       ctx.db.close();
     },

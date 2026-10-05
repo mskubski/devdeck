@@ -23,6 +23,8 @@ export interface TestServer {
     opts?: { token?: string; cookie?: string; body?: unknown; headers?: Record<string, string> },
   ): Promise<TestResponse<T>>;
   login(email: string, password: string): Promise<string>;
+  /** Enrollment-Token erzeugen und Maschine einschreiben (Phase B). */
+  enroll(cookie: string, name?: string): Promise<{ machineId: string; token: string }>;
   close(): Promise<void>;
 }
 
@@ -85,6 +87,31 @@ export async function startTestServer(
     return session.split(';')[0]!;
   };
 
+  const enroll = async (
+    cookie: string,
+    name = 'test-machine',
+  ): Promise<{ machineId: string; token: string }> => {
+    const tokenRes = await request('POST', '/api/machines/enrollment-tokens', {
+      cookie,
+      body: { ttl_minutes: 10 },
+    });
+    if (tokenRes.status !== 201) {
+      throw new Error(`Enrollment-Token fehlgeschlagen: ${JSON.stringify(tokenRes.body)}`);
+    }
+    const enrollRes = await request('POST', '/api/agent/enroll', {
+      body: {
+        enrollment_token: tokenRes.body.data.token,
+        name,
+        platform: 'linux',
+        agent_version: '0.1.0',
+      },
+    });
+    if (enrollRes.status !== 201) {
+      throw new Error(`Enrollment fehlgeschlagen: ${JSON.stringify(enrollRes.body)}`);
+    }
+    return { machineId: enrollRes.body.data.machine_id, token: enrollRes.body.data.machine_token };
+  };
+
   return {
     base,
     ctx,
@@ -92,6 +119,7 @@ export async function startTestServer(
     dataDir,
     request,
     login,
+    enroll,
     close: async () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
       ctx.db.close();

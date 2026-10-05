@@ -8,8 +8,8 @@ Aktualisiert nach jeder Phase (Code → Tests → Typecheck → Dokumentation).
 | Phase | Inhalt | Status |
 |---|---|---|
 | A | Foundation: Repo, DB-Schema, Auth, Users, Projects, Memberships, Audit, WebUI-Login | ✅ abgeschlossen |
-| B | Agent-Protokoll: Machine Registry, Enrollment, Heartbeat, Command-Queue, Agent-Gerüst | ⏳ als Nächstes |
-| C | Workspace Registry, workspace.yaml, Workspace Status, Readiness | ⬜ |
+| B | Agent-Protokoll: Machine Registry, Enrollment, Heartbeat, Command-Queue, Agent-Gerüst | ✅ abgeschlossen |
+| C | Workspace Registry, workspace.yaml, Workspace Status, Readiness | ⏳ als Nächstes |
 | D | Provision Workspace, Sync Workspace, Dependencies | ⬜ |
 | E | Tasks, Decisions, Changelog, History, Known Issues | ⬜ |
 | F | Coding Sessions, .devdeck Context, Handovers | ⬜ |
@@ -46,5 +46,26 @@ Aktualisiert nach jeder Phase (Code → Tests → Typecheck → Dokumentation).
 - Vitest 5: `poolOptions` entfernt; SQLite-Experimental-Warnung wird statt über `execArgv`
   lokal vor Import gedämpft (`db/warningGuard.ts`).
 - Datei `STRUKTUR (1).md` → `STRUKTUR.md` umbenannt (Konflikt K1 im PLAN).
+
+## Phase B – abgeschlossen
+
+**Umgesetzt:**
+
+- Machine Registry: `GET /api/machines`, `GET /api/machines/:id`,
+  `DELETE /api/machines/:id` (Widerruf mit `confirm`, setzt ausstehende Commands auf `expired`)
+- Enrollment: einmalige, ablaufende, gehashte Enrollment-Tokens; `POST /api/agent/enroll`
+  (Einmal-Verbrauch, Audit `machine.enroll` inkl. `denied`-Fällen)
+- Agent-Auth: Maschinen-Token (SHA-256-gehasht, widerrufbar) über Bearer
+- Heartbeat (`POST /api/agent/heartbeat`): `last_seen_at`, `agent_status=online`,
+  Registrierung/Aktualisierung projektbezogener Workspaces
+- Command-Queue (`services/provisioning.ts`): `enqueue`, atomarer Long-Poll-Claim
+  (queued → running), idempotente Resultat-Speicherung, Ablauf-/Offline-Sweeps
+  (Hintergrundintervall im Server-Start)
+- Workspace-Status-Report + Git-Metadaten, Session-State-Meldung (Basis für Phase F)
+- Agent-Paket: `config` (agent.json, 0600), `ServerClient`, `startHeartbeat`, `startWorker`,
+  Local API (nur 127.0.0.1, Local-Token), CLI-Einstieg (`enroll|start|status`),
+  Action-Registry mit erzwungener Shared-Allowlist (**keine Remote-Shell**)
+
+**Tests:** `packages/server/test/agent.test.ts` (17) → Suite gesamt **36/36 grün**, `tsc -b` sauber.
 
 ---
