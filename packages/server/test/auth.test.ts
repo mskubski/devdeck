@@ -28,7 +28,7 @@ describe('Authentication', () => {
       body: { email: TEST_ADMIN.email, password: 'falsch-123' },
     });
     expect(res.status).toBe(401);
-    expect(res.body.error.code).toBe('UNAUTHORIZED');
+    expect(res.body.error!.code).toBe('UNAUTHORIZED');
     const audit = srv.ctx.db.all<{ action: string; result: string }>(
       `SELECT action, result FROM audit_log WHERE action = 'auth.login'`,
     );

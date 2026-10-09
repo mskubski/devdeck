@@ -7,33 +7,45 @@
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <header class="topbar">
-    <span class="logo">DevDeck</span>
-    <nav id="nav" class="hidden">
-      <a href="#/projects">Projekte</a>
-      <a href="#/machines">Maschinen</a>
-      <a href="#/audit">Audit</a>
-    </nav>
-    <span id="userinfo" class="userinfo"></span>
-    <button id="logout" class="btn ghost hidden">Abmelden</button>
-  </header>
-
-  <main id="main">
-    <section id="view-login" class="card login-card hidden">
+  <!-- Login -->
+  <section id="view-login" class="login-screen hidden">
+    <div class="login-card">
+      <div class="brand"><span class="dot"></span> DevDeck</div>
       <h1>Anmeldung</h1>
-      <form id="loginform">
+      <form id="loginform" class="stack">
         <label>E-Mail <input type="email" name="email" autocomplete="username" required /></label>
         <label>Passwort <input type="password" name="password" autocomplete="current-password" required /></label>
-        <button class="btn" type="submit">Anmelden</button>
+        <button class="btn" type="submit" style="width:100%">Anmelden</button>
         <p id="loginerror" class="error"></p>
       </form>
-    </section>
+    </div>
+  </section>
 
-    <section id="view-app" class="hidden">
-      <div id="content"></div>
-    </section>
-  </main>
+  <!-- App Shell -->
+  <div id="view-app" class="app-shell hidden">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><span class="dot"></span> DevDeck</div>
+      <nav id="nav"></nav>
+      <div class="sidebar-footer">
+        <button id="theme-toggle" class="btn ghost sm" style="width:100%;justify-content:center" type="button">Darstellung</button>
+      </div>
+    </aside>
 
-  <script src="/app.js"></script>
+    <div class="main-col">
+      <header class="topbar">
+        <button class="btn ghost icon-only menu-toggle" id="menu-toggle" type="button" aria-label="Menü"></button>
+        <div class="breadcrumb" id="breadcrumb">DevDeck</div>
+        <div class="topbar-spacer"></div>
+        <div class="userinfo" id="userinfo"></div>
+        <button id="logout" class="btn ghost sm">Abmelden</button>
+      </header>
+      <main class="content" id="content"></main>
+    </div>
+  </div>
+
+  <div id="modal-root"></div>
+  <div id="toast-root" class="toast-stack"></div>
+
+  <script type="module" src="/app.js"></script>
 </body>
 </html>

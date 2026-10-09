@@ -212,7 +212,7 @@ const MIGRATIONS: string[] = [
   );
   `,
 
-  // v3 – Secret-Metadaten (Werte ausschließlich in der separaten Vault-DB),
+    // v3 – Secret-Metadaten (Werte ausschließlich in der separaten Vault-DB),
   //       Backups (Restore von Anfang an vorgesehen), Audit-Log
   `
   CREATE TABLE secrets (
@@ -288,6 +288,29 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX idx_audit_created ON audit_log(created_at);
   CREATE INDEX idx_audit_project ON audit_log(project_id, created_at);
+  `
+,
+
+  // v4 – Vault-Encrypted-Entry-Metadaten
+  // (Die eigentlichen Encrypted Blobs leben in der separaten vault.db SQLite-Datei;
+  // hier wird nur der Referenzzeiger gespeichert, der in vault.db als Schlüssel dient.)
+  `
+  CREATE TABLE vault_entries (
+    id TEXT PRIMARY KEY,
+    vault_reference TEXT NOT NULL UNIQUE,
+    encrypted_blob BLOB NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    created_by TEXT REFERENCES users(id)
+  );
+  CREATE INDEX idx_vault_entries_ref ON vault_entries(vault_reference);
+  `,
+
+  // v5 – Fix: `handovers` fehlte `created_by`, obwohl routes/sessions.ts es seit
+  // Einführung des Handover-Endpunkts voraussetzt (INSERT/JOIN schlugen zuvor fehl).
+  `
+  ALTER TABLE handovers ADD COLUMN created_by TEXT REFERENCES users(id);
   `,
 ];
 

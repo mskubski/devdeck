@@ -122,6 +122,7 @@ export async function startTestServer(
     enroll,
     close: async () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
+      ctx.vault?.close();
       ctx.db.close();
       try {
         fs.rmSync(dataDir, { recursive: true, force: true });

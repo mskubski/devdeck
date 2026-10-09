@@ -98,7 +98,7 @@ describe('Authorization: Systemrollen und Projektberechtigungen', () => {
       cookie: adminCookie,
     });
     expect(res.status).toBe(409);
-    expect(res.body.error.code).toBe('CONFLICT');
+    expect(res.body.error!.code).toBe('CONFLICT');
   });
 
   it('verhindert Duplikate bei Memberships', async () => {

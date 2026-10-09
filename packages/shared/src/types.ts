@@ -113,7 +113,7 @@ export type WorkspaceStatus =
 export interface WorkspaceDto {
   id: string;
   project_id: string;
-  machine_id: string;
+  machine_id: string | null;
   owner_user_id: string;
   local_path: string;
   repo_remote: string | null;
@@ -138,7 +138,8 @@ export interface CodingSessionDto {
   goal: string | null;
   started_at: string;
   ended_at: string | null;
-  git_state_json: string | null;
+  handover_id: string | null;
+  git_state: Record<string, unknown> | null;
 }
 
 /** Strukturierter Handover gemäß Spezifikation §20 (Codex/Claude → DevDeck). */
@@ -213,3 +214,47 @@ export interface AuditEntryDto {
 }
 
 export type { GitState, ReadinessReport };
+export type { Environment, ProjectRole, SecretCapability, SystemRole } from './roles.js';
+
+export interface HandoverDto {
+  id: string;
+  session_id: string | null;
+  project_id: string;
+  payload: HandoverPayload;
+  validated_at: string;
+  created_at: string;
+}
+
+export interface SecretDto {
+  id: string;
+  project_id: string;
+  name: string;
+  description: string | null;
+  kind: SecretKind;
+  environment: Environment;
+  vault_reference: string;
+  version: number;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  created_by_email: string | null;
+  has_value: boolean;
+}
+
+export interface SecretGrantDto {
+  id: string;
+  secret_id: string;
+  subject_type: 'member' | 'user' | 'machine' | 'role';
+  subject_id: string;
+  capability: SecretCapability;
+  created_at: string;
+  created_by: string | null;
+  created_by_email: string | null;
+}
+
+export interface SecretTargetDto {
+  id: string;
+  secret_id: string;
+  target_path: string;
+  file_mode: string;
+}

@@ -22,3 +22,6 @@ devdeck.config.json
 npm-debug.log*
 .DS_Store
 coverage/
+
+# Lokale Claude-Code-Einstellungen
+.claude/settings.local.json

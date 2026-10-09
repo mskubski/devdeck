@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import {
   AGENT_PROTOCOL_VERSION,
   AppError,
@@ -12,6 +12,8 @@ import { requireAgent } from '../auth/middleware.js';
 import { generateToken, hashToken } from '../auth/tokens.js';
 import { audit } from '../services/audit.js';
 import { completeCommand, pollCommands } from '../services/provisioning.js';
+import { buildProjectContext } from '../services/contextBuilder.js';
+import { projectSecretsFor, secretVersionsFor } from '../vault/projection.js';
 
 /** Agent-Protokoll (pollbasiert, PLAN §11). */
 export function agentRoutes(ctx: AppContext): Router {
@@ -309,6 +311,99 @@ export function agentRoutes(ctx: AppContext): Router {
         throw new AppError('VALIDATION', 'state muss started oder finished sein');
       }
       res.json({ data: { ok: true } });
+    }),
+  );
+
+  /** Workspace laden + sicherstellen, dass er der anfragenden Maschine gehört. */
+  function resolveOwnedWorkspace(req: Request): { id: string; project_id: string } {
+    const machine = req.machine!;
+    const workspaceId = typeof req.body?.workspace_id === 'string' ? req.body.workspace_id : null;
+    if (!workspaceId) {
+      throw new AppError('VALIDATION', 'workspace_id ist erforderlich');
+    }
+    const ws = db.get<{ id: string; project_id: string; machine_id: string | null }>(
+      'SELECT id, project_id, machine_id FROM workspaces WHERE id = ?',
+      workspaceId,
+    );
+    if (!ws) throw new AppError('NOT_FOUND', 'Workspace nicht gefunden');
+    if (ws.machine_id !== machine.id) {
+      throw new AppError('FORBIDDEN', 'Workspace gehört zu einer anderen Maschine');
+    }
+    return { id: ws.id, project_id: ws.project_id };
+  }
+
+  // context.refresh / Workspace Sync+Provision: .devdeck/-Dateien aus SQLite erzeugen (Phase F).
+  router.post(
+    '/context/write',
+    asyncHandler(async (req, res) => {
+      const ws = resolveOwnedWorkspace(req);
+      const files = buildProjectContext({ db, projectId: ws.project_id });
+      const now = new Date().toISOString();
+      db.run('UPDATE workspaces SET last_context_sync_at = ? WHERE id = ?', now, ws.id);
+      audit(db, {
+        actor_type: 'agent',
+        actor_id: req.machine!.id,
+        actor_label: req.machine!.name,
+        action: 'context.write',
+        project_id: ws.project_id,
+        machine_id: req.machine!.id,
+        target_type: 'workspace',
+        target_id: ws.id,
+        result: 'success',
+      });
+      res.json({ data: files });
+    }),
+  );
+
+  // env.refresh / workspace.provision: autorisierte Secrets für den Maschinenbesitzer projizieren.
+  router.post(
+    '/secrets/fetch',
+    asyncHandler(async (req, res) => {
+      if (!ctx.vault) throw new AppError('VAULT_ERROR', 'Vault ist auf diesem Server nicht initialisiert');
+      const ws = resolveOwnedWorkspace(req);
+      const machine = req.machine!;
+      const owner = db.get<{ system_role: string }>(
+        'SELECT system_role FROM users WHERE id = ?',
+        machine.owner_user_id,
+      );
+      const environment =
+        optionalString(req.body, 'environment') ?? 'development';
+      const projected = projectSecretsFor(
+        db,
+        ctx.vault,
+        ws.project_id,
+        machine.owner_user_id,
+        owner?.system_role === 'admin',
+        environment,
+      );
+      audit(db, {
+        actor_type: 'agent',
+        actor_id: machine.id,
+        actor_label: machine.name,
+        action: 'secret.projection',
+        project_id: ws.project_id,
+        machine_id: machine.id,
+        target_type: 'workspace',
+        target_id: ws.id,
+        result: 'success',
+        detail: {
+          environment,
+          env_count: Object.keys(projected.env).length,
+          file_count: projected.files.length,
+        },
+      });
+      res.json({ data: projected });
+    }),
+  );
+
+  // workspace.sync: leichte Versionsprüfung ohne Entschlüsselung (keine Secret-Werte).
+  router.post(
+    '/secrets/check',
+    asyncHandler(async (req, res) => {
+      const ws = resolveOwnedWorkspace(req);
+      const environment = optionalString(req.body, 'environment') ?? 'development';
+      const secrets = secretVersionsFor(db, ws.project_id, environment);
+      res.json({ data: { environment, secrets } });
     }),
   );
 

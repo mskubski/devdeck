@@ -9,14 +9,63 @@ Aktualisiert nach jeder Phase (Code → Tests → Typecheck → Dokumentation).
 |---|---|---|
 | A | Foundation: Repo, DB-Schema, Auth, Users, Projects, Memberships, Audit, WebUI-Login | ✅ abgeschlossen |
 | B | Agent-Protokoll: Machine Registry, Enrollment, Heartbeat, Command-Queue, Agent-Gerüst | ✅ abgeschlossen |
-| C | Workspace Registry, workspace.yaml, Workspace Status, Readiness | ⏳ als Nächstes |
-| D | Provision Workspace, Sync Workspace, Dependencies | ⬜ |
-| E | Tasks, Decisions, Changelog, History, Known Issues | ⬜ |
-| F | Coding Sessions, .devdeck Context, Handovers | ⬜ |
-| G | DevDeck Vault: Metadata, Values, Files, Permissions, Projektion (Kern-Vault steht) | ⬜ |
-| H | DevDeck CLI, Claude-Launcher, Codex-Launcher | ⬜ |
-| I | Backups, Restore, Retention | ⬜ |
+| C | Workspace Registry, workspace.yaml, Workspace Status, Readiness | ✅ abgeschlossen |
+| D | Provision Workspace, Sync Workspace, Dependencies | ✅ abgeschlossen |
+| E | Tasks ✅ · Decisions/Changelog/Known Issues/History | ⏳ Tasks fertig, Rest bewusst zurückgestellt (siehe unten) |
+| F | Coding Sessions ✅ · .devdeck Context ✅ · Handovers ✅ | ✅ abgeschlossen |
+| G | DevDeck Vault: Metadata, Values, Files, Permissions, Projektion | ✅ abgeschlossen |
+| H | DevDeck CLI, Claude-Launcher, Codex-Launcher | ⬜ kein Quellcode vorhanden |
+| I | Backups, Restore, Retention | ⬜ nur Datenmodell, keine Implementierung |
 | J | Service-Integrationen (Konnektoren) | ⬜ |
+
+## Review & Vervollständigung – 2026-10-08
+
+Ein vollständiger Code-Review von Backend, Agent und Web-UI ergab, dass Phase C/D
+(Workspace-Registry, Readiness, Provision/Sync) im `packages/agent`-Code bereits mit hoher
+Qualität umgesetzt, aber nie committed und dieser Status-Doc nie nachgeführt worden war.
+Zusätzlich fehlten drei vom Agenten bereits erwartete Server-Endpunkte vollständig, wodurch
+Context-Erzeugung und Secret-Projektion faktisch nie funktioniert hatten. Diese Lücken wurden
+geschlossen:
+
+**Neu implementiert / verdrahtet:**
+
+- `POST /api/agent/context/write` – Context-Builder (`services/contextBuilder.ts`) erzeugt
+  `CONTEXT.md`/`CURRENT_STATE.md`/`CHANGELOG_RECENT.md`/`SECRETS.md` live aus SQLite (Phase F).
+- `POST /api/agent/secrets/fetch` + `POST /api/agent/secrets/check` – autorisierte
+  `.env`-/Secret-File-Projektion für den Maschinenbesitzer (`vault/projection.ts`, Phase G).
+- `VaultService` (AES-256-GCM, war bereits fertig) ist jetzt tatsächlich in `ctx.vault`
+  instanziiert und in `routes/vault.ts` verdrahtet: Werte werden beim Setzen verschlüsselt
+  gespeichert und bei `secret.reveal`-Capability entschlüsselt zurückgegeben (auditiert).
+- Web-UI vollständig neu aufgebaut (Sidebar/Topbar-Shell, Light/Dark-Theme, Modals/Toasts,
+  weiterhin Vanilla-JS/CSS ohne Framework/Build-Step gemäß Entscheidung A8) mit Ansichten für
+  Tasks, Coding Sessions/Handover, Secrets/Vault, Maschinen, Workspaces, Benutzerverwaltung
+  und einer neuen Hilfe-Seite.
+
+**Dabei gefundene und behobene Bugs (jeweils mit Test abgesichert):**
+
+- `start.sh` druckte feste Admin-Login-Daten, setzte sie aber nie als
+  `DEVDECK_ADMIN_EMAIL`/`DEVDECK_ADMIN_PASSWORD` – ein echter erster Start legte dadurch
+  **keinen** Admin an.
+- `routes/vault.ts`: `POST .../secrets` beim Anlegen fehlte die Spalte `created_at` im
+  `secret_grants`-Insert → jede Secret-Anlage schlug mit `NOT NULL constraint failed` fehl.
+  Zusätzlich verwendete der Grant `subject_type = 'member'`, den `secretCapabilitiesFor`
+  nie auswertet (jetzt `'user'`).
+- `routes/vault.ts` und `routes/sessions.ts`: Listen-Queries riefen `db.all(query, params)`
+  statt `db.all(query, ...params)` auf – das Array wurde dadurch als ein einzelner,
+  JSON-serialisierter Parameter gebunden → `datatype mismatch` bei jeder Secrets-/Sessions-Liste.
+- Schema: Tabelle `handovers` hatte nie die Spalte `created_by`, obwohl
+  `routes/sessions.ts` sie seit Einführung des Handover-Endpunkts voraussetzt – jeder
+  Handover-Create/-List-Aufruf schlug fehl. Migration v5 ergänzt die Spalte.
+- `packages/agent/src/actions/workspaceSync.ts` rief `/api/agent/context/refresh` auf,
+  obwohl der Server (und alle anderen Call-Sites) `/api/agent/context/write` erwartet.
+
+**Bewusst zurückgestellt** (dokumentiert in der Hilfe-Seite der Web-UI, nicht stillschweigend
+weggelassen): DevDeck CLI, Backups/Restore, eigene Decisions/Changelog/Known-Issues-Verwaltung,
+Service-Integrationen. Diese sind mehrwöchige Einzelvorhaben und wurden nicht halbfertig
+begonnen.
+
+Tests: 83/83 grün (`npm test`), `tsc -b` sauber. Neue Tests:
+`packages/server/test/vault.test.ts`, `agentContext.test.ts`, `sessionsHandover.test.ts`.
 
 ## Phase A – abgeschlossen
 

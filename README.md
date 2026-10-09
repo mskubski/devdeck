@@ -1,707 +1,133 @@
 # DevDeck
 
-DevDeck ist ein zentral selbst gehostetes Developer Control Plane für mehrere Entwickler, Projekte und Entwicklungsrechner. Es verbindet zentrale Projektverwaltung mit lokalen Git-Workspaces, reproduzierbaren Entwicklungsumgebungen, Secret-Management, Coding-Agent-Workflows und Backups.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Status: early development](https://img.shields.io/badge/status-early%20development-orange)
 
-> Git verwaltet den Code. DevDeck verwaltet Projekte, Wissen, Workspaces, Secrets und Entwicklungsabläufe. Die eigentliche Entwicklung findet auf dem jeweiligen Entwicklerrechner statt.
+**A self-hosted developer control plane for multiple developers, projects and machines.**
 
-## Warum DevDeck?
+> Git manages your code. DevDeck manages everything around it: projects, knowledge,
+> workspaces, secrets and development workflows. The actual development stays on each
+> developer's own machine.
 
-Bei Entwicklung auf mehreren PCs, Macs oder Linux-Systemen besteht ein Projekt nicht nur aus dem Inhalt eines Git-Repositories. Zusätzlich werden lokale Dependencies, `.env`-Dateien, Credentials, Toolchains, Projektkontext und Informationen aus vorherigen Coding-Sessions benötigt.
+*Deutsche Fassung des ausführlichen Konzepts: [README.de.md](README.de.md)*
 
-DevDeck soll einen Workspace auf einem anderen oder neuen Rechner reproduzierbar arbeitsfähig machen, ohne Sourcecode über OneDrive oder einen eigenen proprietären Datei-Sync verteilen zu müssen.
+## Why DevDeck?
 
-## Architektur
+When you develop on several PCs, Macs or Linux machines, a project is more than the contents of
+a Git repository. You also need local dependencies, `.env` files, credentials, toolchains,
+project context and the notes from previous coding sessions.
 
-DevDeck besteht aus drei Hauptkomponenten:
+DevDeck makes a workspace on a new or different machine reproducibly ready to work – without
+syncing source code through a file-sync service or a proprietary mechanism.
+
+## Architecture
 
 ```text
-                         GitHub / GitLab
-                         Source Code
+                    GitHub / GitLab (source code)
                               |
-             +----------------+----------------+
-             |                                 |
-             v                                 v
-      Alice Rechner                     Bob Laptop
-      Windows/macOS/Linux                       |
-             |                                 |
-       DevDeck Agent                     DevDeck Agent
-       DevDeck CLI                       DevDeck CLI
-             |                                 |
-             v                                 v
-      WebApp Workspace               MobileApp Workspace
-             |                                 |
-       Claude / Codex                     Coding Agent
-             |                                 |
-             +----------------+----------------+
+          +-------------------+-------------------+
+          |                                       |
+   Developer machine A                     Developer machine B
+   DevDeck Agent + CLI                     DevDeck Agent + CLI
+          |                                       |
+          +-------------------+-------------------+
                               |
-                              v
-                       DevDeck Server
-                         Linux VM
-                 +-----------------------+
-                 | Web UI / API          |
-                 | SQLite                |
-                 | DevDeck Vault         |
-                 | Users / Permissions   |
-                 | Tasks / Decisions     |
-                 | History / Handovers   |
-                 | Machine Registry      |
-                 | Backup Management     |
-                 | Audit Log             |
-                 +-----------------------+
+                        DevDeck Server
+              Web UI / API · SQLite · Vault
+        Users & roles · Tasks · Sessions & handovers
+          Machine registry · Audit log · Backups
 ```
 
-## 1. DevDeck Server
+| Component | Role |
+|---|---|
+| **Server** (`packages/server`) | Central web UI and API: users, projects, memberships, machine registry, tasks, coding sessions/handovers, encrypted secret vault, audit log |
+| **Agent** (`packages/agent`) | Runs on each developer machine: enrolls with the server, sends heartbeats, executes commands (provision/sync workspaces, install dependencies, write coding context, project secrets) |
+| **CLI** (`packages/cli`) | Planned developer-facing command line (not implemented yet) |
+| **Shared** (`packages/shared`) | Protocol types, roles and errors shared by all components |
 
-Der DevDeck Server läuft zentral auf einer Linux-VM. Benutzer greifen über die Weboberfläche darauf zu.
+## Features
 
-Er verwaltet:
+- Multi-user, multi-project with roles (owner, maintainer, developer, viewer)
+- Machine enrollment and command queue between server and agents
+- Workspace registry, `workspace.yaml` manifest, provisioning, sync and readiness checks
+- Tasks, coding sessions and handovers between machines/people
+- Generated coding context (`.devdeck/CONTEXT.md` and friends) for AI coding agents
+- Encrypted vault (AES-256-GCM) for secret values and secret files, with per-capability access and auditing
+- Plain HTML/CSS/JS web UI – no frontend build step
+- Audit log for security-relevant actions
 
-- Benutzer und Login
-- Projekte und Projektmitgliedschaften
-- Maschinen und lokale Workspaces
-- Tasks und Decisions
-- Changelog und vollständige Projekthistorie
-- Coding Sessions und Handovers
-- Secret-Metadaten
-- verschlüsselten DevDeck Vault
-- Secret Files
-- Backup-Konfiguration und Backup-Historie
-- Audit Log
+See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) for what is implemented and what is
+still planned (CLI, backups/restore, service integrations).
 
-Der DevDeck Server ist **nicht** der zentrale Speicherort des Sourcecodes. Dafür bleibt GitHub oder GitLab zuständig.
+## Requirements
 
-## 2. DevDeck Agent
+- Node.js **>= 22.5** (uses the built-in `node:sqlite`)
+- npm
 
-Auf jedem Entwicklungsrechner läuft ein lokaler DevDeck Agent.
-
-Der Agent bildet die sichere Brücke zwischen dem zentralen Server und dem lokalen Rechner. Er kann definierte lokale Aktionen ausführen, zum Beispiel:
-
-- Workspace-Status prüfen
-- Git-Status erfassen
-- Workspace synchronisieren
-- neuen Workspace provisionieren
-- Dependencies installieren
-- `.env` erzeugen oder aktualisieren
-- benötigte Secret Files bereitstellen
-- `.devdeck/` aktualisieren
-- Toolchain prüfen
-- Terminal oder Editor öffnen
-- Claude Code oder Codex im Projektverzeichnis starten
-- Coding Sessions und Handovers an DevDeck melden
-
-Der Agent soll keine generische unbegrenzte Remote-Shell bereitstellen. Er arbeitet mit einer festgelegten Allowlist unterstützter Aktionen.
-
-## 3. DevDeck CLI
-
-Die CLI dient Entwicklern, Scripts und Coding Agents als lokale Schnittstelle.
-
-Geplante Befehle:
+## Quick start
 
 ```bash
-devdeck status
-devdeck sync
-devdeck context
-devdeck session start
-devdeck session finish
-devdeck handover import
-devdeck changelog add
-devdeck decision add
-devdeck task add
-devdeck secret list
-devdeck env run -- <command>
+git clone https://github.com/mskubski/devdeck.git
+cd devdeck
+npm install
+npm run build
+
+# The initial admin is only created on first start, when the database is empty.
+export DEVDECK_ADMIN_EMAIL="admin@example.com"
+export DEVDECK_ADMIN_PASSWORD="<choose-a-strong-password>"
+export DEVDECK_HOST=127.0.0.1      # use 0.0.0.0 to expose to your network
+export DEVDECK_PORT=8080
+npm run server
 ```
 
-## 4. Sourcecode und Git
+Open <http://localhost:8080> (or your `DEVDECK_PORT`) and log in. Change the password after the first login.
+`./start.sh` bundles these steps for a Linux server (build, start, health check); see
+[ANLEITUNG.md](ANLEITUNG.md) (German) for details on enrolling agents.
 
-GitHub oder GitLab bleibt die Source of Truth für den Sourcecode.
+### Configuration
+
+| Variable | Default | Description |
+|---|---|---|
+| `DEVDECK_HOST` | `127.0.0.1` | Interface the server binds to |
+| `DEVDECK_PORT` | `7400` | HTTP port |
+| `DEVDECK_DATA_DIR` | `./data` | SQLite database, vault and runtime data |
+| `DEVDECK_ADMIN_EMAIL` / `DEVDECK_ADMIN_PASSWORD` | – | Bootstrap admin on first start |
+
+See `packages/server/src/config.ts` for the complete list.
+
+## Development
+
+```bash
+npm run build       # tsc -b
+npm test            # vitest
+npm run typecheck
+```
+
+Project layout:
 
 ```text
-Git Repository
-   |
-   +--> Alice Windows Workspace
-   +--> Alice Mac Workspace
-   +--> Bob MobileApp Workspace
+packages/
+  server/   HTTP API, SQLite schema, vault, web UI (src/webui)
+  agent/    Machine agent and workspace actions
+  shared/   Shared protocol types
+  cli/      Planned CLI
 ```
 
-DevDeck ersetzt Git nicht. Es kann Git-Zustände anzeigen und Git-Aktionen über den jeweiligen lokalen Agent orchestrieren.
-
-In Git gehören beispielsweise:
-
-- Sourcecode
-- `package.json`
-- Lockfiles
-- Datenbank-Migrationen
-- Tests
-- nicht geheime Konfiguration
-- `AGENTS.md`
-- `CLAUDE.md`
-- `.devdeck/workspace.yaml`
-
-Nicht in Git gehören beispielsweise:
-
-- `.env`
-- API Keys
-- Passwörter
-- private Zertifikate
-- Signing Keys
-- private Credential Files
-- `node_modules`
-- Build-Artefakte
-
-## 5. Lokaler Workspace
-
-Die eigentliche Entwicklung findet lokal statt.
-
-Beispiele:
-
-```text
-Windows
-D:\Development\WebApp
-
-macOS
-~/Development/WebApp
-```
-
-Ein typischer Workspace sieht so aus:
-
-```text
-WebApp/
-|
-+-- .git/
-+-- src/
-+-- package.json
-+-- package-lock.json
-+-- supabase/
-|
-+-- .env
-+-- node_modules/
-+-- lokale Credential Files
-|
-+-- AGENTS.md
-+-- CLAUDE.md
-|
-+-- .devdeck/
-    +-- workspace.yaml
-    +-- CONTEXT.md
-    +-- CURRENT_STATE.md
-    +-- CHANGELOG_RECENT.md
-    +-- SECRETS.md
-    +-- handover/
-```
-
-## 6. Workspace Manifest
-
-`.devdeck/workspace.yaml` beschreibt, was ein Projekt für einen arbeitsfähigen Workspace benötigt.
-
-Konzeptionelles Beispiel:
-
-```yaml
-version: 1
-
-project:
-  name: WebApp
-
-runtime:
-  node: "24"
-
-package_manager:
-  type: npm
-  install: npm ci
-
-services:
-  supabase: true
-
-mobile:
-  android: true
-  ios: true
-
-environment:
-  source: devdeck
-  target: .env
-
-tools:
-  - git
-  - node
-  - npm
-  - supabase
-```
-
-Das Manifest enthält keine Secret-Werte.
-
-## 7. Workspace Provisioning
-
-Auf einem neuen Entwicklungsrechner soll ein Projekt über **Provision Workspace** eingerichtet werden können.
-
-```text
-Clone Git Repository
-        |
-        v
-Toolchain prüfen
-        |
-        v
-Dependencies installieren
-        |
-        v
-Autorisierte Secrets beziehen
-        |
-        v
-.env generieren
-        |
-        v
-Secret Files bereitstellen
-        |
-        v
-.devdeck Kontext erzeugen
-        |
-        v
-Workspace Readiness prüfen
-        |
-        v
-READY
-```
-
-Dadurch wird der Entwicklungsrechner weitgehend ersetzbar.
-
-## 8. Workspace Sync
-
-**Sync Workspace** bringt einen vorhandenen Workspace auf den aktuellen Zustand.
-
-Der vorgesehene Ablauf umfasst:
-
-1. Git-Status prüfen.
-2. Lokale Änderungen erkennen und vor konfliktträchtigen Aktionen warnen.
-3. Git aktualisieren.
-4. Dependency-Status prüfen.
-5. Secret-Versionen prüfen.
-6. Secret Files prüfen.
-7. DevDeck Context aktualisieren.
-8. Workspace Readiness neu bewerten.
-
-Lokale, nicht committete Änderungen dürfen nicht stillschweigend überschrieben werden.
-
-## 9. Dependencies
-
-Installierte Libraries werden nicht zwischen Rechnern synchronisiert.
-
-Stattdessen enthält Git die Dependency-Manifeste und Lockfiles. Der lokale Rechner reproduziert daraus seine Dependencies.
-
-Beispiel:
-
-```text
-package.json + package-lock.json
-                |
-                v
-             npm ci
-                |
-                v
-          node_modules/
-```
-
-## 10. DevDeck Vault
-
-Secret-Werte werden zentral und verschlüsselt im DevDeck Vault gespeichert.
-
-Die Verantwortlichkeiten sind getrennt:
-
-```text
-DevDeck SQLite   -> Secret-Metadaten
-DevDeck Vault    -> tatsächliche Secret-Werte
-Local .env       -> generierte Runtime-Projektion
-SECRETS.md       -> Namen/Beschreibungen ohne Secret-Werte
-```
-
-`.env` ist damit nicht die zentrale Source of Truth.
-
-## 11. Secret Files
-
-DevDeck berücksichtigt auch Credentials, die als Datei benötigt werden, zum Beispiel:
-
-```text
-google-services.json
-GoogleService-Info.plist
-service-account.json
-*.p8
-keystores
-certificates
-```
-
-Zu jeder Secret File können Projekt, Environment und lokaler Zielpfad hinterlegt werden.
-
-Secret Files werden nur in autorisierte Workspaces projiziert und nicht in den Coding Context geschrieben.
-
-## 12. Environments und Berechtigungen
-
-DevDeck unterscheidet mindestens:
-
-```text
-Development
-Staging
-Production
-```
-
-Projektzugang bedeutet nicht automatisch Zugriff auf alle Secrets.
-
-Geplante Secret-Fähigkeiten:
-
-```text
-secret.metadata.read
-secret.use
-secret.reveal
-secret.update
-secret.file.deploy
-```
-
-Damit kann der Zugriff auf Development- und Production-Secrets unterschiedlich geregelt werden.
-
-## 13. Machine Registry
-
-Jeder Entwicklungsrechner wird explizit mit DevDeck verbunden.
-
-Der Server kennt beispielsweise:
-
-- Besitzer
-- Rechnername
-- Plattform
-- Agent-Version
-- Online-Status
-- Last Seen
-- registrierte Workspaces
-
-Initiale Beispiele:
-
-```text
-Alice-PC
-Alice-MacBook
-Bob-Laptop
-```
-
-## 14. Multi-User und Multi-Project
-
-DevDeck wird von Beginn an für mehrere Entwickler und Projekte ausgelegt.
-
-Initial:
-
-```text
-admin@example.com
-System Role: admin
-WebApp: owner
-
-
-bob@example.com
-System Role: developer
-MobileApp: owner
-```
-
-Weitere Benutzer und Projekte können später hinzugefügt werden.
-
-Projektrollen:
-
-```text
-owner
-maintainer
-developer
-viewer
-```
-
-Systemrolle und Projektrolle sind voneinander getrennt.
-
-## 15. Coding Agents
-
-Claude Code, Codex und zukünftige Coding Agents laufen direkt im jeweiligen lokalen Projektverzeichnis.
-
-```text
-DevDeck Web UI
-      |
-      v
-DevDeck Server
-      |
-      v
-DevDeck Agent auf ausgewähltem Rechner
-      |
-      v
-lokales Projektverzeichnis
-      |
-      v
-Claude Code / Codex
-```
-
-Dadurch arbeitet die Coding-KI mit der echten lokalen Working Copy inklusive installierter Dependencies und des für diesen Workspace vorbereiteten Contexts.
-
-## 16. Coding Context
-
-DevDeck erzeugt kompakte Arbeitsinformationen unter `.devdeck/`.
-
-```text
-CONTEXT.md
-CURRENT_STATE.md
-CHANGELOG_RECENT.md
-SECRETS.md
-```
-
-Die vollständige Projekthistorie bleibt in SQLite. Die lokalen Markdown-Dateien sind eine kompakte Bridge für Coding Agents.
-
-`SECRETS.md` enthält keine Secret-Werte.
-
-## 17. Coding Sessions und Handovers
-
-Eine Coding Session wird in DevDeck erfasst.
-
-Nach einer Session kann ein Coding Agent einen strukturierten Handover liefern, beispielsweise mit:
-
-- Ziel der Session
-- erledigten Punkten
-- offenen Punkten
-- expliziten Entscheidungen
-- geänderten Dateien
-- Commit-Referenz
-- Changelog-Zusammenfassung
-
-Der Coding Agent schreibt nicht direkt in SQLite. DevDeck validiert die strukturierte Übergabe und übernimmt zulässige Daten.
-
-## 18. Rechnerwechsel
-
-Beispiel: Alice arbeitet zunächst auf Windows und später auf dem Mac.
-
-```text
-Windows
-  |
-  +--> Entwicklung
-  +--> Commit + Push
-  +--> Handover an DevDeck
-
-Mac
-  |
-  +--> Sync Workspace
-       +--> Git aktualisieren
-       +--> Dependencies prüfen
-       +--> Secrets aktualisieren
-       +--> Context aktualisieren
-  |
-  +--> Coding Session fortsetzen
-```
-
-Der Sourcecode kommt aus Git. Projektwissen und Handover kommen aus DevDeck. Secrets kommen aus dem Vault. Dependencies werden lokal reproduziert.
-
-## 19. WebApp
-
-WebApp ist zunächst Alices Projekt.
-
-Vorgesehene Bestandteile:
-
-- Git Repository
-- Windows/macOS und optional Linux Workspaces
-- Supabase
-- Hosting/Deployment, z. B. Vercel, Linux oder IONOS
-- Brevo
-- Apple/Google-relevante Projektkonfiguration
-- Secrets und Secret Files
-- Tasks
-- Decisions
-- Changelog
-- Handovers
-- Backups
-
-## 20. MobileApp
-
-MobileApp ist zunächst Bobs Projekt.
-
-Es verwendet dieselbe DevDeck-Infrastruktur:
-
-- eigenes Git Repository
-- eigener Workspace auf Bobs Laptop
-- eigene Services
-- eigene Secrets und Secret Files
-- eigene Tasks und Decisions
-- eigene History
-- eigene Coding Sessions und Handovers
-- eigene Backup-Konfiguration
-
-## 21. Deployment
-
-Development, Sourcecode und Production bleiben getrennte Ebenen.
-
-```text
-Local Development
-       |
-       v
-Git Commit / Push
-       |
-       v
-GitHub / GitLab
-       |
-       v
-Deployment
-       |
-       +--> Vercel
-       +--> Linux
-       +--> IONOS
-       +--> Mobile Build / Stores
-       |
-       v
-Backend Services
-z. B. Supabase
-```
-
-DevDeck kann Deployment-Integrationen später ergänzen. Git bleibt der Sourcecode-Transport.
-
-## 22. Backups
-
-DevDeck unterscheidet System- und Projektbackups.
-
-### DevDeck System Backup
-
-Zu sichern sind insbesondere:
-
-- SQLite
-- verschlüsselter Vault
-- Secret Files
-- Serverkonfiguration
-- Benutzer und Berechtigungen
-- History und Handovers
-- Audit-Daten
-
-### Projektbackups
-
-Projektbezogene Backup-Integrationen können beispielsweise Datenbanken oder Storage umfassen.
-
-Backups sollen auf einem vom Primärsystem unabhängigen Ziel gespeichert werden.
-
-## 23. Audit
-
-Sicherheitsrelevante Aktionen werden protokolliert, zum Beispiel:
-
-- Login
-- Machine Enrollment
-- Änderung einer Projektmitgliedschaft
-- Secret-Änderung
-- Secret-Projektion
-- Workspace Provisioning
-- Workspace Sync
-- Coding Session
-- Backup
-- Restore
-
-Secret-Werte gehören niemals in das Audit Log.
-
-## 24. Optionale DevDeck AI
-
-Eine eigene AI-Integration ist **nicht Bestandteil des notwendigen Cores**.
-
-Sie kann später ergänzt werden für Funktionen wie:
-
-- Ask DevDeck
-- intelligente Projektzusammenfassungen
-- Smart Project Preparation
-- semantische Suche
-- Decision-Vorschläge
-- Vorschläge für nächste Schritte
-
-Die wichtigste Regel bleibt:
-
-> DevDeck muss vollständig funktionieren, wenn die DevDeck AI deaktiviert ist.
-
-## 25. Source-of-Truth Übersicht
-
-| Bereich | Source of Truth |
-|---|---|
-| Sourcecode | GitHub / GitLab |
-| Code History | Git |
-| Benutzer | DevDeck SQLite |
-| Projekte | DevDeck SQLite |
-| Berechtigungen | DevDeck SQLite |
-| Maschinen | DevDeck SQLite |
-| Workspace Registry | DevDeck SQLite |
-| Tasks | DevDeck SQLite |
-| Decisions | DevDeck SQLite |
-| Changelog | DevDeck SQLite |
-| Coding Sessions | DevDeck SQLite |
-| Handovers | DevDeck SQLite |
-| Secret Metadata | DevDeck SQLite |
-| Secret Values | DevDeck Vault |
-| Secret Files | DevDeck Vault |
-| `.env` | lokal generiert |
-| Dependencies | lokal reproduziert |
-| Coding Context | lokal unter `.devdeck/` generiert |
-| Production | jeweiliges Deployment-Ziel |
-| Backups | konfiguriertes Backup-Ziel |
-
-## 26. Roadmap
-
-### Phase 1: DevDeck Server
-
-- Linux-VM
-- Web UI/API
-- SQLite
-- Login
-- Benutzer
-- Projekte
-- Projektmitgliedschaften
-- WebApp
-- MobileApp
-
-### Phase 2: DevDeck Agent
-
-- Windows Agent
-- macOS Agent
-- Linux Agent
-- Machine Enrollment
-- Heartbeat
-- Machine Registry
-- Workspace Registry
-
-### Phase 3: Workspace Management
-
-- Workspace Manifest
-- Provision Workspace
-- Sync Workspace
-- Toolchain Check
-- Dependency Setup
-- Workspace Readiness
-
-### Phase 4: Knowledge
-
-- Tasks
-- Decisions
-- Changelog
-- vollständige History
-- Sessions
-- Handovers
-- Suche
-- Cross-Machine Handover
-
-### Phase 5: DevDeck Vault
-
-- verschlüsselter Vault
-- `.env` Projection
-- Secret Files
-- Projekt-/Environment-Berechtigungen
-- Audit
-
-### Phase 6: CLI und Coding Agents
-
-- DevDeck CLI
-- Claude Code Launcher
-- Codex Launcher
-- Session Tracking
-- strukturierte Handovers
-
-### Phase 7: Backups
-
-- DevDeck System Backup
-- Vault Backup
-- projektbezogene Backups
-- Scheduling
-- Retention
-- Restore
-
-### Phase 8: Service Integrations
-
-Je nach Projektbedarf können Integrationen zu Git-, Hosting-, Backend- und weiteren Services ergänzt werden.
-
-### Phase 9: Optionale DevDeck AI
-
-Erst nachdem der deterministische Core stabil funktioniert.
+Further design documents (German): [DEVDECK_v5.md](DEVDECK_v5.md),
+[IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md), [STRUKTUR.md](STRUKTUR.md).
+
+## Security
+
+DevDeck handles credentials, so run it behind HTTPS (e.g. a reverse proxy) and keep the data
+directory and vault key (`vault.key`) private and backed up. Never commit `.env`, `data/` or
+`agent.json` files. This is early-stage software that has not had an independent security
+audit – use at your own risk. Please report vulnerabilities privately via GitHub's
+"Report a vulnerability" feature rather than a public issue.
 
 ## Status
 
-DevDeck befindet sich aktuell in der Konzept- und Architekturphase. Die in diesem README beschriebenen Funktionen sind das Zielbild und nicht automatisch bereits implementierte Produktfunktionen.
+Early development (v0.1). APIs and the database schema may change without notice.
+
+## License
+
+[MIT](LICENSE) © 2026 Maurice Skubski

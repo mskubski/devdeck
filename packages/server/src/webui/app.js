@@ -1,53 +1,91 @@
-/* DevDeck Web UI – schlanke Vanilla-JS-Oberfläche (Entscheidung A8). */
-'use strict';
+/* DevDeck Web UI – Einstiegspunkt: Auth, Routing, Shell (Entscheidung A8: Vanilla JS, ES-Module). */
+import { api, state } from './lib/api.js';
+import { $, esc, toast } from './lib/ui.js';
+import { icon } from './lib/icons.js';
+import { renderProjects } from './views/projects.js';
+import { renderProjectDetail } from './views/projectDetail.js';
+import { renderMachines } from './views/machines.js';
+import { renderUsers } from './views/users.js';
+import { renderAudit } from './views/audit.js';
+import { renderHelp } from './views/help.js';
 
-const state = { user: null, memberships: [] };
+const NAV = [
+  { hash: '#/projects', icon: 'folder', label: 'Projekte', match: (h) => h.startsWith('#/projects') },
+  { hash: '#/machines', icon: 'monitor', label: 'Maschinen', match: (h) => h.startsWith('#/machines') },
+  { hash: '#/users', icon: 'users', label: 'Benutzer', match: (h) => h.startsWith('#/users'), adminOnly: true },
+  { hash: '#/audit', icon: 'history', label: 'Audit-Log', match: (h) => h.startsWith('#/audit') },
+  { hash: '#/help', icon: 'help', label: 'Hilfe', match: (h) => h.startsWith('#/help') },
+];
 
-async function api(path, options = {}) {
-  const res = await fetch(path, {
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-    ...options,
-  });
-  let body = null;
-  try { body = await res.json(); } catch { /* leer */ }
-  if (!res.ok) {
-    const message = body?.error?.message || `HTTP ${res.status}`;
-    const err = new Error(message);
-    err.code = body?.error?.code;
-    err.status = res.status;
-    throw err;
-  }
-  return body?.data;
+function currentTheme() {
+  return document.documentElement.getAttribute('data-theme')
+    ?? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
 }
 
-const $ = (sel) => document.querySelector(sel);
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
-  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+/** Theme-Button zeigt das Ziel: im Dark Mode die Sonne, im Light Mode den Mond. */
+function renderThemeToggle() {
+  const dark = currentTheme() === 'dark';
+  $('#theme-toggle').innerHTML = `${icon(dark ? 'sun' : 'moon', { size: 16 })}<span>${dark ? 'Hell' : 'Dunkel'}</span>`;
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('devdeck-theme', theme);
+  renderThemeToggle();
+}
+
+/** Statische Shell-Elemente aus index.html mit Icons versehen. */
+function decorateShell() {
+  for (const el of document.querySelectorAll('.brand .dot')) el.outerHTML = icon('layers', { size: 20, cls: 'accent' });
+  $('#menu-toggle').innerHTML = icon('menu', { size: 20 });
+  $('#logout').innerHTML = `${icon('logout', { size: 16 })}<span>Abmelden</span>`;
+  renderThemeToggle();
+}
+
+function initTheme() {
+  const saved = localStorage.getItem('devdeck-theme');
+  if (saved) applyTheme(saved);
+  decorateShell();
+}
+
+function renderNav() {
+  const hash = location.hash || '#/projects';
+  const items = NAV.filter((n) => !n.adminOnly || state.user?.system_role === 'admin');
+  $('#nav').innerHTML = items.map((n) => `
+    <a class="nav-item ${n.match(hash) ? 'active' : ''}" href="${n.hash}">
+      ${icon(n.icon)}<span>${n.label}</span>
+    </a>`).join('');
+}
+
+function setBreadcrumb(current, parent) {
+  $('#breadcrumb').innerHTML = parent
+    ? `<a class="link muted-crumb" href="#/projects">${esc(parent)}</a><span class="sep">/</span>${esc(current)}`
+    : esc(current);
+}
 
 function showLogin(msg = '') {
   $('#view-login').classList.remove('hidden');
   $('#view-app').classList.add('hidden');
-  $('#nav').classList.add('hidden');
-  $('#logout').classList.add('hidden');
-  $('#userinfo').textContent = '';
   $('#loginerror').textContent = msg;
 }
 
 function showApp() {
   $('#view-login').classList.add('hidden');
   $('#view-app').classList.remove('hidden');
-  $('#nav').classList.remove('hidden');
-  $('#logout').classList.remove('hidden');
-  $('#userinfo').textContent = `${state.user.email} · ${state.user.system_role}`;
+  const initials = (state.user.display_name || state.user.email).slice(0, 1).toUpperCase();
+  $('#userinfo').innerHTML = `
+    <div class="who"><b>${esc(state.user.display_name || state.user.email)}</b>${esc(state.user.system_role)}</div>
+    <div class="avatar">${esc(initials)}</div>`;
 }
 
 async function boot() {
+  initTheme();
   try {
     const me = await api('/api/auth/me');
     state.user = me.user;
     state.memberships = me.memberships;
     showApp();
+    renderNav();
     route();
   } catch {
     showLogin();
@@ -56,134 +94,43 @@ async function boot() {
 
 async function route() {
   if (!state.user) return showLogin();
-  const hash = location.hash || '#/projects';
+  renderNav();
+  const hash = (location.hash || '#/projects').replace(/^#\//, '');
+  const [path, query] = hash.split('?');
   const content = $('#content');
+  setBreadcrumb(NAV.find((n) => n.match(`#/${path}`))?.label ?? 'DevDeck');
+  content.innerHTML = '<div class="stack"><div class="skeleton" style="width:40%"></div><div class="skeleton" style="width:90%"></div><div class="skeleton" style="width:70%"></div></div>';
   try {
-    if (hash.startsWith('#/projects/')) {
-      await viewProject(content, hash.slice('#/projects/'.length));
-    } else if (hash.startsWith('#/machines')) {
-      await viewMachines(content);
-    } else if (hash.startsWith('#/audit')) {
-      await viewAudit(content);
+    if (path.startsWith('projects/')) {
+      await renderProjectDetail(content, path.slice('projects/'.length) + (query ? `?${query}` : ''), setBreadcrumb);
+    } else if (path.startsWith('machines')) {
+      await renderMachines(content);
+    } else if (path.startsWith('users')) {
+      if (state.user.system_role !== 'admin') throw Object.assign(new Error('Nur für Administratoren'), { status: 403 });
+      await renderUsers(content);
+    } else if (path.startsWith('audit')) {
+      await renderAudit(content, query);
+    } else if (path.startsWith('help')) {
+      await renderHelp(content);
     } else {
-      await viewProjects(content);
+      await renderProjects(content);
     }
   } catch (err) {
     content.innerHTML = `<div class="card"><p class="error">${esc(err.message)}</p></div>`;
   }
 }
 
-async function viewProjects(el) {
-  const projects = await api('/api/projects');
-  const rows = projects.map((p) => `
-    <tr>
-      <td><a class="link" href="#/projects/${esc(p.id)}">${esc(p.name)}</a></td>
-      <td><span class="badge">${esc(p.role || 'member')}</span></td>
-      <td class="muted">${esc(p.description || '')}</td>
-      <td class="muted">${esc(p.repo_remote || '–')}</td>
-    </tr>`).join('');
-  el.innerHTML = `
-    <div class="card">
-      <h1>Projekte</h1>
-      <table><thead><tr><th>Name</th><th>Rolle</th><th>Beschreibung</th><th>Repository</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="4" class="muted">Keine Projekte.</td></tr>'}</tbody></table>
-    </div>
-    ${state.user.system_role === 'admin' ? `
-    <div class="card">
-      <h2>Projekt anlegen</h2>
-      <form id="newproject">
-        <label>Name <input name="name" required /></label>
-        <label>Beschreibung <input name="description" /></label>
-        <label>Git-Remote <input name="repo_remote" placeholder="https://github.com/..." /></label>
-        <button class="btn" type="submit">Anlegen</button>
-        <p class="error" id="nperr"></p>
-      </form>
-    </div>` : ''}`;
-  const form = $('#newproject');
-  if (form) {
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const fd = new FormData(form);
-      try {
-        await api('/api/projects', {
-          method: 'POST',
-          body: JSON.stringify(Object.fromEntries(fd)),
-        });
-        route();
-      } catch (err) { $('#nperr').textContent = err.message; }
-    });
-  }
-}
-
-async function viewProject(el, id) {
-  const [project, members] = await Promise.all([
-    api(`/api/projects/${id}`),
-    api(`/api/projects/${id}/members`),
-  ]);
-  const memberRows = members.map((m) => `
-    <tr><td>${esc(m.email)}</td><td><span class="badge">${esc(m.role)}</span></td></tr>`).join('');
-  el.innerHTML = `
-    <div class="card">
-      <p><a class="link" href="#/projects">← Projekte</a></p>
-      <h1>${esc(project.name)} <span class="badge">${esc(project.role)}</span></h1>
-      <p class="muted">${esc(project.description || '')}</p>
-      <p class="muted">Repository: ${esc(project.repo_remote || '–')} · Branch: ${esc(project.default_branch)}</p>
-      <div class="row">
-        <a class="link" href="#/audit?project_id=${esc(project.id)}">Audit</a>
-      </div>
-    </div>
-    <div class="card">
-      <h2>Mitglieder</h2>
-      <table><thead><tr><th>E-Mail</th><th>Rolle</th></tr></thead><tbody>${memberRows}</tbody></table>
-    </div>
-    <div class="card">
-      <h2>Status</h2>
-      <p class="muted">Tasks, Decisions, Changelog, Maschinen, Workspaces und Secrets erscheinen
-      hier, sobald die zugehörigen Phasen aktiv sind (siehe IMPLEMENTATION_STATUS.md).</p>
-    </div>`;
-}
-
-async function viewMachines(el) {
-  el.innerHTML = `<div class="card"><h1>Maschinen</h1>
-    <p class="muted">Machine Registry wird mit Phase B (Agent-Protokoll) verfügbar.</p></div>`;
-}
-
-async function viewAudit(el) {
-  const qs = location.hash.includes('?') ? location.hash.split('?')[1] : '';
-  const projectId = new URLSearchParams(qs).get('project_id');
-  const path = state.user.system_role === 'admin' && !projectId
-    ? '/api/audit/all'
-    : `/api/audit?project_id=${encodeURIComponent(projectId || '')}`;
-  const entries = await api(path);
-  const rows = entries.map((a) => `
-    <tr>
-      <td class="muted">${esc(a.created_at)}</td>
-      <td>${esc(a.action)}</td>
-      <td>${esc(a.actor_label || a.actor_type)}</td>
-      <td><span class="badge ${a.result === 'success' ? 'ok' : a.result === 'denied' ? 'warn' : 'bad'}">${esc(a.result)}</span></td>
-      <td class="muted">${esc(a.detail_json || '')}</td>
-    </tr>`).join('');
-  el.innerHTML = `
-    <div class="card">
-      <h1>Audit-Log</h1>
-      <table><thead><tr><th>Zeitpunkt</th><th>Aktion</th><th>Akteur</th><th>Ergebnis</th><th>Detail</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="5" class="muted">Keine Einträge.</td></tr>'}</tbody></table>
-    </div>`;
-}
-
 $('#loginform').addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
   try {
-    const user = await api('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(Object.fromEntries(fd)),
-    });
+    const user = await api('/api/auth/login', { method: 'POST', body: JSON.stringify(Object.fromEntries(fd)) });
     state.user = user;
     const me = await api('/api/auth/me');
     state.memberships = me.memberships;
     showApp();
     location.hash = '#/projects';
+    renderNav();
     route();
   } catch (err) {
     $('#loginerror').textContent = err.message;
@@ -191,9 +138,21 @@ $('#loginform').addEventListener('submit', async (e) => {
 });
 
 $('#logout').addEventListener('click', async () => {
-  await api('/api/auth/logout', { method: 'POST' });
+  await api('/api/auth/logout', { method: 'POST' }).catch(() => {});
   state.user = null;
   showLogin();
+});
+
+$('#theme-toggle').addEventListener('click', () => {
+  applyTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+});
+
+$('#menu-toggle').addEventListener('click', () => {
+  $('#sidebar').classList.toggle('open');
+});
+
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.nav-item')) $('#sidebar').classList.remove('open');
 });
 
 window.addEventListener('hashchange', route);

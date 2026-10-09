@@ -13,6 +13,7 @@ import { ServerClient } from './client.js';
 import { startHeartbeat } from './heartbeat.js';
 import { startWorker } from './worker.js';
 import { startLocalApi } from './localApi.js';
+import './actions/all.js';
 
 interface CliArgs {
   command: 'start' | 'enroll' | 'status';

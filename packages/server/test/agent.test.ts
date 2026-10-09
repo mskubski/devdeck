@@ -52,7 +52,7 @@ describe('Phase B: Agent-Protokoll', () => {
         body: { enrollment_token: raw, name: 'Machine-2' },
       });
       expect(second.status).toBe(401);
-      expect(second.body.error.message).toContain('verwendet');
+      expect(second.body.error!.message).toContain('verwendet');
     });
 
     it('lehnt abgelaufene, widerrufene und unbekannte Tokens ab', async () => {
@@ -67,7 +67,7 @@ describe('Phase B: Agent-Protokoll', () => {
         body: { enrollment_token: expired.body.data.token, name: 'X' },
       });
       expect(resExpired.status).toBe(401);
-      expect(resExpired.body.error.message).toContain('abgelaufen');
+      expect(resExpired.body.error!.message).toContain('abgelaufen');
 
       // widerrufen
       const revoked = await srv.request('POST', '/api/machines/enrollment-tokens', {
@@ -174,14 +174,14 @@ describe('Phase B: Agent-Protokoll', () => {
 
       const after = await srv.request('POST', '/api/agent/heartbeat', { token, body: {} });
       expect(after.status).toBe(401);
-      expect(after.body.error.message).toContain('widerrufen');
+      expect(after.body.error!.message).toContain('widerrufen');
     });
 
     it('erzwingt confirm beim Maschinen-Widerruf', async () => {
       const { machineId } = await srv.enroll(cookie, 'Safe-Machine');
       const res = await srv.request('DELETE', `/api/machines/${machineId}`, { cookie, body: {} });
       expect(res.status).toBe(428);
-      expect(res.body.error.code).toBe('CONFIRMATION_REQUIRED');
+      expect(res.body.error!.code).toBe('CONFIRMATION_REQUIRED');
     });
 
     it('markiert Maschinen ohne Heartbeat als offline (Sweep)', async () => {

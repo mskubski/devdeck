@@ -85,6 +85,9 @@ export interface GitState {
   ahead: number;
   behind: number;
   files: string[];
+  author?: string | null;
+  committed_at?: string | null;
+  message?: string | null;
 }
 
 export const AGENT_PROTOCOL_VERSION = 1;

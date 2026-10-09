@@ -2,6 +2,9 @@
   "name": "devdeck",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
+  "author": "Maurice Skubski",
+  "repository": { "type": "git", "url": "git+https://github.com/mskubski/devdeck.git" },
   "type": "module",
   "description": "DevDeck – selbst gehostetes Developer Control Plane und Projektgedächtnis",
   "engines": {

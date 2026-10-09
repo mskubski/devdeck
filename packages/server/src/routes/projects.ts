@@ -151,6 +151,7 @@ export function projectRoutes(ctx: AppContext): Router {
     requireProjectRole(db, 'maintainer'),
     asyncHandler(async (req, res) => {
       const project = req.project!;
+      const name = optionalString(req.body, 'name', 200)?.trim() || null;
       const description = optionalString(req.body, 'description', 4000);
       const repoRemote = optionalString(req.body, 'repo_remote', 500);
       const defaultBranch = optionalString(req.body, 'default_branch', 100);
@@ -160,12 +161,14 @@ export function projectRoutes(ctx: AppContext): Router {
 
       db.run(
         `UPDATE projects SET
+           name = COALESCE(?, name),
            description = COALESCE(?, description),
            repo_remote = COALESCE(?, repo_remote),
            default_branch = COALESCE(?, default_branch),
            archived_at = CASE WHEN ? THEN ? ELSE NULL END,
            updated_at = ?
          WHERE id = ?`,
+        name,
         description,
         repoRemote,
         defaultBranch,

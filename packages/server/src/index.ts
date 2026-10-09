@@ -12,6 +12,7 @@ import { hashPassword } from './auth/passwords.js';
 import { audit } from './services/audit.js';
 import { sweepExpiredCommands, sweepOfflineAgents } from './services/provisioning.js';
 import type { UserRecord } from './auth/middleware.js';
+import { VaultService } from './vault/vault.js';
 
 export interface RunningServer {
   app: ReturnType<typeof createApp>;
@@ -78,7 +79,21 @@ export function createServerContext(
   fs.mkdirSync(config.backupTarget, { recursive: true });
   const db = new Database(config.dbPath);
   migrate(db);
-  const ctx: AppContext = { db, config };
+  const vault = new VaultService(config.vaultKeyPath, env.DEVDECK_VAULT_KEY ?? null);
+  const ctx: AppContext = { db, config, vault };
+  if (vault.keyCreated) {
+    audit(db, {
+      actor_type: 'system',
+      actor_label: 'bootstrap',
+      action: 'vault.key.create',
+      result: 'success',
+      detail: { key_id: vault.keyId, path: config.vaultKeyPath },
+    });
+    console.warn(
+      `[DevDeck] Neuer Vault-Key erzeugt unter ${config.vaultKeyPath} (0600). ` +
+        'Dieser Key ist unersetzlich – ohne ihn sind gespeicherte Secrets verloren. Sichern!',
+    );
+  }
   bootstrapAdmin(ctx);
   return ctx;
 }
@@ -114,6 +129,7 @@ export async function startServer(
     close: async () => {
       clearInterval(sweeper);
       await new Promise<void>((resolve) => server.close(() => resolve()));
+      ctx.vault?.close();
       ctx.db.close();
     },
   };

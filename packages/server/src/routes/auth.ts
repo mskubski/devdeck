@@ -64,7 +64,7 @@ export function authRoutes(ctx: AppContext): Router {
 
       res.cookie(SESSION_COOKIE, token, {
         httpOnly: true,
-        sameSite: 'strict',
+        sameSite: 'lax',
         secure: config.secureCookies,
         path: '/',
         maxAge: config.sessionTtlMs,
