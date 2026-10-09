@@ -14,13 +14,21 @@ npm run build > /dev/null 2>&1 || echo "⚠️  Warnung: Build hatte teilweise F
 export DEVDECK_HOST=0.0.0.0
 export DEVDECK_PORT=8080
 
+# Läuft schon ein Server? Dann nicht ein zweites Mal starten (Port-Konflikt, doppelter Agent).
+if curl -s -o /dev/null "http://localhost:${DEVDECK_PORT}/api/health"; then
+  echo "⚠️  DevDeck läuft bereits auf Port ${DEVDECK_PORT} – Abbruch." >&2
+  echo "   Neustart: systemctl --user restart devdeck-server devdeck-agent" >&2
+  exit 1
+fi
+
 # Initialer Admin wird NUR beim allerersten Start angelegt (wenn noch keine
-# Benutzer existieren). Ohne diese beiden Variablen bootstrapped der Server
-# keinen Admin und niemand kann sich einloggen (packages/server/src/index.ts).
-# Beide Werte müssen vor dem Aufruf von start.sh gesetzt werden (keine Defaults).
-: "${DEVDECK_ADMIN_EMAIL:?Bitte DEVDECK_ADMIN_EMAIL setzen}"
-: "${DEVDECK_ADMIN_PASSWORD:?Bitte DEVDECK_ADMIN_PASSWORD setzen}"
-export DEVDECK_ADMIN_EMAIL DEVDECK_ADMIN_PASSWORD
+# Benutzer existieren, packages/server/src/index.ts). Nur dann sind die beiden
+# Variablen Pflicht; bei bestehender Datenbank werden sie nicht gebraucht.
+if [ ! -f "${DEVDECK_DATA_DIR:-data}/devdeck.db" ]; then
+  : "${DEVDECK_ADMIN_EMAIL:?Erster Start: bitte DEVDECK_ADMIN_EMAIL setzen}"
+  : "${DEVDECK_ADMIN_PASSWORD:?Erster Start: bitte DEVDECK_ADMIN_PASSWORD setzen}"
+  export DEVDECK_ADMIN_EMAIL DEVDECK_ADMIN_PASSWORD
+fi
 
 echo ""
 echo "🚀 Starte DevDeck Server (bindet an alle Netzwerk-Interfaces)..."
@@ -60,7 +68,7 @@ echo ""
 echo "🏥 Health-Check:  http://localhost:8080/health"
 echo ""
 echo "🔐 Login-Info (nur beim allerersten Start wirksam):"
-echo "  E-Mail:        ${DEVDECK_ADMIN_EMAIL}"
+echo "  E-Mail:        ${DEVDECK_ADMIN_EMAIL:-<bestehender Admin>}"
 echo "  ⚠️  Bitte nach dem ersten Login in der Benutzerverwaltung ändern."
 echo "  (eigene Werte: DEVDECK_ADMIN_EMAIL/DEVDECK_ADMIN_PASSWORD vor dem Start exportieren)"
 echo ""
