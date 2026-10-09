@@ -1,7 +1,7 @@
 # DevDeck – Starten & Anmelden (lokal auf dem Server)
 
 Diese Anleitung beschreibt den Start von DevDeck auf diesem Rechner (`<server>`) und den
-ersten Login. Sie ergänzt die Architektur-/Konzeptdokumente (`README.de.md`, `DEVDECK_v5.md`)
+ersten Login. Sie ergänzt die Architektur-/Konzeptdokumente (`../README.de.md`, `DEVDECK_v5.md`)
 um die reinen Bedienschritte.
 
 ## 1. Voraussetzungen

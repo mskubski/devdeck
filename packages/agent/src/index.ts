@@ -50,7 +50,7 @@ function parseArgs(argv: string[]): CliArgs {
 function ensureConfig(args: CliArgs): AgentConfig {
   const existing = loadAgentConfig(args.configPath);
   const config: AgentConfig = existing ?? {
-    serverUrl: (args.server ?? process.env.DEVDECK_SERVER_URL ?? 'http://127.0.0.1:7400').replace(
+    serverUrl: (args.server ?? process.env.DEVDECK_SERVER_URL ?? 'http://127.0.0.1:8080').replace(
       /\/+$/,
       '',
     ),

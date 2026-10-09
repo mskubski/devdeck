@@ -38,7 +38,7 @@ export function loadConfig(env: Env = process.env, overrides: Partial<ServerConf
   const dataDir = path.resolve(overrides.dataDir ?? env.DEVDECK_DATA_DIR ?? './data');
   const config: ServerConfig = {
     host: env.DEVDECK_HOST ?? '127.0.0.1',
-    port: Number(env.DEVDECK_PORT ?? 7400),
+    port: Number(env.DEVDECK_PORT ?? 8080),
     dataDir,
     dbPath: path.join(dataDir, 'devdeck.db'),
     vaultDir: path.join(dataDir, 'vault'),

@@ -716,7 +716,7 @@ Benutzerverwaltung, Machine Enrollment, Workspace-Registry/-Provisioning/-Sync, 
 Sessions/Handovers, Coding-Context-Erzeugung und ein vollständig verdrahteter DevDeck Vault sind
 funktionsfähig. Bewusst noch nicht umgesetzt: DevDeck CLI, Backups/Restore, eigene
 Decisions/Changelog/Known-Issues-Verwaltung sowie Service-Integrationen – siehe
-[IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) für den genauen Stand und die Hilfe-Seite
+[IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) für den genauen Stand und die Hilfe-Seite
 in der Web-UI für eine nutzerorientierte Erklärung. Nicht alle in diesem README beschriebenen
 Funktionen sind bereits implementiert – es bleibt teils Zielbild.
 

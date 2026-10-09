@@ -28,7 +28,7 @@ export function loadAgentConfig(configPath = defaultConfigPath()): AgentConfig |
   try {
     const raw = JSON.parse(fs.readFileSync(configPath, 'utf8')) as Partial<AgentConfig>;
     return {
-      serverUrl: (raw.serverUrl ?? 'http://127.0.0.1:7400').replace(/\/+$/, ''),
+      serverUrl: (raw.serverUrl ?? 'http://127.0.0.1:8080').replace(/\/+$/, ''),
       machineId: raw.machineId ?? null,
       machineToken: raw.machineToken ?? null,
       localToken: raw.localToken ?? '',

@@ -1,5 +1,6 @@
 # DevDeck
 
+[![CI](https://github.com/mskubski/devdeck/actions/workflows/ci.yml/badge.svg)](https://github.com/mskubski/devdeck/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Status: early development](https://img.shields.io/badge/status-early%20development-orange)
 
@@ -56,7 +57,7 @@ syncing source code through a file-sync service or a proprietary mechanism.
 - Plain HTML/CSS/JS web UI – no frontend build step
 - Audit log for security-relevant actions
 
-See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) for what is implemented and what is
+See [IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) for what is implemented and what is
 still planned (CLI, backups/restore, service integrations).
 
 ## Requirements
@@ -82,20 +83,22 @@ npm run server
 
 Open <http://localhost:8080> (or your `DEVDECK_PORT`) and log in. Change the password after the first login.
 `./start.sh` bundles these steps for a Linux server (build, start, health check); see
-[ANLEITUNG.md](ANLEITUNG.md) (German) for details on enrolling agents.
+[ANLEITUNG.md](docs/ANLEITUNG.md) (German) for details on enrolling agents.
 
 ### Configuration
 
 | Variable | Default | Description |
 |---|---|---|
 | `DEVDECK_HOST` | `127.0.0.1` | Interface the server binds to |
-| `DEVDECK_PORT` | `7400` | HTTP port |
+| `DEVDECK_PORT` | `8080` | HTTP port |
 | `DEVDECK_DATA_DIR` | `./data` | SQLite database, vault and runtime data |
 | `DEVDECK_ADMIN_EMAIL` / `DEVDECK_ADMIN_PASSWORD` | – | Bootstrap admin on first start |
 
 See `packages/server/src/config.ts` for the complete list.
 
 ## Development
+
+Contributions are welcome – see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```bash
 npm run build       # tsc -b
@@ -113,16 +116,15 @@ packages/
   cli/      Planned CLI
 ```
 
-Further design documents (German): [DEVDECK_v5.md](DEVDECK_v5.md),
-[IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md), [STRUKTUR.md](STRUKTUR.md).
+Further design documents (German): [DEVDECK_v5.md](docs/DEVDECK_v5.md),
+[IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md), [STRUKTUR.md](docs/STRUKTUR.md).
 
 ## Security
 
 DevDeck handles credentials, so run it behind HTTPS (e.g. a reverse proxy) and keep the data
 directory and vault key (`vault.key`) private and backed up. Never commit `.env`, `data/` or
 `agent.json` files. This is early-stage software that has not had an independent security
-audit – use at your own risk. Please report vulnerabilities privately via GitHub's
-"Report a vulnerability" feature rather than a public issue.
+audit – use at your own risk. See [SECURITY.md](SECURITY.md) for how to report vulnerabilities privately.
 
 ## Status
 
