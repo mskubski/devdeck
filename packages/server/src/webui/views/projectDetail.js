@@ -5,6 +5,7 @@ import { icon } from '../lib/icons.js';
 import { renderOverview } from './project/overview.js';
 import { renderMembers } from './project/members.js';
 import { renderTasks } from './project/tasks.js';
+import { renderDecisions, renderChangelog, renderKnownIssues, renderHistory } from './project/knowledge.js';
 import { renderSessions } from './project/sessions.js';
 import { renderSecrets } from './project/secrets.js';
 import { renderWorkspaces } from './project/workspaces.js';
@@ -14,6 +15,10 @@ const TABS = [
   { key: 'overview', icon: 'dashboard', label: 'Übersicht', render: renderOverview },
   { key: 'members', icon: 'users', label: 'Mitglieder', render: renderMembers },
   { key: 'tasks', icon: 'tasks', label: 'Tasks', render: renderTasks },
+  { key: 'decisions', icon: 'compass', label: 'Entscheidungen', render: renderDecisions },
+  { key: 'changelog', icon: 'package', label: 'Changelog', render: renderChangelog },
+  { key: 'issues', icon: 'hourglass', label: 'Known Issues', render: renderKnownIssues },
+  { key: 'history', icon: 'history', label: 'Verlauf', render: renderHistory },
   { key: 'sessions', icon: 'code', label: 'Sessions', render: renderSessions },
   { key: 'secrets', icon: 'key', label: 'Secrets', render: renderSecrets },
   { key: 'workspaces', icon: 'laptop', label: 'Workspaces', render: renderWorkspaces },

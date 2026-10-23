@@ -61,7 +61,15 @@ function loadProject(db: Database, projectId: string): ProjectRow {
   return project;
 }
 
-function buildContextMd(project: ProjectRow): string {
+function buildContextMd(db: Database, projectId: string, project: ProjectRow): string {
+  const decisions = db.all<{ title: string; rationale: string | null }>(
+    `SELECT title, rationale FROM decisions
+     WHERE project_id = ? AND status = 'accepted' ORDER BY decided_at DESC LIMIT 15`,
+    projectId,
+  );
+  const decisionLines = decisions.length
+    ? ['## Getroffene Entscheidungen', '', ...decisions.map((d) => `- ${d.title}${d.rationale ? ` — ${d.rationale}` : ''}`), '']
+    : [];
   return [
     `# ${project.name}`,
     '',
@@ -71,6 +79,7 @@ function buildContextMd(project: ProjectRow): string {
     `- Repository: ${project.repo_remote ?? '–'}`,
     `- Standard-Branch: \`${project.default_branch}\``,
     '',
+    ...decisionLines,
     '> Diese Datei wird von DevDeck automatisch aus der zentralen Datenbank erzeugt ' +
       '(`context.refresh` / Workspace Sync). Änderungen hier werden beim nächsten Refresh überschrieben.',
     '',
@@ -100,6 +109,14 @@ function buildCurrentStateMd(db: Database, projectId: string): string {
       lines.push(`- [${t.status === 'in_progress' ? 'laufend' : 'offen'}] (P${t.priority}) ${t.title}`);
     }
   }
+  const issues = db.all<{ title: string; severity: string }>(
+    `SELECT title, severity FROM known_issues WHERE project_id = ? AND status = 'open'
+     ORDER BY CASE severity WHEN 'high' THEN 3 WHEN 'medium' THEN 2 ELSE 1 END DESC, created_at DESC LIMIT 15`,
+    projectId,
+  );
+  lines.push('', '## Bekannte Probleme');
+  if (issues.length === 0) lines.push('_Keine offenen bekannten Probleme._');
+  for (const i of issues) lines.push(`- [${i.severity}] ${i.title}`);
   lines.push('', '## Letzte Coding Sessions');
   if (sessions.length === 0) {
     lines.push('_Noch keine Coding Sessions erfasst._');
@@ -165,7 +182,7 @@ export function buildProjectContext(input: ProjectContextInput): BuiltContext {
   const { db, projectId } = input;
   const project = loadProject(db, projectId);
   return {
-    'CONTEXT.md': buildContextMd(project),
+    'CONTEXT.md': buildContextMd(db, projectId, project),
     'CURRENT_STATE.md': buildCurrentStateMd(db, projectId),
     'CHANGELOG_RECENT.md': buildChangelogMd(db, projectId),
     'SECRETS.md': buildSecretsMd(db, projectId),

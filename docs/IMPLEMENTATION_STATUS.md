@@ -11,7 +11,7 @@ Aktualisiert nach jeder Phase (Code → Tests → Typecheck → Dokumentation).
 | B | Agent-Protokoll: Machine Registry, Enrollment, Heartbeat, Command-Queue, Agent-Gerüst | ✅ abgeschlossen |
 | C | Workspace Registry, workspace.yaml, Workspace Status, Readiness | ✅ abgeschlossen |
 | D | Provision Workspace, Sync Workspace, Dependencies | ✅ abgeschlossen |
-| E | Tasks ✅ · Decisions/Changelog/Known Issues/History | ⏳ Tasks fertig, Rest bewusst zurückgestellt (siehe unten) |
+| E | Tasks ✅ · Decisions/Changelog/Known Issues/History ✅ | ✅ abgeschlossen |
 | F | Coding Sessions ✅ · .devdeck Context ✅ · Handovers ✅ | ✅ abgeschlossen |
 | G | DevDeck Vault: Metadata, Values, Files, Permissions, Projektion | ✅ abgeschlossen |
 | H | DevDeck CLI, Claude-Launcher, Codex-Launcher | ⬜ kein Quellcode vorhanden |
