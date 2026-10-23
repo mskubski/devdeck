@@ -163,7 +163,7 @@ wird (nicht zwingend auf dem Server selbst). Pro Maschine braucht es einmalig:
 
 ## 7c. Architektur-Karte (Projekt-Übersicht)
 
-Das weiße Feld oben auf der Projekt-Übersicht zeigt Entwicklung → GitHub → Betrieb/Hosting → Datenbank sowie alle externen Dienste (Mail, Telegram, KI-Anbieter,
+Das weiße Feld unten auf der Projekt-Übersicht (unter Kennzahlen, Projektinfo und letzten Sessions) zeigt Entwicklung → GitHub → Betrieb/Hosting → Datenbank sowie alle externen Dienste (Mail, Telegram, KI-Anbieter,
 Karten, Newsletter, Zahlung …) mit Beschreibungen und beschrifteten Beziehungen. Quellen (Vorrang: manuell > Manifest > automatisch):
 
 1. **Automatisch:** Der Agent liest bei jeder Workspace-Prüfung nur *Namen* der `.env`-Variablen, bereinigte Hostnamen (ohne Zugangsdaten, nur für Variablen wie `*_HOST`/`*_URL`),

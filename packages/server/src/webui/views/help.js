@@ -224,7 +224,7 @@ npm run build</pre>
       icon: 'layers',
       title: 'Architektur-Karte',
       body: `
-        <p>Auf der <strong>Projekt-Übersicht</strong> zeigt ein weißes Feld über die ganze Breite, <strong>woraus das Projekt besteht und wie die Teile zusammenhängen</strong>:
+        <p>Auf der <strong>Projekt-Übersicht</strong> zeigt – unterhalb von Kennzahlen, Projektinfo und letzten Sessions – ein weißes Feld über die ganze Breite, <strong>woraus das Projekt besteht und wie die Teile zusammenhängen</strong>:
         Entwicklungsrechner → GitHub-Repository → Betrieb/Hosting (eigener Server, Vercel, IONOS-Webspace …) → Datenbank (lokal mit Dateigröße, Supabase mit Region)
         sowie darunter alle externen Dienste (Mail-Server, Telegram-Bot, KI-Anbieter wie Anthropic/Mistral/OpenRouter, Karten wie OpenStreetMap, Newsletter, Zahlung …).
         Jede Karte hat eine Beschreibung; die Pfeile sind beschriftet. Ein Klick auf eine Karte zeigt alle Details und Beziehungen, ein Klick auf eine Pfeil-Beschriftung die Verbindung.
