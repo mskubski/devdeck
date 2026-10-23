@@ -345,6 +345,14 @@ const MIGRATIONS: string[] = [
   CREATE UNIQUE INDEX idx_codingsessions_external
     ON coding_sessions(machine_id, external_id) WHERE external_id IS NOT NULL;
   `,
+  // v9: einfache Schlüssel/Wert-Einstellungen (z. B. automatisches Server-Update)
+  `
+  CREATE TABLE settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

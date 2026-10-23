@@ -12,6 +12,9 @@
 - [x] Dependabot und npm audit in CI
 - [x] Phase J: Konnektor-Interface und GitHub-Konnektor
 - [x] Server-Update per Knopfdruck (System-Seite)
+- [x] Alle Agents beim Server-Update mit aktualisieren
+- [x] Automatisches nächtliches Update (optional)
+- [x] Auto-Merge für Pull Requests
 - [x] Coding Sessions aus Claude Code automatisch erfassen (Transcript-Scanner im Agent)
 
 ## Offen

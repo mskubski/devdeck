@@ -11,9 +11,10 @@ Code-Anpassung, ohne dass der Nutzer extra daran erinnern muss:
 1. `npm run build && npm test` – nur bei grünem Ergebnis weiter.
 2. Auf einem Feature-Branch committen (nie direkt auf `main`; `main` ist durch den Check `build-and-test` geschützt).
 3. `git push -u origin HEAD`, Pull Request öffnen (`gh pr create --fill`).
-4. CI abwarten (`gh pr checks --watch`) und bei grün mergen (`gh pr merge --merge`). Bei rotem CI: Fehler beheben,
-   nicht umgehen (kein `--admin`, kein Force-Push, kein `--no-verify`).
-5. Dem Nutzer am Ende sagen, dass der Stand auf `main` liegt und der Server jetzt per Knopf aktualisiert werden kann.
+4. Auto-Merge einschalten: `gh pr merge --auto --merge` (GitHub mergt den PR selbst, sobald `build-and-test` grün ist –
+   nicht auf die CI warten). Bei rotem CI: Fehler beheben, nicht umgehen (kein `--admin`, kein Force-Push, kein `--no-verify`).
+5. Dem Nutzer am Ende sagen: PR-Link, „mergt automatisch nach grüner CI“ – danach kann der Server per Knopf
+   (System → Server aktualisieren) aktualisiert werden, oder er aktualisiert sich nachts selbst, falls aktiviert.
 
 Der Server-Ordner auf debian01 ist zugleich ein Entwicklungs-Checkout: **keine uncommitteten Änderungen hinterlassen** –
 das Server-Update bricht bei lokalen Änderungen an versionierten Dateien absichtlich ab.

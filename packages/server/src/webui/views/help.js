@@ -175,14 +175,20 @@ npm run build</pre>
             Die Sitzung erscheint automatisch unter <em>Sessions</em> (Quelle „Claude Code“), sobald der
             Agent läuft und der Workspace registriert ist.</li>
           <li><strong>Auf GitHub bringen</strong> (macht Claude Code automatisch): bauen und testen, committen, pushen,
-            Pull Request öffnen, CI abwarten, nach <code>main</code> mergen.</li>
+            Pull Request öffnen und Auto-Merge einschalten – GitHub mergt nach <code>main</code>, sobald die CI grün ist.</li>
           <li><strong>Server aktualisieren:</strong> in DevDeck unter <em>System</em> auf „Server aktualisieren“ klicken.
             Ein Backup wird automatisch erstellt, der neueste Stand von <code>main</code> geholt, gebaut und der Server
-            neu gestartet (wenige Sekunden; Agents verbinden sich selbstständig wieder). Schlägt etwas fehl, bleibt der
-            alte Stand aktiv. Das geht von jeder Maschine aus, die in DevDeck angemeldet ist.</li>
-          <li><strong>Andere Maschinen:</strong> unter <em>Maschinen</em> „Agent updaten“ (Fast-Forward-Pull, Build, Neustart);
-            Projekt-Workspaces mit <em>Sync</em> (<code>devdeck sync</code>) auf den neuen Stand bringen.</li>
+            neu gestartet (wenige Sekunden). Mit dem Häkchen „auch alle Agents aktualisieren“ (Standard) holen sich danach
+            alle online befindlichen Agents den neuen Stand selbst (Fast-Forward-Pull, Build, Neustart) – ein Klick für alles.
+            Schlägt etwas fehl, bleibt der alte Stand aktiv. Das geht von jeder Maschine aus, die in DevDeck angemeldet ist.</li>
+          <li><strong>Projekt-Workspaces</strong> mit <em>Sync</em> (<code>devdeck sync</code>) auf den neuen Stand bringen.
+            Einzelne Agents lassen sich weiterhin unter <em>Maschinen</em> mit „Agent updaten“ aktualisieren;
+            Agents unter Version 0.2.0 müssen einmalig von Hand aktualisiert werden.</li>
         </ol>
+        <p><strong>Optional – ganz ohne Klick:</strong> Auf der Seite <em>System</em> kann das <em>automatische Update</em> eingeschaltet
+        werden. Der Server prüft dann nachts zur gewählten Stunde (Standard 03:00, Serverzeit), ob <code>main</code> neuer ist, und
+        aktualisiert sich samt Agents – höchstens einmal pro Tag, nur mit sauberem Server-Ordner und nie, während ein Agent-Auftrag läuft.
+        Standardmäßig ist es <strong>aus</strong>. Das Ergebnis steht unter „Letztes Update“.</p>
         <p class="muted">Hinweise: Der Server-Rechner braucht Zugriff auf GitHub (<code>git fetch</code>). Bei lokalen
         Änderungen im Server-Ordner bricht das Update bzw. „Agent updaten“ ab – dort nichts uncommittet liegen lassen.
         Das Update läuft auf dem Branch <code>main</code> (änderbar mit <code>DEVDECK_UPDATE_BRANCH</code>).

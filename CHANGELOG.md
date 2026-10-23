@@ -3,6 +3,12 @@
 ## Unreleased - 2026-10-23
 
 ### Added
+- „Alle Agents mit updaten“: Das Server-Update reiht (Häkchen, Standard an) `agent.update` für alle online befindlichen Agents ab 0.2.0 ein.
+  Agent-Update nutzt `npm ci` (fasst die Lockfile nicht an) und startet nur neu, wenn sich der Code wirklich geändert hat
+  (auch auf dem Server-Rechner, wo der Code bereits aktuell ist). Selbst-Update-Fähigkeit (`agent_can_self_update`) statt „veraltet“ entscheidet über den Knopf.
+- Automatisches Update (optional, standardmäßig aus): einmal pro Nacht zur gewählten Stunde, nur bei neuem `main`, sauberem Ordner und
+  ohne laufende Agent-Aufträge; Einstellungen und „Letztes Update“ auf der System-Seite (Tabelle `settings`, Migration v9).
+- Auto-Merge für Pull Requests in GitHub aktiviert; `CLAUDE.md` nutzt `gh pr merge --auto`.
 - Server-Update per Knopfdruck (**System → Server aktualisieren**, nur Admin): Backup, `git fetch` + Fast-Forward auf `main`
   (`DEVDECK_UPDATE_BRANCH`), `npm ci`, Build, Neustart über systemd (Exit 75); bei Fehlern automatische Rückabwicklung auf den
   vorherigen Stand. Bricht bei lokalen Änderungen am Server-Checkout ab. Routen `GET /api/system/version`, `GET|POST /api/system/update`.

@@ -1,9 +1,11 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { AppError } from '@devdeck/shared';
+import { AppError, supportsSelfUpdate } from '@devdeck/shared';
 import type { AppContext } from '../context.js';
 import { audit } from './audit.js';
 import { createSystemBackup } from './backups.js';
+import { enqueueCommand } from './provisioning.js';
+import { setSetting } from './settings.js';
 
 const exec = promisify(execFile);
 
@@ -101,21 +103,68 @@ function defaultRestart(): void {
   setTimeout(() => process.exit(75), 1500).unref?.();
 }
 
+export interface UpdateActor {
+  id: string | null;
+  label: string;
+  type: 'user' | 'system';
+}
+
+export interface UpdateOptions {
+  /** Nach dem Server-Update auch alle online befindlichen Agents aktualisieren lassen. */
+  agents: boolean;
+}
+
 /** Startet das Update im Hintergrund; es läuft höchstens eines gleichzeitig. */
-export function startSelfUpdate(ctx: AppContext, actor: { id: string; label: string }): void {
+export function startSelfUpdate(ctx: AppContext, actor: UpdateActor, options: UpdateOptions = { agents: false }): void {
   if (state.state === 'running') throw new AppError('CONFLICT', 'Es läuft bereits ein Update');
   Object.assign(state, {
     state: 'running', started_at: new Date().toISOString(), finished_at: null, steps: [],
     from: null, to: null, error: null, restarting: false,
   } satisfies UpdateState);
   audit(ctx.db, {
-    actor_type: 'user', actor_id: actor.id, actor_label: actor.label,
+    actor_type: actor.type, actor_id: actor.id, actor_label: actor.label,
     action: 'system.update.start', target_type: 'system', result: 'success',
+    detail: { agents: options.agents },
   });
-  void performUpdate(ctx, actor);
+  void performUpdate(ctx, actor, options);
 }
 
-async function performUpdate(ctx: AppContext, actor: { id: string; label: string }): Promise<void> {
+/** Merkt das Ergebnis für die System-Seite (überlebt den Neustart). */
+function recordResult(ctx: AppContext, actor: UpdateActor, result: 'success' | 'failed', detail: string): void {
+  setSetting(ctx.db, 'last_update', JSON.stringify({
+    at: new Date().toISOString(),
+    by: actor.type === 'system' ? 'automatisch' : actor.label,
+    result,
+    detail,
+  }));
+}
+
+/** agent.update für alle online befindlichen Agents einreihen (sie holen es nach dem Server-Neustart ab). */
+function queueAgentUpdates(ctx: AppContext, actor: UpdateActor): string {
+  const machines = ctx.db.all<{ id: string; name: string; agent_version: string | null }>(
+    `SELECT id, name, agent_version FROM machines WHERE revoked_at IS NULL AND agent_status = 'online'`,
+  );
+  let queued = 0;
+  const skipped: string[] = [];
+  for (const m of machines) {
+    if (!supportsSelfUpdate(m.agent_version)) {
+      skipped.push(m.name);
+      continue;
+    }
+    enqueueCommand(ctx.db, { machineId: m.id, action: 'agent.update', payload: {}, requestedBy: actor.id, ttlSeconds: 900 });
+    queued++;
+  }
+  audit(ctx.db, {
+    actor_type: actor.type, actor_id: actor.id, actor_label: actor.label,
+    action: 'system.update.agents', target_type: 'system', result: 'success',
+    detail: { queued, skipped },
+  });
+  return skipped.length
+    ? `${queued} beauftragt, ${skipped.length} zu alt für Selbst-Update (${skipped.join(', ')}) – manuell aktualisieren`
+    : `${queued} beauftragt`;
+}
+
+async function performUpdate(ctx: AppContext, actor: UpdateActor, options: UpdateOptions): Promise<void> {
   const root = ctx.config.repoRoot;
   const target = ctx.config.updateBranch;
   const step = async <T>(name: string, fn: () => Promise<T>, detail?: (r: T) => string | undefined): Promise<T> => {
@@ -153,13 +202,18 @@ async function performUpdate(ctx: AppContext, actor: { id: string; label: string
     const remoteHash = (await git(root, ['rev-parse', `origin/${target}`])).stdout.trim();
     if (remoteHash === beforeHash && beforeBranch === target) {
       state.to = info.commit;
-      state.steps.push({ name: 'Bereits auf dem neuesten Stand', status: 'done' });
+      state.steps.push({ name: 'Server bereits auf dem neuesten Stand', status: 'done' });
+      if (options.agents) {
+        await step('Agents aktualisieren', async () => queueAgentUpdates(ctx, actor), (r) => r);
+      }
       state.state = 'success';
+      state.finished_at = new Date().toISOString();
+      recordResult(ctx, actor, 'success', 'bereits aktuell');
       return;
     }
 
     await step('Datensicherung', async () => {
-      const b = createSystemBackup(ctx, { id: actor.id, label: actor.label, type: 'user' });
+      const b = createSystemBackup(ctx, actor);
       if (b.status !== 'success') throw new AppError('INTERNAL', `Backup fehlgeschlagen: ${b.error ?? 'unbekannt'} – Update abgebrochen`);
       return b;
     });
@@ -174,6 +228,9 @@ async function performUpdate(ctx: AppContext, actor: { id: string; label: string
       must(await run('npm', ['ci', '--no-audit', '--no-fund'], root, 10 * 60_000), 'npm ci'));
     await step('Bauen', async () => must(await run('npm', ['run', 'build'], root, 10 * 60_000), 'npm run build'));
 
+    if (options.agents) {
+      await step('Agents aktualisieren', async () => queueAgentUpdates(ctx, actor), (r) => r);
+    }
     state.steps.push({ name: 'Neustart', status: 'running' });
     const restart = ctx.restart ?? (process.env.INVOCATION_ID ? defaultRestart : null);
     if (restart) {
@@ -184,15 +241,15 @@ async function performUpdate(ctx: AppContext, actor: { id: string; label: string
     }
     state.state = 'success';
     state.finished_at = new Date().toISOString();
+    recordResult(ctx, actor, 'success', `${state.from} → ${state.to}`);
     audit(ctx.db, {
-      actor_type: 'user', actor_id: actor.id, actor_label: actor.label,
+      actor_type: actor.type, actor_id: actor.id, actor_label: actor.label,
       action: 'system.update.finish', target_type: 'system', result: 'success',
       detail: { from: state.from, to: state.to },
     });
     restart?.();
   } catch (err) {
     state.error = err instanceof Error ? err.message : String(err);
-    state.state = 'failed';
     // Nach einem Fehlschlag auf den vorherigen, lauffähigen Stand zurück (Baum war vorher sauber).
     if (changed && beforeHash) {
       try {
@@ -206,9 +263,11 @@ async function performUpdate(ctx: AppContext, actor: { id: string; label: string
         state.error += ' – Rückabwicklung ebenfalls fehlgeschlagen, bitte manuell prüfen.';
       }
     }
+    state.state = 'failed'; // erst nach der Rückabwicklung, damit Beobachter nicht zu früh „fertig“ sehen
     state.finished_at = new Date().toISOString();
+    recordResult(ctx, actor, 'failed', state.error ?? 'unbekannter Fehler');
     audit(ctx.db, {
-      actor_type: 'user', actor_id: actor.id, actor_label: actor.label,
+      actor_type: actor.type, actor_id: actor.id, actor_label: actor.label,
       action: 'system.update.finish', target_type: 'system', result: 'failure',
       detail: { error: state.error },
     });

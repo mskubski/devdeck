@@ -98,6 +98,8 @@ export interface MachineDto {
   agent_version: string | null;
   workspace_root: string | null;
   agent_outdated: boolean;
+  /** Agent kennt `agent.update` (≥ 0.2.0) – auch wenn er nicht die allerneueste Version ist. */
+  agent_can_self_update: boolean;
   agent_status: MachineStatus;
   last_seen_at: string | null;
   revoked_at: string | null;

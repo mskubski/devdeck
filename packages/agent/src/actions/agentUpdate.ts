@@ -6,6 +6,7 @@ import { AppError } from '@devdeck/shared';
 import { registerAction } from './index.js';
 import { git, gitStatus } from '../git.js';
 import { log } from '../logger.js';
+import { planUpdate } from '../updatePlan.js';
 
 const exec = promisify(execFile);
 
@@ -23,6 +24,18 @@ async function npm(cwd: string, args: string[]): Promise<void> {
     shell: process.platform === 'win32',
     maxBuffer: 20 * 1024 * 1024,
   });
+}
+
+let runningHead: string | null = null;
+
+/** Beim Agent-Start aufrufen: merkt sich den Commit, aus dem der laufende Code stammt. */
+export async function recordRunningHead(): Promise<void> {
+  try {
+    const r = await git(repoRoot(), ['rev-parse', '--short', 'HEAD']);
+    if (r.code === 0) runningHead = r.stdout.trim();
+  } catch {
+    runningHead = null;
+  }
 }
 
 /** Nach dem Ergebnis-Report neu starten (systemd startet bei Exit-Code ≠ 0, sonst Selbst-Respawn). */
@@ -63,14 +76,20 @@ registerAction('agent.update', async () => {
     throw new AppError('GIT_UNREACHABLE', `git pull fehlgeschlagen: ${pull.stderr.trim()}`);
   }
   const after = (await git(root, ['rev-parse', '--short', 'HEAD'])).stdout.trim();
+  const plan = planUpdate(before, after, runningHead);
   try {
-    await npm(root, ['install', '--no-audit', '--no-fund']);
-    await npm(root, ['run', 'build']);
+    // `npm ci` statt `npm install`: verändert die package-lock.json nicht (sonst gilt der Ordner als „geändert“)
+    if (plan.install) await npm(root, ['ci', '--no-audit', '--no-fund']);
+    if (plan.build) await npm(root, ['run', 'build']);
   } catch (err) {
     throw new AppError(
       'INTERNAL',
       `Build fehlgeschlagen (Agent läuft unverändert weiter): ${err instanceof Error ? err.message : String(err)}`,
     );
+  }
+  if (!plan.restart) {
+    log.info(`Agent ist bereits auf dem neuesten Stand (${after})`);
+    return { from: before, to: after, restarting: false, up_to_date: true };
   }
   log.info(`Update ${before} -> ${after} abgeschlossen`);
   scheduleRestart();

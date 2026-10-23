@@ -18,6 +18,7 @@ import { startSessionScanner } from './sessionScanner.js';
 import { startLocalApi } from './localApi.js';
 import { log, logFilePath } from './logger.js';
 import './actions/all.js';
+import { recordRunningHead } from './actions/agentUpdate.js';
 
 interface CliArgs {
   command: 'start' | 'enroll' | 'status';
@@ -110,6 +111,7 @@ async function runStart(args: CliArgs): Promise<void> {
   setActiveConfigPath(args.configPath);
   saveAgentConfig(config, args.configPath);
 
+  await recordRunningHead();
   const local = startLocalApi(config);
   const heartbeat = startHeartbeat(config);
   const worker = startWorker(config);
