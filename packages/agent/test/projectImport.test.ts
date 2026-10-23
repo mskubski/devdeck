@@ -151,7 +151,17 @@ describe('project.import (Agent → Server)', () => {
     ).rejects.toThrow(/anderen Maschine/);
   });
 
+  it('lehnt den Import für zu alte Agents mit verständlicher Meldung ab (statt „Aktion nicht erlaubt“ vom Agent)', async () => {
+    srv.ctx.db.run('UPDATE machines SET agent_version = ?', '0.3.0');
+    const res = await srv.request('POST', `/api/workspaces/${workspaceId}/import`, { cookie, body: {} });
+    expect(res.status).toBe(400);
+    expect(res.body.error?.message).toContain('Version 0.3.0');
+    expect(res.body.error?.message).toContain('Agent updaten');
+    expect(srv.ctx.db.get(`SELECT 1 FROM agent_commands WHERE action = 'project.import'`)).toBeUndefined();
+  });
+
   it('UI-Routen: Import beauftragen und Ergebnis abrufen (nur Maintainer)', async () => {
+    srv.ctx.db.run('UPDATE machines SET agent_version = ?', '0.4.0');
     const res = await srv.request('POST', `/api/workspaces/${workspaceId}/import`, { cookie, body: { environment: 'staging' } });
     expect(res.status).toBe(202);
     const cmd = srv.ctx.db.get<{ action: string; payload_json: string }>('SELECT action, payload_json FROM agent_commands WHERE id = ?', res.body.data.command_id)!;

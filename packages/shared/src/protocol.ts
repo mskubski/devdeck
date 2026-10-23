@@ -41,6 +41,18 @@ export function isAgentOutdated(version: string | null | undefined): boolean {
 /** Ab dieser Agent-Version existiert die Aktion `agent.update` (Selbst-Update). */
 export const MIN_SELF_UPDATE_VERSION = '0.2.0';
 
+/** Ab welcher Agent-Version eine (neuere) Aktion existiert; ältere Agenten lehnen sie ab. */
+export const MIN_AGENT_VERSION_FOR_ACTION: Partial<Record<string, string>> = {
+  'project.import': '0.4.0',
+};
+
+export function agentSupportsAction(version: string | null | undefined, action: string): boolean {
+  const min = MIN_AGENT_VERSION_FOR_ACTION[action];
+  if (!min) return true;
+  if (!version) return false;
+  return compareVersions(version, min) >= 0;
+}
+
 export function supportsSelfUpdate(version: string | null | undefined): boolean {
   if (!version) return false;
   return compareVersions(version, MIN_SELF_UPDATE_VERSION) >= 0;

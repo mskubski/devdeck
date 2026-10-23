@@ -62,7 +62,12 @@ function scheduleRestart(): void {
  */
 registerAction('agent.update', async () => {
   const root = repoRoot();
-  const state = await gitStatus(root);
+  let state = await gitStatus(root);
+  // package-lock.json wird von npm gelegentlich umgeschrieben und ist nie von Hand geändert → zurücksetzen statt blockieren
+  if (state.dirty && state.files.every((f) => f.trim() === 'package-lock.json')) {
+    await git(root, ['checkout', '--', 'package-lock.json']);
+    state = await gitStatus(root);
+  }
   if (state.dirty) {
     throw new AppError(
       'GIT_DIRTY',
@@ -79,7 +84,14 @@ registerAction('agent.update', async () => {
   const plan = planUpdate(before, after, runningHead);
   try {
     // `npm ci` statt `npm install`: verändert die package-lock.json nicht (sonst gilt der Ordner als „geändert“)
-    if (plan.install) await npm(root, ['ci', '--no-audit', '--no-fund']);
+    if (plan.install) {
+      try {
+        await npm(root, ['ci', '--no-audit', '--no-fund']);
+      } catch {
+        // `npm ci` löscht node_modules zuerst; bei einem Fehler (z. B. Dateisperre unter Windows) reparieren
+        await npm(root, ['install', '--no-audit', '--no-fund']);
+      }
+    }
     if (plan.build) await npm(root, ['run', 'build']);
   } catch (err) {
     throw new AppError(
