@@ -22,6 +22,9 @@
 - Architektur-Karte steht auf der Projekt-Übersicht jetzt unten; Kennzahlen, Projektinfo und letzte Sessions bleiben oben.
 
 ### Fixed
+- Agent-Update scheiterte mit „GIT_UNREACHABLE … no such ref was fetched“, wenn der Ordner auf einem längst gemergten Feature-Branch stand, dessen Remote nach dem Merge gelöscht wurde
+  (`git pull` am Branch). Das Agent-Update holt jetzt wie das Server-Update `origin/main` und wechselt bei Bedarf per Fast-Forward auf `main` (`DEVDECK_UPDATE_BRANCH`); schlägt Build oder Probelauf
+  fehl, wird der alte Stand wiederhergestellt. Das Server-Update erkennt außerdem „Code auf der Platte ist neuer als der laufende Prozess“ (z. B. von Hand gepullt) und baut/startet dann trotzdem neu.
 - Hängende Agent-Aufträge: „running“-Aufträge ohne Ergebnis (Agent beendet/neu gestartet) blockierten dauerhaft u. a. das automatische Update („busy“); sie werden nach 30 Minuten als fehlgeschlagen abgeschlossen.
 - Dauer-„warning“: Ein fehlendes `.devdeck/workspace.yaml` ist nur noch ein optionaler Hinweis (OK), eine fehlende `.env` zählt nur, wenn das Manifest eine Projektion
   verlangt; die Kontext-Warnung entfällt, weil Sync den Kontext jetzt schreibt. Unter Windows wurde `npm` fälschlich als „nicht gefunden“ gemeldet (`.cmd` braucht eine Shell);

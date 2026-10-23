@@ -5,6 +5,7 @@ import { promisify } from 'node:util';
 import { AppError } from '@devdeck/shared';
 import { registerAction } from './index.js';
 import { git, gitStatus } from '../git.js';
+import { fastForwardToTarget, rollbackMove, updateBranch } from '../updateGit.js';
 import { log } from '../logger.js';
 import { planUpdate } from '../updatePlan.js';
 import { AGENT_VERSION } from '../config.js';
@@ -97,13 +98,21 @@ registerAction('agent.update', async () => {
       { files: state.files.slice(0, 20) },
     );
   }
-  const before = (await git(root, ['rev-parse', '--short', 'HEAD'])).stdout.trim();
-  const pull = await git(root, ['pull', '--ff-only'], 5 * 60_000);
-  if (pull.code !== 0) {
-    throw new AppError('GIT_UNREACHABLE', `git pull fehlgeschlagen: ${pull.stderr.trim()}`);
-  }
-  const after = (await git(root, ['rev-parse', '--short', 'HEAD'])).stdout.trim();
+  const move = await fastForwardToTarget(root);
+  const { before, after } = move;
+  if (move.switched) log.info(`Branch gewechselt: ${move.beforeBranch} -> ${updateBranch()}`);
   const plan = planUpdate(before, after, getRunningHead());
+  const undo = async (): Promise<void> => {
+    // Defektes Update nicht auf der Platte stehen lassen: zurück auf den alten Stand und neu bauen (best effort)
+    try {
+      await rollbackMove(root, move);
+      await npm(root, ['ci', '--no-audit', '--no-fund']).catch(() => npm(root, ['install', '--no-audit', '--no-fund']));
+      await npm(root, ['run', 'build']);
+      log.info(`Update zurückgenommen: wieder auf ${move.before}`);
+    } catch (e) {
+      log.error(`Rücknahme fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
   try {
     // `npm ci` statt `npm install`: verändert die package-lock.json nicht (sonst gilt der Ordner als „geändert“)
     if (plan.install) {
@@ -116,9 +125,10 @@ registerAction('agent.update', async () => {
     }
     if (plan.build) await npm(root, ['run', 'build']);
   } catch (err) {
+    await undo();
     throw new AppError(
       'INTERNAL',
-      `Build fehlgeschlagen (Agent läuft unverändert weiter): ${err instanceof Error ? err.message : String(err)}`,
+      `Build fehlgeschlagen, Stand ${move.before} wiederhergestellt (Agent läuft unverändert weiter): ${err instanceof Error ? err.message : String(err)}`,
     );
   }
   if (!plan.restart) {
@@ -126,7 +136,10 @@ registerAction('agent.update', async () => {
     return { from: before, to: after, restarting: false, up_to_date: true };
   }
   log.info(`Update ${before} -> ${after}: Build fertig, prüfe neuen Code …`);
-  const fresh = await smokeTest(root);
+  const fresh = await smokeTest(root).catch(async (err) => {
+    await undo();
+    throw err;
+  });
   const mode = process.env.INVOCATION_ID ? 'systemd (Exit-Code 75)' : 'Neustart als neuer Prozess';
   log.info(`Update ${before} -> ${after} abgeschlossen: neue Version ${fresh.version}, Node ${process.version}, Neustart: ${mode}`);
   scheduleRestart();
