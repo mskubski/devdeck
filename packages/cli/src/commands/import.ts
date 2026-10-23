@@ -4,7 +4,7 @@ import { parseArgs, flagString, type ParsedArgs } from '../args.js';
 import { api, CliError } from '../client.js';
 import { loadConfig, type CliConfig } from '../config.js';
 import type { Ctx } from '../io.js';
-import { parseChangelog, parseSecrets, parseTasks } from '../import/parsers.js';
+import { parseChangelog, parseSecrets, parseTasks } from '@devdeck/shared';
 import { resolveProject, type ResolvedProject } from '../project.js';
 
 const CHANGELOG_FILES = ['CHANGELOG.md', 'docs/CHANGELOG.md'];

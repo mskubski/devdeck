@@ -7,6 +7,7 @@ import { loadManifest } from '../manifest.js';
 import { gitStatus, isGitRepo, pullFFOnly } from '../git.js';
 import { buildReadiness } from '../readiness.js';
 import { installDependencies, lockfileHash } from '../dependencies.js';
+import { writeContextFiles } from '../contextFiles.js';
 
 /**
  * workspace.sync – SICHERER Workspace-Sync (Spezifikation §10):
@@ -69,7 +70,9 @@ registerAction('workspace.sync', async (ctx) => {
     body: { workspace_id: workspaceId, local_path: workspacePath },
   });
   const contextState =
-    contextRefresh.status === 200 ? (contextRefresh.data as Record<string, unknown>) : null;
+    contextRefresh.status === 200 && contextRefresh.data
+      ? { files: writeContextFiles(workspacePath, contextRefresh.data as Record<string, string>) }
+      : null;
 
   // 6) Readiness bewerten und melden
   const readiness = await buildReadiness({

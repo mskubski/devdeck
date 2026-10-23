@@ -124,6 +124,13 @@ Admins can create and verify system backups in the web UI (**Backups**); the vau
 store it separately. Restoring overwrites production data and is therefore only possible interactively in a
 terminal (stop the server first): `node packages/server/dist/restore.js <backup-dir>`.
 
+### Importing existing project data
+
+**Projects → Workspaces → Import** (maintainers): the agent reads `CHANGELOG.md`, `ROADMAP.md`/`TODO.md`, `.env` and `credentials.md` in the
+workspace, shows a preview (secret names, never values) and imports changelog entries, tasks and secrets (encrypted in the vault, chosen environment)
+after confirmation. Safe to repeat. Workspace sync also writes the generated context to `.devdeck/` and coding rules to `.claude/rules/devdeck.md`
+(both locally git-excluded, so the repository stays clean); put `<!-- devdeck:rules-included -->` in your `CLAUDE.md` to opt out.
+
 ### CLI
 
 ```bash

@@ -14,6 +14,8 @@ import { audit } from '../services/audit.js';
 import { completeCommand, pollCommands } from '../services/provisioning.js';
 import { buildProjectContext } from '../services/contextBuilder.js';
 import { projectSecretsFor, secretVersionsFor } from '../vault/projection.js';
+import { importProjectData, type ImportSecret } from '../services/projectImport.js';
+import { getProjectMembership } from '../auth/middleware.js';
 
 /** Agent-Protokoll (pollbasiert, PLAN §11). */
 export function agentRoutes(ctx: AppContext): Router {
@@ -279,6 +281,51 @@ export function agentRoutes(ctx: AppContext): Router {
       });
 
       res.json({ data: { ok: true, status } });
+    }),
+  );
+
+  // Import vorhandener Projektdaten (CHANGELOG/ROADMAP/.env/credentials.md), vom Agenten aus dem Workspace gelesen
+  router.post(
+    '/import',
+    asyncHandler(async (req, res) => {
+      const machine = req.machine!;
+      const ws = resolveOwnedWorkspace(req);
+      // Der Maschinenbesitzer muss im Projekt mindestens Maintainer sein (wie beim manuellen Anlegen von Secrets)
+      const owner = db.get<{ system_role: string }>('SELECT system_role FROM users WHERE id = ?', machine.owner_user_id);
+      const role = getProjectMembership(db, ws.project_id, machine.owner_user_id);
+      if (owner?.system_role !== 'admin' && role !== 'owner' && role !== 'maintainer') {
+        throw new AppError('FORBIDDEN', 'Import erfordert Maintainer-Rechte im Projekt');
+      }
+      const arr = (v: unknown, max: number, what: string): any[] => {
+        if (v === undefined) return [];
+        if (!Array.isArray(v) || v.length > max) throw new AppError('VALIDATION', `${what}: Array mit höchstens ${max} Einträgen erwartet`);
+        return v;
+      };
+      const str = (v: unknown): v is string => typeof v === 'string';
+      const changelog = arr(req.body?.changelog, 2000, 'changelog')
+        .filter((c) => c && str(c.summary) && c.summary.trim())
+        .map((c) => ({ version: str(c.version) ? c.version : null, date: str(c.date) ? c.date : null, summary: c.summary.trim(), body: str(c.body) ? c.body : null }));
+      const tasks = arr(req.body?.tasks, 1000, 'tasks')
+        .filter((t) => t && str(t.title) && t.title.trim())
+        .map((t) => ({ title: t.title.trim(), done: t.done === true, priority: Number(t.priority) || 3, section: str(t.section) ? t.section : null }));
+      const secrets: ImportSecret[] = arr(req.body?.secrets, 500, 'secrets')
+        .filter((s) => s && str(s.name) && /^[A-Za-z_][A-Za-z0-9_]*$/.test(s.name) && str(s.value) && s.value.length > 0 && s.value.length <= 50_000)
+        .map((s) => ({
+          name: s.name,
+          value: s.value,
+          environment: ['development', 'staging', 'production'].includes(s.environment) ? s.environment : 'production',
+          source: str(s.source) ? s.source.slice(0, 200) : undefined,
+        }));
+      const summary = importProjectData(ctx, {
+        projectId: ws.project_id,
+        userId: machine.owner_user_id,
+        actorLabel: `agent:${machine.name ?? machine.id}`,
+        machineId: machine.id,
+        changelog, tasks, secrets,
+        overwrite: req.body?.overwrite === true,
+        dryRun: req.body?.dry_run !== false,
+      });
+      res.json({ data: summary });
     }),
   );
 

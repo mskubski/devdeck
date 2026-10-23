@@ -50,6 +50,7 @@ export interface BuiltContext {
   'CURRENT_STATE.md': string;
   'CHANGELOG_RECENT.md': string;
   'SECRETS.md': string;
+  'RULES.md': string;
 }
 
 function loadProject(db: Database, projectId: string): ProjectRow {
@@ -59,6 +60,35 @@ function loadProject(db: Database, projectId: string): ProjectRow {
   );
   if (!project) throw new Error(`Projekt ${projectId} nicht gefunden`);
   return project;
+}
+
+/** Arbeitsregeln für Coding Agents (landen lokal in `.claude/rules/devdeck.md`). */
+function buildRulesMd(project: ProjectRow): string {
+  return [
+    `# DevDeck-Arbeitsregeln – ${project.name}`,
+    '',
+    '> Automatisch von DevDeck erzeugt (Workspace-Sync). Nicht bearbeiten – Änderungen werden überschrieben.',
+    '',
+    '## Projektkontext',
+    '',
+    'Lies zu Beginn jeder Sitzung `.devdeck/CONTEXT.md` und `.devdeck/CURRENT_STATE.md` (Entscheidungen, offene Tasks,',
+    'bekannte Probleme). Secrets: In `.devdeck/SECRETS.md` stehen nur Namen – Werte niemals in Code, Logs oder Commits schreiben.',
+    '',
+    '## Nach jeder Code-Anpassung GitHub aktualisieren',
+    '',
+    '1. Build und Tests ausführen, falls vorhanden – nur bei Erfolg weitermachen.',
+    `2. Committen und nach GitHub pushen (\`git push\`${project.repo_remote ? `, Remote: ${project.repo_remote}` : ''}).`,
+    `   Ist \`${project.default_branch}\` geschützt (Pull Request/CI Pflicht): Feature-Branch pushen, Pull Request öffnen`,
+    '   und Auto-Merge einschalten (`gh pr merge --auto --merge`).',
+    '3. Keine uncommitteten Änderungen und keine unveröffentlichten Commits hinterlassen – sonst bricht der DevDeck-Sync ab',
+    '   und andere Maschinen sehen den Stand nicht.',
+    '4. Kein Force-Push, kein `--no-verify`.',
+    '',
+    '## Dokumentation',
+    '',
+    'Nutzersichtbare Änderungen in `CHANGELOG.md` festhalten.',
+    '',
+  ].join('\n');
 }
 
 function buildContextMd(db: Database, projectId: string, project: ProjectRow): string {
@@ -186,5 +216,6 @@ export function buildProjectContext(input: ProjectContextInput): BuiltContext {
     'CURRENT_STATE.md': buildCurrentStateMd(db, projectId),
     'CHANGELOG_RECENT.md': buildChangelogMd(db, projectId),
     'SECRETS.md': buildSecretsMd(db, projectId),
+    'RULES.md': buildRulesMd(project),
   };
 }

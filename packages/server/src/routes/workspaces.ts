@@ -52,7 +52,7 @@ export function workspaceRoutes(ctx: AppContext): Router {
   // Command an die Maschine eines Workspaces schicken
   function enqueueForWorkspace(
     workspace: WorkspaceRow,
-    action: 'workspace.sync' | 'workspace.provision',
+    action: 'workspace.sync' | 'workspace.provision' | 'project.import',
     payload: Record<string, unknown>,
     requestedBy: string,
   ): string {
@@ -237,6 +237,75 @@ export function workspaceRoutes(ctx: AppContext): Router {
         detail: { command_id: commandId },
       });
       res.status(202).json({ data: { command_id: commandId } });
+    }),
+  );
+
+  // Bestehende Projektdateien (CHANGELOG/ROADMAP/.env/credentials.md) über den Agenten importieren.
+  // dry_run=true (Standard) liefert nur eine Vorschau; Secret-Werte werden nie zurückgegeben.
+  router.post(
+    '/workspaces/:id/import',
+    asyncHandler(async (req, res) => {
+      const ws = loadWorkspace(param(req, 'id')!);
+      const user = req.user!;
+      const role = db.get<{ role: string }>(
+        'SELECT role FROM project_members WHERE project_id = ? AND user_id = ?',
+        ws.project_id,
+        user.id,
+      );
+      const effective = role?.role ?? (user.system_role === 'admin' ? 'owner' : null);
+      if (effective !== 'owner' && effective !== 'maintainer') {
+        throw new AppError('FORBIDDEN', 'Import erfordert Maintainer-Rechte');
+      }
+      const environment = req.body?.environment ?? 'production';
+      if (!['development', 'staging', 'production'].includes(environment)) {
+        throw new AppError('VALIDATION', 'Ungültige Umgebung');
+      }
+      const dryRun = req.body?.dry_run !== false;
+      const commandId = enqueueForWorkspace(
+        ws,
+        'project.import',
+        { dry_run: dryRun, environment, overwrite: req.body?.overwrite === true },
+        user.id,
+      );
+      audit(db, {
+        actor_type: 'user',
+        actor_id: user.id,
+        actor_label: user.email,
+        action: 'workspace.import.request',
+        project_id: ws.project_id,
+        machine_id: ws.machine_id,
+        target_type: 'workspace',
+        target_id: ws.id,
+        result: 'success',
+        detail: { command_id: commandId, dry_run: dryRun, environment },
+      });
+      res.status(202).json({ data: { command_id: commandId } });
+    }),
+  );
+
+  // Status/Ergebnis eines Auftrags für die UI (Ergebnis enthält nie Secret-Werte)
+  router.get(
+    '/workspaces/:id/commands/:commandId',
+    asyncHandler(async (req, res) => {
+      const ws = loadWorkspace(param(req, 'id')!);
+      const user = req.user!;
+      const role = db.get<{ role: string }>(
+        'SELECT role FROM project_members WHERE project_id = ? AND user_id = ?',
+        ws.project_id,
+        user.id,
+      );
+      if (!role && user.system_role !== 'admin') throw new AppError('FORBIDDEN', 'Kein Zugriff auf diesen Workspace');
+      const cmd = db.get<{ id: string; status: string; error: string | null; result_json: string | null }>(
+        `SELECT id, status, error, result_json FROM agent_commands
+         WHERE id = ? AND machine_id = ? AND json_extract(payload_json, '$.workspace_id') = ?`,
+        param(req, 'commandId')!,
+        ws.machine_id,
+        ws.id,
+      );
+      if (!cmd) throw new AppError('NOT_FOUND', 'Auftrag nicht gefunden');
+      res.json({
+        data: { id: cmd.id, status: cmd.status, error: cmd.error, result: cmd.result_json ? JSON.parse(cmd.result_json) : null },
+      });
     }),
   );
 

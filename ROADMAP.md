@@ -11,6 +11,8 @@
 - [x] Phase E: Decisions, Changelog, Known Issues, History
 - [x] Dependabot und npm audit in CI
 - [x] Phase J: Konnektor-Interface und GitHub-Konnektor
+- [x] Import bestehender Projektdaten per Knopf (Workspaces → Importieren)
+- [x] Coding-Regeln für Claude Code (`.claude/rules/devdeck.md`) per Sync
 - [x] Server-Update per Knopfdruck (System-Seite)
 - [x] Alle Agents beim Server-Update mit aktualisieren
 - [x] Automatisches nächtliches Update (optional)

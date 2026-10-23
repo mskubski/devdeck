@@ -3,10 +3,16 @@
 ## Unreleased - 2026-10-23
 
 ### Fixed
+- Workspace-Sync/-Provision schrieben den generierten Kontext nicht nach `.devdeck/`; jetzt gemeinsam über `writeContextFiles`. Generierte Dateien werden lokal per
+  `.git/info/exclude` ignoriert, damit der Workspace nicht „dirty“ wird und der nächste Sync nicht abbricht. Command-Ergebnisse enthalten keine Dateiinhalte mehr.
 - Agent: Verbindungsfehler (Enrollment, Heartbeat, …) nennen jetzt URL und Ursache („Verbindung abgelehnt“, „Zeitüberschreitung – Firewall/anderes Netzwerk?“,
   „Hostname nicht auflösbar“) statt „This operation was aborted“; Enrollment gibt nach 15 s auf statt nach 40 s.
 
 ### Added
+- **Import per Knopf:** Workspaces → „Importieren“ (Aktion `project.import`, Agent 0.4.0): liest CHANGELOG.md, ROADMAP/TODO.md, .env/credentials.md im Workspace,
+  Vorschau ohne Secret-Werte, danach Import (idempotent; Secrets verschlüsselt im Vault; Audit ohne Werte). Parser liegen jetzt in `@devdeck/shared`.
+- **Coding-Regeln für Claude Code:** Der Server erzeugt `RULES.md`; der Agent installiert sie unversioniert als `.claude/rules/devdeck.md`
+  (Kontext lesen, nach jeder Änderung bauen/testen/pushen). Marker `<!-- devdeck:rules-included -->` in `CLAUDE.md` schaltet das ab.
 - „Alle Agents mit updaten“: Das Server-Update reiht (Häkchen, Standard an) `agent.update` für alle online befindlichen Agents ab 0.2.0 ein.
   Agent-Update nutzt `npm ci` (fasst die Lockfile nicht an) und startet nur neu, wenn sich der Code wirklich geändert hat
   (auch auf dem Server-Rechner, wo der Code bereits aktuell ist). Selbst-Update-Fähigkeit (`agent_can_self_update`) statt „veraltet“ entscheidet über den Knopf.

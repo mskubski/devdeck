@@ -8,6 +8,7 @@ import { clone, gitStatus, isGitRepo, pullFFOnly } from '../git.js';
 import { buildReadiness } from '../readiness.js';
 import { installDependencies, lockfileHash } from '../dependencies.js';
 import { checkTool, requiredTools } from '../tools.js';
+import { writeContextFiles } from '../contextFiles.js';
 
 const step = (name: string, detail?: string): Record<string, unknown> =>
   detail === undefined ? { step: name, status: 'ok' } : { step: name, status: 'ok', detail };
@@ -165,6 +166,9 @@ registerAction('workspace.provision', async (ctx) => {
   const ctxRes = await ctx.client.request('POST', '/api/agent/context/write', {
     body: { workspace_id: workspaceId, local_path: workspacePath },
   });
+  if (ctxRes.status === 200 && ctxRes.data) {
+    writeContextFiles(workspacePath, ctxRes.data as Record<string, string>);
+  }
   steps.push(
     ctxRes.status === 200
       ? step('context')

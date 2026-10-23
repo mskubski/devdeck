@@ -158,7 +158,17 @@ npm run build</pre>
         <p><strong>Provision</strong> richtet einen neuen oder leeren Workspace komplett ein: Clone → Toolchain
         prüfen → Dependencies installieren → autorisierte Secrets/<code>.env</code> projizieren → Context erzeugen →
         Readiness bewerten. Trifft Provision auf ein nicht-leeres, nicht-Git-Verzeichnis, bricht es mit einer
-        Rückfrage ab, statt etwas zu überschreiben.</p>`,
+        Rückfrage ab, statt etwas zu überschreiben.</p>
+        <p><strong>Importieren</strong> (Maintainer): Der Agent liest im Workspace <code>CHANGELOG.md</code>,
+        <code>ROADMAP.md</code>/<code>TODO.md</code> (Checkboxen <code>- [ ]</code>/<code>- [x]</code>, optional <code>(P1)</code>–<code>(P5)</code>)
+        sowie <code>.env</code> und <code>credentials.md</code> und zeigt zuerst eine <strong>Vorschau</strong> (Secret-Namen, nie Werte).
+        Nach Bestätigung landen Changelog-Einträge, Tasks und Secrets (verschlüsselt im Vault, in der gewählten Umgebung) in DevDeck.
+        Bereits vorhandene Einträge werden übersprungen – der Import lässt sich gefahrlos wiederholen.
+        Die Werte laufen dabei einmalig per HTTP im LAN vom Agent zum Server; Quelldateien danach nicht committen bzw. löschen.</p>
+        <p><strong>Coding-Regeln:</strong> Bei Sync/Provision/Kontext-Refresh schreibt der Agent den Kontext nach <code>.devdeck/</code> und die
+        Arbeitsregeln (Kontext lesen, nach jeder Änderung bauen/testen/pushen) nach <code>.claude/rules/devdeck.md</code>, die Claude Code beim
+        Start lädt. Beides wird lokal per <code>.git/info/exclude</code> ignoriert – das Repository wird nicht verändert und der Sync nicht blockiert.
+        Enthält das Repo eigene Regeln, genügt der Marker <code>&lt;!-- devdeck:rules-included --&gt;</code> in der <code>CLAUDE.md</code>.</p>`,
     },
     {
       id: 'workflow',

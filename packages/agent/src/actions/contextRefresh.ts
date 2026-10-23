@@ -1,8 +1,7 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import { AppError } from '@devdeck/shared';
 import { registerAction } from './index.js';
 import { resolveWorkspacePath } from './workspaceStatus.js';
+import { writeContextFiles } from '../contextFiles.js';
 
 /**
  * context.refresh – schreibt den vom Server erzeugten Coding-Kontext
@@ -26,14 +25,6 @@ registerAction('context.refresh', async (ctx) => {
     throw new AppError('NOT_FOUND', res.error?.message ?? 'Kein Kontext für dieses Projekt verfügbar');
   }
 
-  const target = path.join(workspacePath, '.devdeck');
-  fs.mkdirSync(target, { recursive: true });
-  const written: string[] = [];
-  for (const [name, content] of Object.entries(res.data)) {
-    if (!/^[A-Z_]+\.md$/.test(name)) continue; // nur erwartete Kontextdateien
-    fs.writeFileSync(path.join(target, name), content, 'utf8');
-    written.push(name);
-  }
-  fs.mkdirSync(path.join(target, 'handover'), { recursive: true });
+  const written = writeContextFiles(workspacePath, res.data);
   return { local_path: workspacePath, files: written };
 });
