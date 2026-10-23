@@ -11,7 +11,7 @@ import type { AppContext } from '../context.js';
 import { requireAgent } from '../auth/middleware.js';
 import { generateToken, hashToken } from '../auth/tokens.js';
 import { audit } from '../services/audit.js';
-import { completeCommand, pollCommands } from '../services/provisioning.js';
+import { completeCommand, pollCommands, requestWorkspaceStatus } from '../services/provisioning.js';
 import { buildProjectContext } from '../services/contextBuilder.js';
 import { projectSecretsFor, secretVersionsFor } from '../vault/projection.js';
 import { importProjectData, type ImportSecret } from '../services/projectImport.js';
@@ -169,6 +169,13 @@ export function agentRoutes(ctx: AppContext): Router {
         registered += 1;
       }
 
+      // Nie geprüfte Workspaces dieser Maschine jetzt prüfen lassen (Status „unknown“ vermeiden)
+      const unchecked = db.all<{ id: string; machine_id: string | null; local_path: string }>(
+        `SELECT id, machine_id, local_path FROM workspaces WHERE machine_id = ? AND checked_at IS NULL`,
+        machine.id,
+      );
+      for (const w of unchecked) requestWorkspaceStatus(db, w, null);
+
       res.json({ data: { ok: true, server_time: now, workspaces: registered } });
     }),
   );
@@ -241,11 +248,15 @@ export function agentRoutes(ctx: AppContext): Router {
           `UPDATE workspaces SET
              branch = COALESCE(?, branch),
              last_git_commit = COALESCE(?, last_git_commit),
-             status = ?, updated_at = ?
+             status = ?, updated_at = ?,
+             readiness_json = ?, git_json = ?, checked_at = ?
            WHERE id = ?`,
           git && typeof git.branch === 'string' ? git.branch : null,
           git && typeof git.commit === 'string' ? git.commit : null,
           status,
+          now,
+          readiness ? JSON.stringify(readiness).slice(0, 20_000) : null,
+          git ? JSON.stringify(git).slice(0, 20_000) : null,
           now,
           workspaceId,
         );

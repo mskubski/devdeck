@@ -10,7 +10,12 @@ const exec = promisify(execFile);
 
 async function run(cmd: string, args: string[], timeoutMs = 10_000): Promise<string | null> {
   try {
-    const { stdout } = await exec(cmd, args, { timeout: timeoutMs, windowsHide: true });
+    // Unter Windows sind npm & Co. .cmd-Dateien und brauchen eine Shell (feste Befehle, keine Nutzereingaben)
+    const { stdout } = await exec(cmd, args, {
+      timeout: timeoutMs,
+      windowsHide: true,
+      shell: process.platform === 'win32',
+    });
     return stdout.trim();
   } catch {
     return null;
@@ -60,7 +65,7 @@ const PROBES: Record<string, ToolProbe> = {
   },
   docker: async () => ({ found: which('docker') }),
   python: async () => {
-    const v = await run('python3', ['--version']);
+    const v = (await run('python3', ['--version'])) ?? (await run('python', ['--version']));
     return { found: v !== null, ...(v ? { version: v } : {}) };
   },
   // Plattformspezifisch: Xcode nur auf macOS relevant (Spezifikation §17)

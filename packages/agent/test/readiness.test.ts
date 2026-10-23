@@ -29,7 +29,7 @@ describe('Readiness', () => {
     expect(report.checks.find((c) => c.name === 'Repository')?.status).toBe('BLOCKED');
   });
 
-  it('meldet WARNING bei fehlendem Manifest und fehlendem Kontext', async () => {
+  it('Manifest ist optional (OK), fehlender Kontext bleibt ein Hinweis; ohne Projektion keine .env-Warnung', async () => {
     const report = await buildReadiness({
       workspacePath: tmp,
       manifest: null,
@@ -39,8 +39,20 @@ describe('Readiness', () => {
     });
     // Kein package.json → Dependencies OK; fehlende .env/CONTEXT → nur WARNING
     expect(report.overall).toBe('WARNING');
-    expect(report.checks.find((c) => c.name === 'Manifest')?.status).toBe('WARNING');
+    expect(report.checks.find((c) => c.name === 'Manifest')?.status).toBe('OK');
+    expect(report.checks.find((c) => c.name === 'Secrets')?.status).toBe('OK');
     expect(report.checks.find((c) => c.name === 'Context')?.status).toBe('WARNING');
+  });
+
+  it('meldet unveröffentlichte Commits und neuen Remote-Stand als Hinweis (GitHub-Check)', async () => {
+    const state = (ahead: number, behind: number) => ({ branch: 'main', commit: 'a', dirty: false, ahead, behind, files: [] });
+    const run = (ahead: number, behind: number) =>
+      buildReadiness({ workspacePath: tmp, manifest: null, gitState: state(ahead, behind), isRepo: true, gitAvailable: true });
+    const a = (await run(7, 0)).checks.find((c) => c.name === 'GitHub')!;
+    expect(a.status).toBe('WARNING');
+    expect(a.detail).toContain('7 lokale Commits nicht gepusht');
+    expect((await run(0, 2)).checks.find((c) => c.name === 'GitHub')?.detail).toContain('2 neue Commits');
+    expect((await run(0, 0)).checks.find((c) => c.name === 'GitHub')?.status).toBe('OK');
   });
 
   it('meldet READY bei komplettem Workspace', async () => {

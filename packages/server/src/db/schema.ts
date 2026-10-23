@@ -353,6 +353,12 @@ const MIGRATIONS: string[] = [
     updated_at TEXT NOT NULL
   );
   `,
+  // v10: Details der letzten Workspace-Prüfung (Readiness-Checks + Git-Zustand), damit die UI den Status erklären kann
+  `
+  ALTER TABLE workspaces ADD COLUMN readiness_json TEXT;
+  ALTER TABLE workspaces ADD COLUMN git_json TEXT;
+  ALTER TABLE workspaces ADD COLUMN checked_at TEXT;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

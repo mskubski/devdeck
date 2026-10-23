@@ -158,6 +158,13 @@ npm run build</pre>
         zeigt DevDeck den Root an, schlägt ihn als Pfad vor und prüft die Eingabe. Mit <em>Bearbeiten</em> lassen sich Pfad, Maschine, Branch und
         Repository nachträglich ändern; <em>Entfernen</em> (Maintainer) löscht nur die Registrierung in DevDeck – nie Dateien auf der Maschine.
         Ohne eigenes Repository am Workspace nutzt Provision das Repository und den Standard-Branch des Projekts. Zwei sichere Operationen stehen zur Verfügung:</p>
+        <p><strong>Status verstehen:</strong> Die Spalte <em>Status</em> kommt vom Agenten auf der Maschine. Er prüft Git, Repository, Toolchain und
+        Abhängigkeiten laut optionalem <code>.devdeck/workspace.yaml</code>, die <code>.env</code> (nur wenn das Manifest eine Projektion verlangt), den
+        Coding-Kontext und den Abgleich mit GitHub (unveröffentlichte Commits bzw. neuer Remote-Stand). Daraus folgt:
+        <strong>ready</strong> = alles in Ordnung · <strong>warning</strong> = läuft, aber es gibt Hinweise · <strong>blocked</strong> = eine Voraussetzung fehlt
+        (z. B. Ordner nicht vorhanden → Provision) · <strong>unknown</strong> = noch nicht geprüft. <em>Ein Klick auf den Status zeigt jeden Prüfpunkt mit Begründung.</em>
+        Geprüft wird automatisch beim Registrieren/Ändern, bei Sync/Provision und – falls noch nie geprüft – sobald der Agent sich meldet;
+        mit <em>Prüfen</em> geht es jederzeit manuell (read-only, ohne zu synchronisieren).</p>
         <p><strong>Sync</strong> prüft zuerst den Git-Status. Gibt es nicht committete, lokale Änderungen,
         <strong>bricht der Agent sofort ab</strong> (nichts wird überschrieben) – erst danach folgen
         <code>fetch</code> + <code>pull --ff-only</code> (nie <code>reset</code>/<code>stash</code>/<code>clean</code>),

@@ -46,6 +46,42 @@ export function enqueueCommand(db: Database, opts: EnqueueCommandOptions): strin
   return id;
 }
 
+/**
+ * Prüfung (workspace.status) eines Workspaces anstoßen, sofern die Maschine online ist und nicht bereits
+ * eine läuft/wartet oder in den letzten 10 Minuten angefordert wurde. Liefert die Command-ID oder null.
+ */
+export function requestWorkspaceStatus(
+  db: Database,
+  ws: { id: string; machine_id: string | null; local_path: string },
+  requestedBy: string | null,
+  force = false,
+): string | null {
+  if (!ws.machine_id) return null;
+  const machine = db.get<{ agent_status: string; revoked_at: string | null }>(
+    'SELECT agent_status, revoked_at FROM machines WHERE id = ?',
+    ws.machine_id,
+  );
+  if (!machine || machine.revoked_at || machine.agent_status !== 'online') return null;
+  const since = new Date(Date.now() - 10 * 60_000).toISOString();
+  const pending = db.get(
+    `SELECT 1 FROM agent_commands
+     WHERE machine_id = ? AND action = 'workspace.status' AND json_extract(payload_json, '$.workspace_id') = ?
+       AND (status IN ('queued','running') OR (? = 0 AND created_at > ?))`,
+    ws.machine_id,
+    ws.id,
+    force ? 1 : 0,
+    since,
+  );
+  if (pending) return null;
+  return enqueueCommand(db, {
+    machineId: ws.machine_id,
+    action: 'workspace.status',
+    payload: { workspace_id: ws.id, local_path: ws.local_path },
+    requestedBy,
+    ttlSeconds: 600,
+  });
+}
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Ablaufende Commands markieren. */

@@ -3,11 +3,17 @@
 ## Unreleased - 2026-10-23
 
 ### Added
+- Workspace-Status erklärbar: Die Ergebnisse der letzten Prüfung (Readiness-Checks + Git-Zustand) werden gespeichert (Migration v10); Klick auf den Status zeigt
+  jeden Prüfpunkt mit Begründung. Neuer Knopf **Prüfen** (read-only). Automatische Prüfung beim Registrieren/Ändern und für nie geprüfte Workspaces beim Heartbeat.
+  Neuer Prüfpunkt „GitHub“ (unveröffentlichte Commits / neuer Remote-Stand). Agent 0.5.0.
 - Workspaces bearbeiten (Pfad, Maschine, Branch, Repository; mit Audit) und entfernen (nur die Registrierung, nie Dateien; Maintainer; wartende Aufträge werden verworfen).
   Der Pfad wird beim Registrieren/Bearbeiten gegen den Workspace-Root der Maschine geprüft (Windows und Linux, Windows ohne Groß-/Kleinschreibung); der Dialog zeigt den Root
   und schlägt ihn als Pfad vor. Gleicher Pfad auf verschiedenen Maschinen ist erlaubt.
 
 ### Fixed
+- Dauer-„warning“: Ein fehlendes `.devdeck/workspace.yaml` ist nur noch ein optionaler Hinweis (OK), eine fehlende `.env` zählt nur, wenn das Manifest eine Projektion
+  verlangt; die Kontext-Warnung entfällt, weil Sync den Kontext jetzt schreibt. Unter Windows wurde `npm` fälschlich als „nicht gefunden“ gemeldet (`.cmd` braucht eine Shell);
+  Python wird auch als `python` erkannt. Fehlt der Workspace-Ordner, meldet der Agent „blocked – Provision ausführen“ statt nur zu scheitern (Status blieb „unknown“).
 - Provision nutzt ohne eigenes Repository am Workspace Repository und Standard-Branch des Projekts (vorher: „Kein Git-Repository und kein repo_remote“).
 - Import: gleiche Secret-Namen in `.env` und `credentials.md` ließen den Import am Unique-Constraint scheitern → doppelte Einträge werden zusammengefasst
   (`.env.<umgebung>`, `.env.local`, `.env` vor `credentials.md`). Dateisuche unabhängig von Groß-/Kleinschreibung (Changelog/History, Roadmap/TODO/Backlog,

@@ -80,8 +80,8 @@ describe('Phase C: Workspace Registry (Server)', () => {
 
     const poll = await srv.request('GET', '/api/agent/commands?wait=0', { token: machineToken });
     expect(poll.status).toBe(200);
-    expect(poll.body.data[0].action).toBe('workspace.sync');
-    expect(poll.body.data[0].payload.workspace_id).toBe(wsId);
+    const sync = poll.body.data.find((c: any) => c.action === 'workspace.sync');
+    expect(sync.payload.workspace_id).toBe(wsId);
   });
 
   it('Sync-Log zeigt Fehler und setzt last_sync_at nur bei Erfolg', async () => {
@@ -89,7 +89,7 @@ describe('Phase C: Workspace Registry (Server)', () => {
     const first = await srv.request('POST', `/api/workspaces/${wsId}/sync`, { cookie });
     const second = await srv.request('POST', `/api/workspaces/${wsId}/sync`, { cookie });
     const poll = await srv.request('GET', '/api/agent/commands?wait=0', { token: machineToken });
-    expect(poll.body.data).toHaveLength(2);
+    expect(poll.body.data.filter((c: any) => c.action === 'workspace.sync')).toHaveLength(2);
 
     await srv.request('POST', `/api/agent/commands/${first.body.data.command_id}/result`, {
       token: machineToken,
