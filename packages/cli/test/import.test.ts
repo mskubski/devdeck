@@ -4,7 +4,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { startTestServer, TEST_ADMIN, type TestServer } from '../../server/test/helpers.js';
 import { main } from '../src/index.js';
-import { parseChangelog, parseSecrets, parseTasks } from '../src/import/parsers.js';
+import { parseChangelog, parseSecrets, parseTasks } from '@devdeck/shared';
 
 describe('Import-Parser', () => {
   it('parseChangelog: Versionen, Datum, Abschnitte, mehrzeilige Bullets', () => {

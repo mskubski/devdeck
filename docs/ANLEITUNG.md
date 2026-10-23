@@ -137,6 +137,19 @@ wird (nicht zwingend auf dem Server selbst). Pro Maschine braucht es einmalig:
 3. **Provision** richtet einen neuen/leeren Workspace komplett ein (Clone, Toolchain-Check,
    Dependencies, autorisierte Secrets/`.env`, Coding-Context).
 
+## 7b. Bestehende Projektdaten importieren und Coding-Regeln
+
+- **Importieren:** Projekt → **Workspaces** → **Importieren** (Maintainer). Der Agent liest im Workspace `CHANGELOG.md`,
+  `ROADMAP.md`/`TODO.md`, `.env`, `.env.<umgebung>` und `credentials.md`, zeigt eine Vorschau (Secret-Namen, nie Werte) und
+  importiert nach Bestätigung. Wähle die Umgebung für die Secrets (z. B. `production`). Wiederholen ist gefahrlos
+  (vorhandene Einträge werden übersprungen). Voraussetzung: Agent ab Version 0.4.0 (Server-Update mit „Agents mit aktualisieren“).
+  Alternative per CLI: `devdeck import all` bzw. `--apply`.
+- **Regeln für Claude Code:** Bei Sync/Provision schreibt der Agent `.devdeck/` und `.claude/rules/devdeck.md` (Kontext lesen,
+  nach jeder Änderung bauen/testen/committen/pushen). Beide Pfade werden lokal über `.git/info/exclude` ignoriert; das
+  Repository bleibt sauber. Wer eigene Regeln in `CLAUDE.md` pflegt, setzt dort den Marker `<!-- devdeck:rules-included -->`.
+- **Sync schlägt mit „außerhalb des Workspace-Root“ fehl:** Der Workspace-Pfad muss unterhalb des Roots der Maschine liegen
+  (Maschinen → „Root ändern“, oder Agent mit `--workspace-root` starten).
+
 ## 8. Troubleshooting
 
 | Problem | Ursache / Lösung |

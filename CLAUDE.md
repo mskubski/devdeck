@@ -1,5 +1,7 @@
 # CLAUDE.md – DevDeck
 
+<!-- devdeck:rules-included (verhindert, dass DevDeck zusätzlich generische Regeln nach .claude/rules/ schreibt) -->
+
 Regeln für Claude Code in diesem Repository (gilt auf jeder Maschine, auf der DevDeck ausgecheckt ist).
 
 ## Nach jeder Code-Anpassung GitHub aktualisieren (wichtig)

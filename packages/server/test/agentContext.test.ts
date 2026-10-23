@@ -49,8 +49,10 @@ describe('Agent-Protokoll: Context-Builder + Secret-Projektion (Phase F/G)', () 
       'CHANGELOG_RECENT.md',
       'CONTEXT.md',
       'CURRENT_STATE.md',
+      'RULES.md',
       'SECRETS.md',
     ]);
+    expect(res.body.data['RULES.md']).toContain('GitHub aktualisieren');
     expect(res.body.data['CONTEXT.md']).toContain('WebApp');
     expect(res.body.data['CURRENT_STATE.md']).toContain('Login-Flow fixen');
 
