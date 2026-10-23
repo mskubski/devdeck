@@ -3,6 +3,9 @@
 ## Unreleased - 2026-10-23
 
 ### Added
+- Agent-Update wird verifiziert: nach dem Build startet der neue Code probeweise (`index.js status`, meldet Version/Node); bei Fehlern Abbruch VOR dem Neustart mit Begründung. Der Agent meldet im
+  Heartbeat Commit, Node-Version und Startdatei (Agent 0.7.0, Migration v12); die Maschinen-Liste zeigt sie und warnt „Update nicht angekommen“, wenn die laufende Version älter ist als die gebaute.
+  Ein Versionswechsel stößt für alle Workspaces der Maschine eine neue Prüfung an (frische Fakten für die Architektur-Karte).
 - **Architektur-Karte** auf der Projekt-Übersicht (weißes Feld, volle Breite): Entwicklung → GitHub → Betrieb/Hosting → Datenbank, darunter externe Dienste (Mail, Telegram, LLM, Karten, Newsletter, Zahlung …)
   mit Beschreibungen und beschrifteten Pfeilen. Quellen: automatische Erkennung (Agent 0.6.0 sammelt Variablen-NAMEN, bereinigte Hostnamen ohne Zugangsdaten, Abhängigkeiten, Hosting-Dateien, SQLite-Größen; Server kennt Maschinen/Repo/Secret-Namen),
   versioniertes Manifest `.devdeck/architecture.yaml` (Claude Code pflegt es über `RULES.md`) und manuelle Anpassungen (bearbeiten/ausblenden/wiederherstellen, + Komponente/Beziehung). Migration v11.
@@ -18,6 +21,7 @@
 - Architektur-Karte steht auf der Projekt-Übersicht jetzt unten; Kennzahlen, Projektinfo und letzte Sessions bleiben oben.
 
 ### Fixed
+- Hängende Agent-Aufträge: „running“-Aufträge ohne Ergebnis (Agent beendet/neu gestartet) blockierten dauerhaft u. a. das automatische Update („busy“); sie werden nach 30 Minuten als fehlgeschlagen abgeschlossen.
 - Dauer-„warning“: Ein fehlendes `.devdeck/workspace.yaml` ist nur noch ein optionaler Hinweis (OK), eine fehlende `.env` zählt nur, wenn das Manifest eine Projektion
   verlangt; die Kontext-Warnung entfällt, weil Sync den Kontext jetzt schreibt. Unter Windows wurde `npm` fälschlich als „nicht gefunden“ gemeldet (`.cmd` braucht eine Shell);
   Python wird auch als `python` erkannt. Fehlt der Workspace-Ordner, meldet der Agent „blocked – Provision ausführen“ statt nur zu scheitern (Status blieb „unknown“).
