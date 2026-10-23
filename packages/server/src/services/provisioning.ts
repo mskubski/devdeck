@@ -136,8 +136,8 @@ export function completeCommand(
   machineId: string,
   result: CommandResultInput,
 ): { first: boolean } {
-  const row = db.get<{ status: string; machine_id: string }>(
-    'SELECT status, machine_id FROM agent_commands WHERE id = ?',
+  const row = db.get<{ status: string; machine_id: string; action: string; payload_json: string }>(
+    'SELECT status, machine_id, action, payload_json FROM agent_commands WHERE id = ?',
     commandId,
   );
   if (!row || row.machine_id !== machineId) {
@@ -155,5 +155,67 @@ export function completeCommand(
     result.error ? `${result.error.code}: ${result.error.message}` : null,
     commandId,
   );
-  return { first: res.changes === 1 };
+  const first = res.changes === 1;
+  if (first && result.status === 'done' && /^workspace\.(sync|provision)$/.test(row.action)) {
+    try {
+      const workspaceId = (JSON.parse(row.payload_json) as { workspace_id?: unknown }).workspace_id;
+      if (typeof workspaceId === 'string') {
+        const now = new Date().toISOString();
+        db.run('UPDATE workspaces SET last_sync_at = ?, updated_at = ? WHERE id = ?', now, now, workspaceId);
+      }
+    } catch {
+      /* defektes Payload: last_sync_at bleibt unverändert */
+    }
+  }
+  return { first };
+}
+
+export interface SyncLogEntry {
+  id: string;
+  action: string;
+  status: string;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  error: string | null;
+  result: Record<string, unknown> | null;
+  workspace_id: string | null;
+  local_path: string | null;
+  machine_id: string;
+  machine_name: string | null;
+  requested_by: string | null;
+}
+
+/** Sync-/Provision-Verlauf eines Projekts (inkl. Fehlermeldungen des Agenten). */
+export function syncLogForProject(db: Database, projectId: string, limit = 100): SyncLogEntry[] {
+  const rows = db.all<
+    Omit<SyncLogEntry, 'result'> & { result_json: string | null }
+  >(
+    `SELECT c.id, c.action, c.status, c.created_at, c.started_at, c.finished_at, c.error,
+            c.result_json, c.machine_id, m.name AS machine_name,
+            u.email AS requested_by,
+            json_extract(c.payload_json, '$.workspace_id') AS workspace_id,
+            json_extract(c.payload_json, '$.local_path') AS local_path
+     FROM agent_commands c
+     LEFT JOIN machines m ON m.id = c.machine_id
+     LEFT JOIN users u ON u.id = c.requested_by
+     WHERE c.action IN ('workspace.sync', 'workspace.provision')
+       AND json_extract(c.payload_json, '$.workspace_id') IN
+           (SELECT id FROM workspaces WHERE project_id = ?)
+     ORDER BY c.created_at DESC
+     LIMIT ?`,
+    projectId,
+    limit,
+  );
+  return rows.map(({ result_json, ...rest }) => {
+    let result: Record<string, unknown> | null = null;
+    if (result_json) {
+      try {
+        result = JSON.parse(result_json) as Record<string, unknown>;
+      } catch {
+        result = null;
+      }
+    }
+    return { ...rest, result };
+  });
 }

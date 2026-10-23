@@ -1,5 +1,5 @@
 import { get, post, del } from '../lib/api.js';
-import { $, $$, esc, badge, fmtDate, timeAgo, toast, formModal, confirmModal, openModal } from '../lib/ui.js';
+import { $, $$, esc, badge, fmtDate, timeAgo, toast, formModal, confirmModal, openModal, closeModal } from '../lib/ui.js';
 import { state } from '../lib/api.js';
 import { roleAtLeast } from '../lib/roles.js';
 import { icon } from '../lib/icons.js';
@@ -25,10 +25,14 @@ export async function renderMachines(el) {
     <tr>
       <td>${esc(m.name)}</td>
       <td class="muted text-sm">${esc(m.platform)}</td>
-      <td class="muted text-sm">${esc(m.agent_version || '–')}</td>
+      <td class="muted text-sm">${esc(m.agent_version || '–')}${m.agent_outdated ? ' ' + badge('veraltet', 'warn') : ''}</td>
+      <td class="muted text-sm"><span class="mono">${esc(m.workspace_root || '–')}</span></td>
       <td>${badge(m.agent_status, m.agent_status)}</td>
       <td class="muted text-sm">${m.last_seen_at ? timeAgo(m.last_seen_at) : 'nie'}</td>
       <td class="actions">
+        ${m.agent_status === 'online' && m.agent_outdated ? `<button class="btn ghost sm" data-howto="1">Update-Anleitung</button>` : ''}
+        ${m.agent_status === 'online' && !m.agent_outdated ? `<button class="btn ghost sm" data-update="${m.id}" data-name="${esc(m.name)}">Agent updaten</button>` : ''}
+        ${m.agent_status === 'online' && !m.agent_outdated ? `<button class="btn ghost sm" data-root="${m.id}" data-name="${esc(m.name)}" data-current="${esc(m.workspace_root || '')}">Root ändern</button>` : ''}
         ${m.agent_status !== 'revoked' ? `<button class="btn ghost sm" data-revoke="${m.id}" data-name="${esc(m.name)}">Widerrufen</button>` : ''}
       </td>
     </tr>`).join('');
@@ -44,8 +48,8 @@ export async function renderMachines(el) {
     <div class="card">
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Name</th><th>Plattform</th><th>Agent-Version</th><th>Status</th><th>Zuletzt gesehen</th><th></th></tr></thead>
-          <tbody>${rows || '<tr><td colspan="6"><div class="empty-state"><div class="icon">' + icon('monitor', { size: 32 }) + '</div>Noch keine Maschinen registriert.</div></td></tr>'}</tbody>
+          <thead><tr><th>Name</th><th>Plattform</th><th>Agent-Version</th><th>Workspace-Root</th><th>Status</th><th>Zuletzt gesehen</th><th></th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="7"><div class="empty-state"><div class="icon">' + icon('monitor', { size: 32 }) + '</div>Noch keine Maschinen registriert.</div></td></tr>'}</tbody>
         </table>
       </div>
     </div>`;
@@ -71,6 +75,67 @@ export async function renderMachines(el) {
       showTokenModal(token.token);
     } catch (err) { toast(err.message, 'error'); }
   });
+
+  for (const btn of $$('[data-howto]', el)) {
+    btn.addEventListener('click', () => openModal(`
+      <h2>Agent manuell aktualisieren</h2>
+      <p class="muted text-sm">Dieser Agent ist veraltet und kann sich noch nicht selbst aktualisieren. Einmalig im DevDeck-Ordner auf dieser Maschine ausführen, danach geht es per Knopfdruck:</p>
+      <div class="secret-value">git pull &amp;&amp; npm install &amp;&amp; npm run build</div>
+      <p class="muted text-sm">Dann den Agent neu starten (Prozess beenden und <span class="mono">node packages/agent/dist/index.js start</span> erneut ausführen).</p>
+      <div class="modal-actions"><button class="btn" id="btn-close-howto" type="button">Schließen</button></div>`, (root) => {
+      root.querySelector('#btn-close-howto').addEventListener('click', closeModal);
+    }));
+  }
+
+  for (const btn of $$('[data-update]', el)) {
+    btn.addEventListener('click', async () => {
+      const ok = await confirmModal({
+        title: 'Agent aktualisieren',
+        message: `Auf „${btn.dataset.name}“ wird git pull (nur Fast-Forward), Build und ein Neustart des Agents ausgeführt. Fortfahren?`,
+        confirmLabel: 'Updaten',
+        danger: false,
+      });
+      if (!ok) return;
+      try {
+        const { command_id } = await post(`/api/machines/${btn.dataset.update}/update`, {});
+        toast('Update beauftragt …', 'info');
+        for (let i = 0; i < 100; i += 1) {
+          await new Promise((r) => setTimeout(r, 3000));
+          const cmd = await get(`/api/machines/${btn.dataset.update}/commands/${command_id}`);
+          if (cmd.status === 'done') { toast('Agent aktualisiert, startet neu', 'success'); setTimeout(() => renderMachines(el), 6000); return; }
+          if (cmd.status === 'failed' || cmd.status === 'expired') { toast(cmd.error || 'Update fehlgeschlagen', 'error'); return; }
+        }
+        toast('Agent hat noch nicht geantwortet – siehe Agent-Log', 'error');
+      } catch (err) { toast(err.message, 'error'); }
+    });
+  }
+
+  for (const btn of $$('[data-root]', el)) {
+    btn.addEventListener('click', async () => {
+      const res = await formModal({
+        title: `Workspace-Root von „${btn.dataset.name}“ ändern`,
+        submitLabel: 'Ändern',
+        bodyHtml: `
+          <label>Neuer Workspace-Root (absoluter Pfad auf der Maschine)
+            <input name="workspace_root" required value="${esc(btn.dataset.current)}" placeholder="D:\\DEVDECK" />
+          </label>
+          <span class="muted text-sm">Nur Workspaces unterhalb dieses Verzeichnisses dürfen synchronisiert/provisioniert werden. Das Verzeichnis wird bei Bedarf angelegt. Erfordert einen aktuellen Agent.</span>`,
+      });
+      if (!res) return;
+      try {
+        const { command_id } = await post(`/api/machines/${btn.dataset.root}/workspace-root`, { workspace_root: res.data.workspace_root });
+        closeModal();
+        toast('Änderung beauftragt …', 'info');
+        for (let i = 0; i < 20; i += 1) {
+          await new Promise((r) => setTimeout(r, 1500));
+          const cmd = await get(`/api/machines/${btn.dataset.root}/commands/${command_id}`);
+          if (cmd.status === 'done') { toast('Workspace-Root geändert', 'success'); renderMachines(el); return; }
+          if (cmd.status === 'failed' || cmd.status === 'expired') { toast(cmd.error || 'Änderung fehlgeschlagen', 'error'); return; }
+        }
+        toast('Agent hat noch nicht geantwortet – siehe Agent-Log', 'error');
+      } catch (err) { toast(err.message, 'error'); }
+    });
+  }
 
   for (const btn of $$('[data-revoke]', el)) {
     btn.addEventListener('click', async () => {

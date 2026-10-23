@@ -25,3 +25,6 @@ coverage/
 
 # Lokale Claude-Code-Einstellungen
 .claude/settings.local.json
+
+# Lokaler DevDeck-Workspace-State
+.devdeck/

@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { hostname } from 'node:os';
+import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
   AGENT_VERSION,
@@ -7,12 +8,14 @@ import {
   defaultWorkspaceRoot,
   loadAgentConfig,
   saveAgentConfig,
+  setActiveConfigPath,
   type AgentConfig,
 } from './config.js';
 import { ServerClient } from './client.js';
 import { startHeartbeat } from './heartbeat.js';
 import { startWorker } from './worker.js';
 import { startLocalApi } from './localApi.js';
+import { log, logFilePath } from './logger.js';
 import './actions/all.js';
 
 interface CliArgs {
@@ -20,6 +23,7 @@ interface CliArgs {
   server?: string;
   token?: string;
   name?: string;
+  workspaceRoot?: string;
   configPath: string;
 }
 
@@ -38,6 +42,9 @@ function parseArgs(argv: string[]): CliArgs {
       i += 1;
     } else if (key === '--name' && value) {
       args.name = value;
+      i += 1;
+    } else if (key === '--workspace-root' && value) {
+      args.workspaceRoot = value;
       i += 1;
     } else if (key === '--config' && value) {
       args.configPath = value;
@@ -62,6 +69,7 @@ function ensureConfig(args: CliArgs): AgentConfig {
     agentVersion: AGENT_VERSION,
   };
   if (args.server) config.serverUrl = args.server.replace(/\/+$/, '');
+  if (args.workspaceRoot) config.workspaceRoot = path.resolve(args.workspaceRoot);
   return config;
 }
 
@@ -87,6 +95,8 @@ async function runEnroll(args: CliArgs): Promise<void> {
 }
 
 async function runStart(args: CliArgs): Promise<void> {
+  const delay = Number(process.env.DEVDECK_START_DELAY_MS ?? 0);
+  if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
   const config = ensureConfig(args);
   if (!config.machineToken || !config.machineId) {
     console.error(
@@ -96,15 +106,17 @@ async function runStart(args: CliArgs): Promise<void> {
     process.exitCode = 1;
     return;
   }
+  setActiveConfigPath(args.configPath);
   saveAgentConfig(config, args.configPath);
 
   const local = startLocalApi(config);
   const heartbeat = startHeartbeat(config);
   const worker = startWorker(config);
 
-  console.log(
-    `[DevDeck Agent] läuft – Server: ${config.serverUrl}, Maschine: ${config.machineId}, ` +
-      `Lokal: 127.0.0.1:${config.localPort}`,
+  log.info(
+    `läuft – Server: ${config.serverUrl}, Maschine: ${config.machineId}, ` +
+      `Workspace-Root: ${config.workspaceRoot}, Lokal: 127.0.0.1:${config.localPort}, ` +
+      `Log: ${logFilePath()}`,
   );
 
   const shutdown = (): void => {
@@ -130,6 +142,8 @@ async function main(): Promise<void> {
           server_url: config.serverUrl,
           enrolled: Boolean(config.machineToken),
           machine_id: config.machineId,
+          workspace_root: config.workspaceRoot,
+          log_file: logFilePath(),
           config: args.configPath,
         },
         null,
@@ -144,7 +158,7 @@ async function main(): Promise<void> {
 const isMain = process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   main().catch((err) => {
-    console.error('[DevDeck Agent] Fehler:', err instanceof Error ? err.message : err);
+    log.error(`Fehler: ${err instanceof Error ? err.message : String(err)}`);
     process.exit(1);
   });
 }

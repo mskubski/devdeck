@@ -11,7 +11,27 @@ export const AGENT_ACTIONS = [
   'editor.open',
   'terminal.open',
   'coding_agent.start',
+  'agent.configure',
+  'agent.update',
 ] as const;
+
+/** Aktuelle Agent-Version; ältere Agenten kennen neuere Aktionen nicht und gelten als veraltet. */
+export const CURRENT_AGENT_VERSION = '0.2.0';
+
+function versionParts(v: string): number[] {
+  return v.split('.').map((p) => Number.parseInt(p, 10) || 0);
+}
+
+export function isAgentOutdated(version: string | null | undefined): boolean {
+  if (!version) return true;
+  const a = versionParts(version);
+  const b = versionParts(CURRENT_AGENT_VERSION);
+  for (let i = 0; i < Math.max(a.length, b.length); i += 1) {
+    const diff = (a[i] ?? 0) - (b[i] ?? 0);
+    if (diff !== 0) return diff < 0;
+  }
+  return false;
+}
 
 export type AgentAction = (typeof AGENT_ACTIONS)[number];
 
@@ -54,6 +74,7 @@ export interface ReadinessReport {
 export interface HeartbeatRequest {
   agent_version: string;
   platform: string;
+  workspace_root?: string;
   workspaces?: Array<{
     workspace_id?: string;
     project?: string;

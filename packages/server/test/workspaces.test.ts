@@ -84,6 +84,35 @@ describe('Phase C: Workspace Registry (Server)', () => {
     expect(poll.body.data[0].payload.workspace_id).toBe(wsId);
   });
 
+  it('Sync-Log zeigt Fehler und setzt last_sync_at nur bei Erfolg', async () => {
+    const wsId = await registerWorkspace();
+    const first = await srv.request('POST', `/api/workspaces/${wsId}/sync`, { cookie });
+    const second = await srv.request('POST', `/api/workspaces/${wsId}/sync`, { cookie });
+    const poll = await srv.request('GET', '/api/agent/commands?wait=0', { token: machineToken });
+    expect(poll.body.data).toHaveLength(2);
+
+    await srv.request('POST', `/api/agent/commands/${first.body.data.command_id}/result`, {
+      token: machineToken,
+      body: { status: 'failed', error: { code: 'FORBIDDEN', message: 'Pfad außerhalb Root' } },
+    });
+    let log = await srv.request('GET', `/api/projects/${projectId}/sync-log`, { cookie });
+    expect(log.status).toBe(200);
+    const failed = log.body.data.find((e: any) => e.id === first.body.data.command_id);
+    expect(failed).toMatchObject({ status: 'failed', local_path: '/home/m/Development/WebApp' });
+    expect(failed.error).toContain('Pfad außerhalb Root');
+    let ws = await srv.request('GET', `/api/workspaces/${wsId}`, { cookie });
+    expect(ws.body.data.last_sync_at).toBeNull();
+
+    await srv.request('POST', `/api/agent/commands/${second.body.data.command_id}/result`, {
+      token: machineToken,
+      body: { status: 'done', data: { steps: [] } },
+    });
+    log = await srv.request('GET', `/api/projects/${projectId}/sync-log`, { cookie });
+    expect(log.body.data[0].status).toBe('done');
+    ws = await srv.request('GET', `/api/workspaces/${wsId}`, { cookie });
+    expect(ws.body.data.last_sync_at).toBeTruthy();
+  });
+
   it('verweigert sync an Offline-Maschinen (AGENT_OFFLINE)', async () => {
     const wsId = await registerWorkspace();
     srv.ctx.db.run("UPDATE machines SET agent_status = 'offline' WHERE id = ?", machineId);

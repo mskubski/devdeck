@@ -96,6 +96,8 @@ export interface MachineDto {
   name: string;
   platform: string;
   agent_version: string | null;
+  workspace_root: string | null;
+  agent_outdated: boolean;
   agent_status: MachineStatus;
   last_seen_at: string | null;
   revoked_at: string | null;

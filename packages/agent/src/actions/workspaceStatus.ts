@@ -17,7 +17,9 @@ export function resolveWorkspacePath(ctx: ActionContext, rawPath: unknown): stri
   if (relative.startsWith('..') || path.isAbsolute(relative)) {
     throw new AppError(
       'FORBIDDEN',
-      `Pfad liegt außerhalb des Workspace-Root (${root}) – Aktion abgelehnt`,
+      `Pfad ${resolved} liegt außerhalb des Workspace-Root (${root}) – Aktion abgelehnt. ` +
+        'Workspace-Root des Agenten anpassen: "devdeck-agent start --workspace-root <Pfad>" ' +
+        '(oder "workspaceRoot" in der Agent-Konfiguration / DEVDECK_WORKSPACE_ROOT) und Agent neu starten.',
     );
   }
   if (!fs.existsSync(resolved)) {

@@ -110,10 +110,12 @@ export function agentRoutes(ctx: AppContext): Router {
 
       db.run(
         `UPDATE machines SET last_seen_at = ?, agent_status = 'online',
-                             agent_version = COALESCE(?, agent_version)
+                             agent_version = COALESCE(?, agent_version),
+                             workspace_root = COALESCE(?, workspace_root)
          WHERE id = ?`,
         now,
         agentVersion ?? null,
+        optionalString(body, 'workspace_root', 1000) ?? null,
         machine.id,
       );
 

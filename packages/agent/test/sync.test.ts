@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { isAgentOutdated } from '@devdeck/shared';
 import { getAction } from '../src/actions/index.js';
 import '../src/actions/all.js';
 import { ServerClient } from '../src/client.js';
@@ -173,6 +174,36 @@ describe('workspace.sync / workspace.provision (Agent)', () => {
       payload: { local_path: wsPath, repo_remote: bare, branch: 'main' },
     })) as { overall: string };
     expect(second.overall).toBe('WARNING');
+  });
+
+  it('agent.configure ändert den Workspace-Root zur Laufzeit', async () => {
+    const { client, config } = contextFor();
+    const cfgFile = path.join(root, 'agent.json');
+    process.env.DEVDECK_AGENT_CONFIG = cfgFile;
+    const newRoot = path.join(root, 'neuer-root');
+    try {
+      const res = await getAction('agent.configure')!({
+        client,
+        config,
+        payload: { workspace_root: newRoot },
+      });
+      expect(res.workspace_root).toBe(newRoot);
+      expect(config.workspaceRoot).toBe(newRoot);
+      expect(fs.existsSync(newRoot)).toBe(true);
+      expect(JSON.parse(fs.readFileSync(cfgFile, 'utf8')).workspaceRoot).toBe(newRoot);
+      await expect(
+        getAction('agent.configure')!({ client, config, payload: { workspace_root: 'relativ' } }),
+      ).rejects.toMatchObject({ code: 'VALIDATION' });
+    } finally {
+      delete process.env.DEVDECK_AGENT_CONFIG;
+    }
+  });
+
+  it('erkennt veraltete Agent-Versionen', () => {
+    expect(isAgentOutdated('0.1.0')).toBe(true);
+    expect(isAgentOutdated(null)).toBe(true);
+    expect(isAgentOutdated('0.2.0')).toBe(false);
+    expect(isAgentOutdated('0.10.0')).toBe(false);
   });
 
   it('lehnt Provisioning außerhalb des Workspace-Root ab', async () => {

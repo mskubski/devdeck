@@ -312,6 +312,11 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE handovers ADD COLUMN created_by TEXT REFERENCES users(id);
   `,
+
+  // v6 – Workspace-Root des Agenten (per Heartbeat gemeldet, remote änderbar)
+  `
+  ALTER TABLE machines ADD COLUMN workspace_root TEXT;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

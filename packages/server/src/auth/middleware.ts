@@ -29,6 +29,7 @@ export interface MachineRecord {
   name: string;
   platform: string;
   agent_version: string | null;
+  workspace_root: string | null;
   agent_status: string;
   last_seen_at: string | null;
   token_hash: string | null;
@@ -246,7 +247,7 @@ export function requireAgent(db: Database): RequestHandler {
       return;
     }
     const machine = db.get<MachineRecord>(
-      `SELECT id, owner_user_id, name, platform, agent_version, agent_status,
+      `SELECT id, owner_user_id, name, platform, agent_version, workspace_root, agent_status,
               last_seen_at, token_hash, revoked_at, created_at
        FROM machines WHERE token_hash = ?`,
       hashToken(token),

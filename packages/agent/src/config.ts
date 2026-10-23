@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { CURRENT_AGENT_VERSION } from '@devdeck/shared';
 
 /** Laufzeit-Konfiguration des DevDeck Agent (enthält Maschinen-Token, Modus 0600). */
 export interface AgentConfig {
@@ -13,7 +14,7 @@ export interface AgentConfig {
   agentVersion: string;
 }
 
-export const AGENT_VERSION = '0.1.0';
+export const AGENT_VERSION = CURRENT_AGENT_VERSION;
 
 export function defaultConfigPath(): string {
   return process.env.DEVDECK_AGENT_CONFIG ?? path.join(os.homedir(), '.devdeck', 'agent.json');
@@ -41,7 +42,17 @@ export function loadAgentConfig(configPath = defaultConfigPath()): AgentConfig |
   }
 }
 
-export function saveAgentConfig(config: AgentConfig, configPath = defaultConfigPath()): void {
+let activeConfigPath: string | null = null;
+
+/** Merkt sich den Pfad der laufenden Konfiguration (für Änderungen zur Laufzeit). */
+export function setActiveConfigPath(configPath: string): void {
+  activeConfigPath = configPath;
+}
+
+export function saveAgentConfig(
+  config: AgentConfig,
+  configPath = activeConfigPath ?? defaultConfigPath(),
+): void {
   fs.mkdirSync(path.dirname(configPath), { recursive: true });
   fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, { mode: 0o600 });
   try {

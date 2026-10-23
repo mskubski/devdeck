@@ -8,6 +8,7 @@ import { renderTasks } from './project/tasks.js';
 import { renderSessions } from './project/sessions.js';
 import { renderSecrets } from './project/secrets.js';
 import { renderWorkspaces } from './project/workspaces.js';
+import { renderSyncLog } from './project/synclog.js';
 
 const TABS = [
   { key: 'overview', icon: 'dashboard', label: 'Übersicht', render: renderOverview },
@@ -16,6 +17,7 @@ const TABS = [
   { key: 'sessions', icon: 'code', label: 'Sessions', render: renderSessions },
   { key: 'secrets', icon: 'key', label: 'Secrets', render: renderSecrets },
   { key: 'workspaces', icon: 'laptop', label: 'Workspaces', render: renderWorkspaces },
+  { key: 'synclog', icon: 'info', label: 'Sync-Log', render: renderSyncLog },
 ];
 
 export async function renderProjectDetail(el, idAndQuery, setBreadcrumb) {
