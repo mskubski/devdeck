@@ -156,6 +156,8 @@ wird (nicht zwingend auf dem Server selbst). Pro Maschine braucht es einmalig:
   und startet neu. Bleibt die gemeldete Version trotzdem alt, zeigt **Maschinen** den Hinweis „Update nicht angekommen“ mit Startdatei, Commit und Node-Version des laufenden Prozesses (ab Agent 0.7.0).
   Meist läuft ein zweiter, älterer Agent-Prozess parallel oder der Agent wird aus einem anderen Ordner/Container gestartet. Auf der Maschine prüfen: `ps -eo pid,lstart,cmd | grep "[a]gent/dist"` –
   es darf genau einen Agent-Prozess geben (alle anderen beenden, einmal sauber neu starten, z. B. `systemctl --user restart devdeck-agent`).
+- **Agent als Dienst unter Linux (empfohlen):** `deploy/install-agent-service.sh [--replace]` installiert nur den Agenten als systemd-Benutzerdienst (kein Server) – ein Prozess, zuverlässiger Neustart
+  nach Updates. `--replace` beendet vorher von Hand gestartete Agent-Prozesse. Für Start ohne Login einmalig `sudo loginctl enable-linger $USER`.
 - **Workspace-Status (ready / warning / blocked / unknown):** Der Status kommt vom Agenten und fasst die Prüfpunkte zusammen (Git, Repository,
   Toolchain/Abhängigkeiten laut optionalem Manifest, `.env` nur bei verlangter Projektion, Kontext, Abgleich mit GitHub). Ein Klick auf den Status
   im Tab **Workspaces** zeigt jeden Prüfpunkt mit Begründung; **Prüfen** liest den Zustand neu (ohne Sync). `unknown` heißt „noch nie geprüft“ und

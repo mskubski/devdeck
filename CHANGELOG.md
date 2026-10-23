@@ -3,6 +3,7 @@
 ## Unreleased - 2026-10-23
 
 ### Added
+- `deploy/install-agent-service.sh [--replace]`: installiert nur den Agenten als systemd-Benutzerdienst (für Maschinen ohne DevDeck-Server); beendet auf Wunsch von Hand gestartete Agent-Prozesse.
 - Agent-Update wird verifiziert: nach dem Build startet der neue Code probeweise (`index.js status`, meldet Version/Node); bei Fehlern Abbruch VOR dem Neustart mit Begründung. Der Agent meldet im
   Heartbeat Commit, Node-Version und Startdatei (Agent 0.7.0, Migration v12); die Maschinen-Liste zeigt sie und warnt „Update nicht angekommen“, wenn die laufende Version älter ist als die gebaute.
   Ein Versionswechsel stößt für alle Workspaces der Maschine eine neue Prüfung an (frische Fakten für die Architektur-Karte).

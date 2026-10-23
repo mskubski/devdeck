@@ -151,7 +151,10 @@ npm run build</pre>
         „Update nicht angekommen“ samt Startdatei, Commit und Node-Version des laufenden Prozesses. Typische Ursachen: ein <em>zweiter, älterer Agent-Prozess</em> (z. B. früher von Hand gestartet) läuft
         parallel; der Agent läuft aus einem <em>anderen Ordner</em> als dem aktualisierten; er wird von einem Prozess-Manager/Container gestartet, der alten Code festhält. Prüfen auf der Maschine:
         <code>ps -eo pid,lstart,cmd | grep "[a]gent/dist"</code> (Linux) bzw. Task-Manager (Windows) – es sollte genau <em>einen</em> Agent-Prozess geben; danach ihn einmal sauber neu starten.
-        Hängende Aufträge („running“) werden nach 30 Minuten automatisch als fehlgeschlagen abgeschlossen.</p>`,
+        Hängende Aufträge („running“) werden nach 30 Minuten automatisch als fehlgeschlagen abgeschlossen.</p>
+        <p><strong>Empfohlen unter Linux:</strong> den Agent als systemd-Dienst betreiben – dann gibt es genau einen Prozess und er startet nach jedem Update zuverlässig mit dem neuen Code:
+        im DevDeck-Ordner <code>git pull --ff-only &amp;&amp; deploy/install-agent-service.sh --replace</code> (installiert nur den Agenten, nicht den Server; <code>--replace</code> beendet von Hand gestartete Agent-Prozesse;
+        für Start ohne Login einmalig <code>sudo loginctl enable-linger $USER</code>).</p>`,
     },
     {
       id: 'workspaces',
