@@ -14,7 +14,7 @@ Aktualisiert nach jeder Phase (Code → Tests → Typecheck → Dokumentation).
 | E | Tasks ✅ · Decisions/Changelog/Known Issues/History ✅ | ✅ abgeschlossen |
 | F | Coding Sessions ✅ · .devdeck Context ✅ · Handovers ✅ | ✅ abgeschlossen |
 | G | DevDeck Vault: Metadata, Values, Files, Permissions, Projektion | ✅ abgeschlossen |
-| H | DevDeck CLI ✅ · Claude-/Codex-Launcher | ⏳ CLI-Basis fertig, Launcher folgt |
+| H | DevDeck CLI ✅ · Claude-/Codex-Launcher | ✅ abgeschlossen (`devdeck claude\|codex` startet den Agent im Workspace mit Kontext + Session) |
 | I | Backups, Restore, Retention | ✅ System-Backup, Verify, Retention, Scheduler, Terminal-Restore (Projekt-Backups/Konnektoren in J) |
 | J | Service-Integrationen (Konnektoren) | ⬜ |
 

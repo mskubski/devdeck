@@ -43,7 +43,7 @@ syncing source code through a file-sync service or a proprietary mechanism.
 |---|---|
 | **Server** (`packages/server`) | Central web UI and API: users, projects, memberships, machine registry, tasks, coding sessions/handovers, encrypted secret vault, audit log |
 | **Agent** (`packages/agent`) | Runs on each developer machine: enrolls with the server, sends heartbeats, executes commands (provision/sync workspaces, install dependencies, write coding context, project secrets) |
-| **CLI** (`packages/cli`) | Planned developer-facing command line (not implemented yet) |
+| **CLI** (`packages/cli`) | Developer-facing command line (`devdeck login|status|sync|context|session|handover|task|changelog|decision|secret|env run|claude|codex`) |
 | **Shared** (`packages/shared`) | Protocol types, roles and errors shared by all components |
 
 ## Features
@@ -113,7 +113,7 @@ packages/
   server/   HTTP API, SQLite schema, vault, web UI (src/webui)
   agent/    Machine agent and workspace actions
   shared/   Shared protocol types
-  cli/      Planned CLI
+  cli/      DevDeck CLI
 ```
 
 Further design documents (German): [DEVDECK_v5.md](docs/DEVDECK_v5.md),

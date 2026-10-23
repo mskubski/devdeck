@@ -147,6 +147,36 @@ describe('DevDeck CLI (Phase H, Basis)', () => {
     expect([...out, ...err].join('\n')).not.toContain('geheim-12345');
   });
 
+  it('Launcher: startet den Agent im Workspace, fährt Session hoch und schließt sie danach', async () => {
+    await run(['login']);
+    fs.writeFileSync(path.join(workspace, '.devdeck', 'project.json'), JSON.stringify({ project_id: projectId }));
+    fs.writeFileSync(path.join(workspace, '.devdeck', 'CONTEXT.md'), '# Kontext');
+    const bin = path.join(tmp, 'bin');
+    fs.mkdirSync(bin);
+    const marker = path.join(tmp, 'launched.json');
+    fs.writeFileSync(
+      path.join(bin, 'claude'),
+      `#!${process.execPath}\nrequire('fs').writeFileSync(${JSON.stringify(marker)}, JSON.stringify({cwd: process.cwd(), args: process.argv.slice(2), session: process.env.DEVDECK_SESSION_ID}));\n`,
+      { mode: 0o755 },
+    );
+    const PATH = `${bin}${path.delimiter}${process.env.PATH}`;
+
+    const code = await run(['claude', '--goal', 'Launcher testen', '--', '--model', 'x'], { PATH });
+    expect(code).toBe(0);
+    const launched = JSON.parse(fs.readFileSync(marker, 'utf8'));
+    expect(fs.realpathSync(launched.cwd)).toBe(fs.realpathSync(workspace));
+    expect(launched.args).toEqual(['--model', 'x']);
+    const sessions = await srv.request('GET', `/api/projects/${projectId}/sessions`, { cookie });
+    expect(sessions.body.data).toHaveLength(1);
+    expect(sessions.body.data[0]).toMatchObject({ id: launched.session, status: 'closed', agent_name: 'claude', goal: 'Launcher testen' });
+    expect(fs.existsSync(path.join(workspace, '.devdeck', 'session.json'))).toBe(false);
+
+    // Nicht installiert → klarer Fehler; nicht erlaubte Programme gibt es nicht als Befehl
+    expect(await run(['codex'], { PATH: bin })).toBe(1);
+    expect(err.join('\n')).toContain('nicht installiert');
+    expect(await run(['bash'])).toBe(2);
+  });
+
   it('gibt Hilfe aus und meldet unbekannte Befehle', async () => {
     expect(await run(['help'])).toBe(0);
     expect(await run(['unsinn'])).toBe(2);

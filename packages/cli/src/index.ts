@@ -6,6 +6,7 @@ import type { Ctx, Io } from './io.js';
 import { login, logout, whoami } from './commands/auth.js';
 import { context, status, sync } from './commands/workspace.js';
 import { changelog, decision, handover, secret, session, task } from './commands/knowledge.js';
+import { isLauncher, launch } from './commands/launch.js';
 import { envRun } from './commands/envRun.js';
 
 const HELP = `DevDeck CLI
@@ -22,6 +23,8 @@ const HELP = `DevDeck CLI
   devdeck changelog add <text> [--version x]
   devdeck decision add <titel> [--rationale ...]
   devdeck secret list [--environment e]      Nur Metadaten, nie Werte
+  devdeck claude|codex [--goal "..."] [-- args]
+                                             Coding Agent im Workspace starten (Kontext + Session)
   devdeck env run [--environment e] -- <cmd> Befehl mit Secrets als Umgebungsvariablen
 
 Allgemein: --project <slug> überschreibt die automatische Projekterkennung.`;
@@ -51,7 +54,9 @@ export async function main(argv: string[], ctx: Ctx): Promise<number> {
     ctx.io.out(HELP);
     return name ? 0 : 2;
   }
-  const command = COMMANDS[name];
+  const command = isLauncher(name)
+    ? (c: Ctx, a: string[]) => launch(c, name, a)
+    : COMMANDS[name];
   if (!command) {
     ctx.io.err(`Unbekannter Befehl: ${name}\n\n${HELP}`);
     return 2;
