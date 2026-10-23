@@ -317,6 +317,23 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE machines ADD COLUMN workspace_root TEXT;
   `,
+  // v7: Service-Integrationen (Phase J) – Zugangsdaten bleiben im Vault, hier nur die Referenz
+  `
+  CREATE TABLE project_connectors (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    name TEXT NOT NULL,
+    config_json TEXT NOT NULL DEFAULT '{}',
+    secret_id TEXT REFERENCES secrets(id) ON DELETE SET NULL,
+    last_check_at TEXT,
+    last_check_ok INTEGER,
+    last_check_message TEXT,
+    created_by TEXT REFERENCES users(id),
+    created_at TEXT NOT NULL,
+    UNIQUE (project_id, name)
+  );
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

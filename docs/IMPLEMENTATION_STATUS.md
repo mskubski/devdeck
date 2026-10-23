@@ -16,7 +16,7 @@ Aktualisiert nach jeder Phase (Code → Tests → Typecheck → Dokumentation).
 | G | DevDeck Vault: Metadata, Values, Files, Permissions, Projektion | ✅ abgeschlossen |
 | H | DevDeck CLI ✅ · Claude-/Codex-Launcher | ✅ abgeschlossen (`devdeck claude\|codex` startet den Agent im Workspace mit Kontext + Session) |
 | I | Backups, Restore, Retention | ✅ System-Backup, Verify, Retention, Scheduler, Terminal-Restore (Projekt-Backups/Konnektoren in J) |
-| J | Service-Integrationen (Konnektoren) | ⬜ |
+| J | Service-Integrationen (Konnektoren) | ⏳ Interface + GitHub fertig; GitLab, Supabase, Vercel, Brevo, Apple, Google Play, IONOS offen |
 
 ## Review & Vervollständigung – 2026-10-08
 

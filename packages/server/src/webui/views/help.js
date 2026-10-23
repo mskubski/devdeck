@@ -178,7 +178,8 @@ npm run build</pre>
         <p>Diese Teile der Spezifikation sind als Zielbild dokumentiert, aber in dieser Version noch nicht
         umgesetzt – damit das vorhandene Fundament stabil bleibt, statt halbfertige Funktionen auszuliefern:</p>
         <ul>
-          <li><strong>Service-Integrationen</strong> (GitHub, Supabase, Vercel, …) – später, optional.</li>
+          <li><strong>Weitere Service-Integrationen</strong> (GitLab, Supabase, Vercel, Brevo, Apple, Google Play, IONOS) –
+            GitHub ist als erster Konnektor umgesetzt (Tab „Integrationen“), weitere folgen nach Bedarf.</li>
         </ul>`,
     },
   ];
