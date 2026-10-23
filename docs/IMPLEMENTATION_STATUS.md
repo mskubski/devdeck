@@ -1,7 +1,7 @@
 # DevDeck – IMPLEMENTATION_STATUS.md
 
 Aktueller Umsetzungsstand der Phasen gemäß `IMPLEMENTATION_PLAN.md` §14.
-Aktualisiert nach jeder Phase (Code → Tests → Typecheck → Dokumentation).
+Stand: 2026-10-23. Aktualisiert nach jeder Phase (Code → Tests → Typecheck → Dokumentation).
 
 ## Gesamtstatus
 
@@ -118,3 +118,16 @@ Tests: 83/83 grün (`npm test`), `tsc -b` sauber. Neue Tests:
 **Tests:** `packages/server/test/agent.test.ts` (17) → Suite gesamt **36/36 grün**, `tsc -b` sauber.
 
 ---
+
+## Phasen E, H, I und J (Start) – 2026-10-23
+
+- **E:** `routes/knowledge.ts` (Decisions, Changelog, Known Issues, History), vier neue Projekt-Tabs; Kontext-Builder
+  übernimmt akzeptierte Entscheidungen und offene Known Issues.
+- **H:** `packages/cli` (Basis-Befehle, `env run`) und Launcher `devdeck claude|codex` mit Allowlist.
+- **I:** `services/backups.ts`, `routes/backups.ts`, `restore.ts` (nur interaktiv im Terminal; kein API-/UI-Restore),
+  Scheduler im Server. Offen: projektbezogene Backups (z. B. Supabase) über Konnektoren.
+- **J:** Connector-Interface + GitHub (`services/connectors/`, Migration v7, Tab „Integrationen“).
+  Offen: GitLab, Supabase, Vercel, Brevo, Apple, Google Play, IONOS.
+- CI: Dependabot und `npm audit`-Job.
+
+Tests: 108/108 grün, `tsc -b` sauber.

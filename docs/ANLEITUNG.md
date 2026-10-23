@@ -18,7 +18,7 @@ npm install
 npm run build
 ```
 
-`npm run build` kompiliert Server, Agent, CLI-Gerüst und das Shared-Paket nach `dist/`.
+`npm run build` kompiliert Server, Agent, CLI und das Shared-Paket nach `dist/`.
 Die Web-UI (`packages/server/src/webui/`) ist reines HTML/CSS/JS ohne Build-Schritt – der
 Server liest sie direkt aus dem Quellverzeichnis.
 
@@ -124,7 +124,7 @@ wird (nicht zwingend auf dem Server selbst). Pro Maschine braucht es einmalig:
    Ein Widerruf (z. B. bei Verlust des Rechners) ist dort jederzeit mit einem Klick möglich.
 
 > Es gibt aktuell kein global installiertes `devdeck-agent`-Kommando (Packaging ist Teil der
-> noch ausstehenden DevDeck-CLI-Phase) – der Agent wird direkt per `node .../dist/index.js`
+> DevDeck-CLI-Phase) – der Agent wird direkt per `node .../dist/index.js`
 > aus dem Repository heraus gestartet.
 
 ## 7. Workspace registrieren und synchronisieren
@@ -145,3 +145,15 @@ wird (nicht zwingend auf dem Server selbst). Pro Maschine braucht es einmalig:
 | `http://<server>:8080` ist von einem anderen Rechner nicht erreichbar | Prüfen, ob `DEVDECK_HOST=0.0.0.0` gesetzt ist (nicht `127.0.0.1`) und ob eine Firewall Port 8080 blockiert. |
 | Maschine bleibt „offline“ | Agent läuft nicht, oder Heartbeat erreicht den Server nicht (Server-URL/Netzwerk prüfen). Nach 90 s ohne Heartbeat markiert der Server die Maschine automatisch als offline. |
 | Secret-Wert lässt sich nicht anzeigen | Dafür ist die Capability `secret.reveal` nötig (implizit bei Projektrolle `owner`/`maintainer`). Siehe Hilfe-Seite „Secrets & DevDeck Vault“. |
+
+## Backups, CLI und Integrationen
+
+- **Backups:** Als Admin unter **Backups** in der Web-UI. Automatisch täglich (`DEVDECK_BACKUP_INTERVAL_HOURS`),
+  Ziel über `DEVDECK_BACKUP_TARGET`, Aufbewahrung 7 täglich + 4 wöchentlich. Der Vault-Key wird nicht mitgesichert –
+  separat aufbewahren. **Restore** nur im Terminal bei gestopptem Server:
+  `node packages/server/dist/restore.js <backup-ordner>` (Zeitstempel und `RESTORE` eintippen).
+- **CLI:** `node packages/cli/dist/index.js help` zeigt alle Befehle (`login`, `status`, `sync`, `context`,
+  `session start|finish`, `handover import`, `task|changelog|decision add`, `secret list`, `env run -- <cmd>`).
+  `devdeck claude` bzw. `devdeck codex` startet den Coding Agent im Workspace mit aktuellem Kontext und Coding Session.
+- **Wissen:** Im Projekt gibt es die Tabs **Entscheidungen**, **Changelog**, **Known Issues** und **Verlauf**.
+- **Integrationen:** Tab **Integrationen** – GitHub-Konnektor mit Token aus einem Projekt-Secret.

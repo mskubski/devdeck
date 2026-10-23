@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - 2026-10-08
+## Unreleased - 2026-10-23
 
 ### Added
 - Phase J (Start): Konnektor-Interface (`services/connectors/`) und erster Konnektor GitHub (Token- und Repo-Check,
