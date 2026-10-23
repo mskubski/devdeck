@@ -161,6 +161,20 @@ wird (nicht zwingend auf dem Server selbst). Pro Maschine braucht es einmalig:
   liegen. DevDeck prüft das jetzt schon beim Registrieren/Bearbeiten und zeigt den Root an. Falsche Pfade korrigierst du im Tab **Workspaces**
   mit **Bearbeiten** (oder **Entfernen** – löscht nur die Registrierung, nie Dateien). Den Root selbst änderst du unter **Maschinen** → „Root ändern“.
 
+## 7c. Architektur-Karte (Projekt-Übersicht)
+
+Das weiße Feld oben auf der Projekt-Übersicht zeigt Entwicklung → GitHub → Betrieb/Hosting → Datenbank sowie alle externen Dienste (Mail, Telegram, KI-Anbieter,
+Karten, Newsletter, Zahlung …) mit Beschreibungen und beschrifteten Beziehungen. Quellen (Vorrang: manuell > Manifest > automatisch):
+
+1. **Automatisch:** Der Agent liest bei jeder Workspace-Prüfung nur *Namen* der `.env`-Variablen, bereinigte Hostnamen (ohne Zugangsdaten, nur für Variablen wie `*_HOST`/`*_URL`),
+   Abhängigkeiten, Hosting-Dateien (`vercel.json`, Dockerfile, systemd) und lokale SQLite-Dateien samt Größe. Server-seitig kommen Maschinen, Repository und Secret-Namen dazu.
+2. **Manifest `.devdeck/architecture.yaml`** (versioniert im Repository): Beschreibungen, Beziehungen, Betriebsort, Datenbank-Details. Claude Code pflegt sie über die Regel in
+   `.claude/rules/devdeck.md` bei jeder Änderung mit; Format siehe Knopf „Wie wird das gepflegt?“ oder `RULES.md`.
+3. **Manuell im UI** (Maintainer): Karte anklicken → bearbeiten/ausblenden/zurücksetzen, „+ Komponente“, „+ Beziehung“.
+
+„Aktualisieren“ löst eine neue Prüfung aller Workspaces aus. Voraussetzung: Agent ab Version 0.6.0. Supabase-Größe, Vercel- und IONOS-Live-Daten folgen mit eigenen Konnektoren.
+Gestrichelt dargestellt ist, was noch offen ist (z. B. „Betrieb: noch nicht festgelegt“ – dann `kind: hosting` im Manifest ergänzen).
+
 ## 8. Troubleshooting
 
 | Problem | Ursache / Lösung |

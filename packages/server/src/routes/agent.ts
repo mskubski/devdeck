@@ -15,6 +15,7 @@ import { completeCommand, pollCommands, requestWorkspaceStatus } from '../servic
 import { buildProjectContext } from '../services/contextBuilder.js';
 import { projectSecretsFor, secretVersionsFor } from '../vault/projection.js';
 import { importProjectData, type ImportSecret } from '../services/projectImport.js';
+import { sanitizeFacts } from '../services/architecture/facts.js';
 import { getProjectMembership } from '../auth/middleware.js';
 
 /** Agent-Protokoll (pollbasiert, PLAN §11). */
@@ -233,6 +234,9 @@ export function agentRoutes(ctx: AppContext): Router {
       const readiness = body.readiness ?? null;
       const now = new Date().toISOString();
 
+      // Fakten für die Architektur-Karte: nur Namen/bereinigte Hosts; serverseitig nochmals begrenzt und bereinigt
+      const factsJson = sanitizeFacts(body.facts);
+
       let status = 'unknown';
       if (readiness && typeof readiness.overall === 'string') {
         status =
@@ -249,7 +253,8 @@ export function agentRoutes(ctx: AppContext): Router {
              branch = COALESCE(?, branch),
              last_git_commit = COALESCE(?, last_git_commit),
              status = ?, updated_at = ?,
-             readiness_json = ?, git_json = ?, checked_at = ?
+             readiness_json = ?, git_json = ?, checked_at = ?,
+             facts_json = COALESCE(?, facts_json), facts_at = CASE WHEN ? IS NULL THEN facts_at ELSE ? END
            WHERE id = ?`,
           git && typeof git.branch === 'string' ? git.branch : null,
           git && typeof git.commit === 'string' ? git.commit : null,
@@ -257,6 +262,9 @@ export function agentRoutes(ctx: AppContext): Router {
           now,
           readiness ? JSON.stringify(readiness).slice(0, 20_000) : null,
           git ? JSON.stringify(git).slice(0, 20_000) : null,
+          now,
+          factsJson,
+          factsJson,
           now,
           workspaceId,
         );

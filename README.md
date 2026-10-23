@@ -53,6 +53,7 @@ syncing source code through a file-sync service or a proprietary mechanism.
 - Machine enrollment and command queue between server and agents
 - Workspace registry, `workspace.yaml` manifest, provisioning, sync and readiness checks
 - Tasks, decisions, changelog, known issues and a project history timeline
+- Architecture map on the project dashboard: development machines → GitHub → hosting → database → external services (mail, Telegram, LLM providers, maps …) with descriptions and relations; detected automatically (env var names, hosts without credentials, dependencies, hosting files, SQLite sizes), described in a versioned `.devdeck/architecture.yaml` that Claude Code keeps up to date, and editable in the UI
 - Coding sessions and handovers between machines/people; Claude Code sessions (CLI and desktop) are picked up automatically by the agent (metadata only)
 - Generated coding context (`.devdeck/CONTEXT.md` and friends) for AI coding agents
 - Encrypted vault (AES-256-GCM) for secret values and secret files, with per-capability access and auditing

@@ -9,6 +9,7 @@ import { buildReadiness } from '../readiness.js';
 import { installDependencies, lockfileHash } from '../dependencies.js';
 import { checkTool, requiredTools } from '../tools.js';
 import { writeContextFiles } from '../contextFiles.js';
+import { collectFacts } from '../facts.js';
 
 const step = (name: string, detail?: string): Record<string, unknown> =>
   detail === undefined ? { step: name, status: 'ok' } : { step: name, status: 'ok', detail };
@@ -186,7 +187,7 @@ registerAction('workspace.provision', async (ctx) => {
   });
   if (workspaceId) {
     await ctx.client.request('POST', `/api/agent/workspaces/${workspaceId}/status`, {
-      body: { git: finalState, readiness },
+      body: { git: finalState, readiness, facts: collectFacts(workspacePath) },
     });
   }
 

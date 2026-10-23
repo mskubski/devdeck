@@ -23,6 +23,7 @@ das Server-Update bricht bei lokalen Änderungen an versionierten Dateien absich
 
 ## Weitere Regeln
 
+- Ändern sich Datenbank, Hosting/Deployment oder externe Dienste von DevDeck, `.devdeck/architecture.yaml` (Architektur-Karte) im selben Commit anpassen; keine Geheimnisse hineinschreiben.
 - Nutzersichtbare Änderungen in `CHANGELOG.md` festhalten; Doku (README, `docs/ANLEITUNG.md`, Hilfe-Seite) bei Funktionsänderungen mitziehen.
 - Keine Secrets committen (`.env`, `data/`, `agent.json`, Vault-Key).
 - Restore von Backups nie selbst ausführen oder simulieren (nur ein Mensch im Terminal, siehe README).

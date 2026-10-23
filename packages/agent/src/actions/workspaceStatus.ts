@@ -5,6 +5,7 @@ import { registerAction, type ActionContext } from './index.js';
 import { loadManifest } from '../manifest.js';
 import { gitStatus, isGitRepo, git } from '../git.js';
 import { buildReadiness } from '../readiness.js';
+import { collectFacts } from '../facts.js';
 
 /** Resolve und sicherstellen, dass der Pfad im erlaubten Workspace-Root liegt. */
 export function resolveWorkspacePath(ctx: ActionContext, rawPath: unknown): string {
@@ -74,6 +75,7 @@ registerAction('workspace.status', async (ctx) => {
         git: gitState,
         readiness,
         manifest: manifest ? { project: manifest.project.name } : null,
+        facts: collectFacts(workspacePath),
       },
     });
   }

@@ -220,6 +220,27 @@ npm run build</pre>
         (Import vorhandener Dateien: <code>devdeck import all</code>).</p>`,
     },
     {
+      id: 'architektur',
+      icon: 'layers',
+      title: 'Architektur-Karte',
+      body: `
+        <p>Auf der <strong>Projekt-Übersicht</strong> zeigt ein weißes Feld über die ganze Breite, <strong>woraus das Projekt besteht und wie die Teile zusammenhängen</strong>:
+        Entwicklungsrechner → GitHub-Repository → Betrieb/Hosting (eigener Server, Vercel, IONOS-Webspace …) → Datenbank (lokal mit Dateigröße, Supabase mit Region)
+        sowie darunter alle externen Dienste (Mail-Server, Telegram-Bot, KI-Anbieter wie Anthropic/Mistral/OpenRouter, Karten wie OpenStreetMap, Newsletter, Zahlung …).
+        Jede Karte hat eine Beschreibung; die Pfeile sind beschriftet. Ein Klick auf eine Karte zeigt alle Details und Beziehungen, ein Klick auf eine Pfeil-Beschriftung die Verbindung.
+        Gestrichelte Karten/Pfeile sind noch offen oder ungewiss (z. B. „Betrieb noch nicht festgelegt“).</p>
+        <p><strong>Wie bleibt die Karte aktuell?</strong> Drei Quellen, die sich ergänzen (Vorrang: manuell &gt; Manifest &gt; automatisch):</p>
+        <ol>
+          <li><strong>Automatisch (Programm):</strong> Bei jeder Workspace-Prüfung/Sync liest der Agent <em>Namen</em> der <code>.env</code>-Variablen, bereinigte Hostnamen (z. B. <code>IMAP_HOST</code>,
+            nie Passwörter/Tokens), Abhängigkeiten, <code>vercel.json</code>/Dockerfile/systemd-Dateien und lokale SQLite-Dateien. DevDeck ordnet das Diensten zu und kennt zusätzlich Maschinen, Repository und Secret-Namen.
+            Neue Projekte erscheinen so ohne Zutun, sobald ein Workspace registriert ist.</li>
+          <li><strong>Manifest <code>.devdeck/architecture.yaml</code> (im Repository):</strong> Beschreibungen, Beziehungen und alles Nicht-Erkennbare. <strong>Claude Code pflegt die Datei bei jeder Änderung an Datenbank,
+            Hosting oder externen Diensten mit</strong> – die Regel steht in <code>.claude/rules/devdeck.md</code> (wird beim Sync erzeugt). Format: Knopf „Wie wird das gepflegt?“ im Feld.</li>
+          <li><strong>Manuell:</strong> Karte anklicken → Bearbeiten, Ausblenden oder Zurücksetzen; <em>+ Komponente</em> / <em>+ Beziehung</em> für Eigenes (Maintainer). Ausgeblendetes ist unter dem Diagramm wiederherstellbar.</li>
+        </ol>
+        <p><em>Aktualisieren</em> lässt alle Workspaces des Projekts sofort neu prüfen. Live-Zahlen von Supabase, Vercel und IONOS (z. B. Datenbankgröße) folgen mit den jeweiligen Konnektoren.</p>`,
+    },
+    {
       id: 'audit',
       icon: 'history',
       title: 'Audit-Log',

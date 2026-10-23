@@ -1,0 +1,38 @@
+version: 1
+components:
+  - id: debian01
+    kind: hosting
+    name: DevDeck-Server (debian01)
+    provider: Debian 13, systemd
+    description: Läuft als systemd-Dienst (Web-Oberfläche, API, Backups, Update-Knopf) und ist zugleich Entwicklungsrechner.
+    details: { Port: "8080", Dienste: "devdeck-server, devdeck-agent" }
+  - id: devdeck-db
+    kind: database
+    name: SQLite (devdeck.db) + Vault (vault.db)
+    provider: SQLite
+    description: Projekte, Tasks, Changelog, Sessions und Audit-Log in devdeck.db; Secret-Werte AES-256-GCM-verschlüsselt in vault.db.
+    details: { Backup: "täglich nach DEVDECK_BACKUP_TARGET, Restore nur im Terminal" }
+  - id: anthropic
+    kind: llm
+    name: Claude Code (Anthropic)
+    provider: Anthropic
+    description: Coding-Agent auf den Entwicklungsrechnern; seine Sessions erfasst der DevDeck-Agent (nur Metadaten).
+  - id: github-api
+    kind: service
+    name: GitHub (API, CI, Auto-Merge)
+    provider: GitHub
+    description: Pull Requests, CI-Prüfung (build-and-test, npm audit) und Auto-Merge nach main; Quelle für Server- und Agent-Updates.
+links:
+  - from: repo
+    to: debian01
+    label: Server-Update (Knopf)
+    description: System → Server aktualisieren holt main per Fast-Forward, baut und startet neu.
+  - from: debian01
+    to: devdeck-db
+    label: liest / schreibt
+  - from: debian01
+    to: github-api
+    label: fetch / PR-Status
+  - from: dev:debian01
+    to: anthropic
+    label: Coding-Sessions

@@ -3,6 +3,10 @@
 ## Unreleased - 2026-10-23
 
 ### Added
+- **Architektur-Karte** auf der Projekt-Übersicht (weißes Feld, volle Breite): Entwicklung → GitHub → Betrieb/Hosting → Datenbank, darunter externe Dienste (Mail, Telegram, LLM, Karten, Newsletter, Zahlung …)
+  mit Beschreibungen und beschrifteten Pfeilen. Quellen: automatische Erkennung (Agent 0.6.0 sammelt Variablen-NAMEN, bereinigte Hostnamen ohne Zugangsdaten, Abhängigkeiten, Hosting-Dateien, SQLite-Größen; Server kennt Maschinen/Repo/Secret-Namen),
+  versioniertes Manifest `.devdeck/architecture.yaml` (Claude Code pflegt es über `RULES.md`) und manuelle Anpassungen (bearbeiten/ausblenden/wiederherstellen, + Komponente/Beziehung). Migration v11.
+  Der Agent schließt nur generierte Dateien aus `.git` aus (`.devdeck/architecture.yaml` bleibt versionierbar; alte pauschale `.devdeck/`-Zeile wird migriert).
 - Workspace-Status erklärbar: Die Ergebnisse der letzten Prüfung (Readiness-Checks + Git-Zustand) werden gespeichert (Migration v10); Klick auf den Status zeigt
   jeden Prüfpunkt mit Begründung. Neuer Knopf **Prüfen** (read-only). Automatische Prüfung beim Registrieren/Ändern und für nie geprüfte Workspaces beim Heartbeat.
   Neuer Prüfpunkt „GitHub“ (unveröffentlichte Commits / neuer Remote-Stand). Agent 0.5.0.
