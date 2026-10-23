@@ -3,6 +3,10 @@
 ## Unreleased - 2026-10-23
 
 ### Fixed
+- Import: gleiche Secret-Namen in `.env` und `credentials.md` ließen den Import am Unique-Constraint scheitern → doppelte Einträge werden zusammengefasst
+  (`.env.<umgebung>`, `.env.local`, `.env` vor `credentials.md`). Dateisuche unabhängig von Groß-/Kleinschreibung (Changelog/History, Roadmap/TODO/Backlog,
+  credentials/zugangsdaten) auch in `docs/`; Roadmaps ohne Checkboxen werden als Listen gelesen (✅/durchgestrichen/„Erledigt“ = erledigt);
+  Changelogs mit Datumsüberschriften (auch `23.10.2026`) und Absätzen werden erkannt. Die Vorschau zeigt Beispiele und bei Nichtfinden die vorhandenen Textdateien.
 - Import: Der Server prüft die Agent-Version und meldet bei zu alten Agents (< 0.4.0) verständlich, wie man sie aktualisiert, statt dass der Agent
   „Aktion nicht erlaubt: project.import“ zurückgibt. Agent-Update setzt eine versehentlich geänderte `package-lock.json` zurück (statt „GIT_DIRTY“) und
   fällt bei fehlgeschlagenem `npm ci` auf `npm install` zurück.

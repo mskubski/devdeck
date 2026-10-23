@@ -140,3 +140,25 @@ describe('devdeck import', () => {
     expect(fs.readFileSync(path.join(ws, 'ROADMAP.md'), 'utf8')).toContain('- [ ] Alt (P5)');
   });
 });
+
+describe('Import-Parser: weitere Formate (Roadmap ohne Checkboxen, Datumsüberschriften)', () => {
+  it('parseTasks: Listen ohne Checkboxen; ✅, Durchgestrichen und „Erledigt“-Abschnitt = erledigt; Hinweise ignoriert', () => {
+    const items = parseTasks(`# Roadmap\n\n## Hinweis\n- das ist nur eine Notiz\n\n## Geplant\n- Instagram-Publisher\n- TikTok-Anbindung (P5)\n\n## Erledigt\n- Telegram-Bot\n- Web-GUI ✅\n\n## Weiteres\n- ~~Alte Idee~~\n- Instagram-Publisher\n  - Unterpunkt wird ignoriert\n`);
+    expect(items).toEqual([
+      { title: 'Instagram-Publisher', done: false, priority: 3, section: 'Geplant' },
+      { title: 'TikTok-Anbindung', done: false, priority: 5, section: 'Geplant' },
+      { title: 'Telegram-Bot', done: true, priority: 3, section: 'Erledigt' },
+      { title: 'Web-GUI', done: true, priority: 3, section: 'Erledigt' },
+      { title: 'Alte Idee', done: true, priority: 3, section: 'Weiteres' },
+    ]);
+  });
+
+  it('parseChangelog: Datumsüberschriften (ISO und deutsch), Absätze, nummerierte Listen, Titel und Trennlinien ignoriert', () => {
+    const items = parseChangelog(`# Changelog\n\nEinleitungstext wird ignoriert.\n\n---\n\n## 23.10.2026\n\nTikTok-Publisher hinzugefügt.\nMit Warteschlange.\n\n1. Fix für Selbstheilung\n\n### 2026-10-20\n- Insta/FB-Freigabe\n\n\`\`\`\n- im Codeblock\n\`\`\`\n`);
+    expect(items.map((i) => [i.version, i.date, i.summary])).toEqual([
+      [null, '2026-10-23', 'TikTok-Publisher hinzugefügt.'],
+      [null, '2026-10-23', 'Fix für Selbstheilung'],
+      [null, '2026-10-20', 'Insta/FB-Freigabe'],
+    ]);
+  });
+});
