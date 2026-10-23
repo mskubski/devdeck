@@ -155,5 +155,9 @@ wird (nicht zwingend auf dem Server selbst). Pro Maschine braucht es einmalig:
 - **CLI:** `node packages/cli/dist/index.js help` zeigt alle Befehle (`login`, `status`, `sync`, `context`,
   `session start|finish`, `handover import`, `task|changelog|decision add`, `secret list`, `env run -- <cmd>`).
   `devdeck claude` bzw. `devdeck codex` startet den Coding Agent im Workspace mit aktuellem Kontext und Coding Session.
+- **Import bestehender Projektdaten:** Im Workspace-Ordner `devdeck import all` (Vorschau) bzw. `devdeck import all --apply`.
+  Liest `CHANGELOG.md`, `ROADMAP.md`/`TODO.md` (Checkboxen `- [ ]`/`- [x]`, optional `(P1)`–`(P5)`) sowie `.env`,
+  `.env.<umgebung>` und `credentials.md` (Zeilen `KEY=wert`, `KEY: wert` oder Tabellenzeilen). Bereits vorhandene
+  Einträge werden übersprungen; Secrets landen verschlüsselt im Vault, ihre Werte werden nie angezeigt.
 - **Wissen:** Im Projekt gibt es die Tabs **Entscheidungen**, **Changelog**, **Known Issues** und **Verlauf**.
 - **Integrationen:** Tab **Integrationen** – GitHub-Konnektor mit Token aus einem Projekt-Secret.

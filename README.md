@@ -118,7 +118,7 @@ node packages/cli/dist/index.js status
 node packages/cli/dist/index.js claude --goal "Fix the login bug"   # or: codex
 ```
 
-Run `devdeck help` for all commands. The project is detected from `--project`, `.devdeck/project.json`
+Run `devdeck help` for all commands. `devdeck import all [--apply]` imports an existing `CHANGELOG.md`, `ROADMAP.md`/`TODO.md` and `.env`/`credentials.md` into a project (preview by default). The project is detected from `--project`, `.devdeck/project.json`
 or the registered workspace path.
 
 ## Development

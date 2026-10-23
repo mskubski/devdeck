@@ -11,6 +11,15 @@ const DECISION_STATUS = ['proposed', 'accepted', 'superseded', 'rejected'];
 const SEVERITY = ['low', 'medium', 'high'];
 const ISSUE_STATUS = ['open', 'resolved'];
 
+/** Optionales Datum (YYYY-MM-DD) für importierte Einträge; sonst jetzt. */
+function entryDate(value: unknown): string {
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const d = new Date(`${value}T12:00:00.000Z`);
+    if (!Number.isNaN(d.getTime()) && d.getTime() <= Date.now()) return d.toISOString();
+  }
+  return new Date().toISOString();
+}
+
 /** Phase E: Decisions, Changelog, Known Issues, History (Spezifikation §22). */
 export function knowledgeRoutes(ctx: AppContext): Router {
   const { db } = ctx;
@@ -143,7 +152,7 @@ export function knowledgeRoutes(ctx: AppContext): Router {
         optionalString(req.body, 'body', 10_000),
         optionalString(req.body, 'session_id', 100),
         req.user!.id,
-        new Date().toISOString(),
+        entryDate(req.body?.date),
       );
       log(req, 'changelog.create', 'changelog_entry', id, { summary });
       res.status(201).json({ data: db.get<ChangelogEntryDto>('SELECT * FROM changelog_entries WHERE id = ?', id) });

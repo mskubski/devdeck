@@ -7,6 +7,7 @@ import { login, logout, whoami } from './commands/auth.js';
 import { context, status, sync } from './commands/workspace.js';
 import { changelog, decision, handover, secret, session, task } from './commands/knowledge.js';
 import { isLauncher, launch } from './commands/launch.js';
+import { importCmd } from './commands/import.js';
 import { envRun } from './commands/envRun.js';
 
 const HELP = `DevDeck CLI
@@ -25,6 +26,9 @@ const HELP = `DevDeck CLI
   devdeck secret list [--environment e]      Nur Metadaten, nie Werte
   devdeck claude|codex [--goal "..."] [-- args]
                                              Coding Agent im Workspace starten (Kontext + Session)
+  devdeck import changelog|tasks|secrets|all [--apply]
+                                             Bestehende CHANGELOG.md, ROADMAP/TODO.md, .env/credentials.md importieren
+                                             (ohne --apply nur Vorschau; Secret-Werte werden nie angezeigt)
   devdeck env run [--environment e] -- <cmd> Befehl mit Secrets als Umgebungsvariablen
 
 Allgemein: --project <slug> überschreibt die automatische Projekterkennung.`;
@@ -42,6 +46,7 @@ const COMMANDS: Record<string, (ctx: Ctx, argv: string[]) => Promise<number>> = 
   changelog,
   decision,
   secret,
+  import: importCmd,
   env: async (ctx, argv) => {
     if (argv[0] !== 'run') throw new CliError('Aufruf: devdeck env run -- <befehl>', 'USAGE', 2);
     return envRun(ctx, argv.slice(1));
