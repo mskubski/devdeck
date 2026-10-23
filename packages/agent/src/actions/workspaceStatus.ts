@@ -29,7 +29,29 @@ export function resolveWorkspacePath(ctx: ActionContext, rawPath: unknown): stri
 }
 
 registerAction('workspace.status', async (ctx) => {
-  const workspacePath = resolveWorkspacePath(ctx, ctx.payload.local_path);
+  let workspacePath: string;
+  try {
+    workspacePath = resolveWorkspacePath(ctx, ctx.payload.local_path);
+  } catch (err) {
+    // Ein fehlender/unzulässiger Pfad ist selbst ein Prüfergebnis: melden, statt nur zu scheitern
+    // (sonst bliebe der Workspace in der UI ewig „unknown“ ohne Erklärung).
+    const workspaceId = typeof ctx.payload.workspace_id === 'string' ? ctx.payload.workspace_id : null;
+    const code = (err as { code?: string }).code;
+    if (workspaceId && (code === 'NOT_FOUND' || code === 'FORBIDDEN')) {
+      const detail =
+        code === 'NOT_FOUND'
+          ? 'Ordner existiert noch nicht – „Provision“ ausführen (klont das Repository dorthin)'
+          : err instanceof Error
+            ? err.message
+            : 'Pfad nicht zulässig';
+      const readiness = { overall: 'BLOCKED' as const, checks: [{ name: 'Verzeichnis', status: 'BLOCKED' as const, detail }] };
+      await ctx.client.request('POST', `/api/agent/workspaces/${workspaceId}/status`, {
+        body: { git: null, readiness },
+      });
+      return { local_path: String(ctx.payload.local_path), project: null, git: null, readiness } as unknown as Record<string, unknown>;
+    }
+    throw err;
+  }
   const manifest = loadManifest(workspacePath);
   const repo = await isGitRepo(workspacePath);
   const gitState = repo ? await gitStatus(workspacePath) : null;

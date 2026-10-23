@@ -11,7 +11,7 @@ import {
 } from '../http.js';
 import type { AppContext } from '../context.js';
 import { requireProjectRole, requireUser } from '../auth/middleware.js';
-import { enqueueCommand, syncLogForProject } from '../services/provisioning.js';
+import { enqueueCommand, requestWorkspaceStatus, syncLogForProject } from '../services/provisioning.js';
 import { audit } from '../services/audit.js';
 
 interface WorkspaceRow {
@@ -28,15 +28,32 @@ interface WorkspaceRow {
   last_context_sync_at: string | null;
   created_at: string;
   updated_at: string;
+  readiness_json?: string | null;
+  git_json?: string | null;
+  checked_at?: string | null;
 }
 
 function toWorkspaceDto(row: WorkspaceRow): WorkspaceDto {
-  return { ...row, status: row.status as WorkspaceDto['status'] };
+  const { readiness_json, git_json, ...rest } = row;
+  const parse = <T>(v: string | null | undefined): T | null => {
+    try {
+      return v ? (JSON.parse(v) as T) : null;
+    } catch {
+      return null;
+    }
+  };
+  return {
+    ...rest,
+    status: row.status as WorkspaceDto['status'],
+    readiness: parse(readiness_json),
+    git_state: parse(git_json),
+    checked_at: row.checked_at ?? null,
+  };
 }
 
 const WS_COLUMNS = `id, project_id, machine_id, owner_user_id, local_path, repo_remote, branch,
                     status, last_git_commit, last_sync_at, last_context_sync_at,
-                    created_at, updated_at`;
+                    created_at, updated_at, readiness_json, git_json, checked_at`;
 
 /** Workspace Registry + Sync-/Provision-Aufträge an den Agenten. */
 export function workspaceRoutes(ctx: AppContext): Router {
@@ -78,7 +95,7 @@ export function workspaceRoutes(ctx: AppContext): Router {
   // Command an die Maschine eines Workspaces schicken
   function enqueueForWorkspace(
     workspace: WorkspaceRow,
-    action: 'workspace.sync' | 'workspace.provision' | 'project.import',
+    action: 'workspace.sync' | 'workspace.provision' | 'project.import' | 'workspace.status',
     payload: Record<string, unknown>,
     requestedBy: string,
   ): string {
@@ -182,6 +199,7 @@ export function workspaceRoutes(ctx: AppContext): Router {
         result: 'success',
         detail: { local_path: localPath },
       });
+      requestWorkspaceStatus(db, loadWorkspace(id), req.user!.id); // Status gleich ermitteln, statt „unknown“ zu zeigen
       res.status(201).json({ data: toWorkspaceDto(loadWorkspace(id)) });
     }),
   );
@@ -269,6 +287,7 @@ export function workspaceRoutes(ctx: AppContext): Router {
         result: 'success',
         detail: { from_path: ws.local_path, local_path: effectivePath, branch, repo_remote: repoRemote },
       });
+      if (localPath || machineId) requestWorkspaceStatus(db, loadWorkspace(ws.id), user.id, true);
       res.json({ data: toWorkspaceDto(loadWorkspace(ws.id)) });
     }),
   );
@@ -370,6 +389,23 @@ export function workspaceRoutes(ctx: AppContext): Router {
       res.json({
         data: { id: cmd.id, status: cmd.status, error: cmd.error, result: cmd.result_json ? JSON.parse(cmd.result_json) : null },
       });
+    }),
+  );
+
+  // Nur prüfen (read-only): Git-Zustand + Readiness neu ermitteln, ohne zu synchronisieren
+  router.post(
+    '/workspaces/:id/check',
+    asyncHandler(async (req, res) => {
+      const ws = loadWorkspace(param(req, 'id')!);
+      const user = req.user!;
+      const role = db.get<{ role: string }>(
+        'SELECT role FROM project_members WHERE project_id = ? AND user_id = ?',
+        ws.project_id,
+        user.id,
+      );
+      if (!role && user.system_role !== 'admin') throw new AppError('FORBIDDEN', 'Kein Zugriff auf diesen Workspace');
+      const commandId = enqueueForWorkspace(ws, 'workspace.status', {}, user.id);
+      res.status(202).json({ data: { command_id: commandId } });
     }),
   );
 

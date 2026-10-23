@@ -128,6 +128,10 @@ export interface WorkspaceDto {
   last_context_sync_at: string | null;
   created_at: string;
   updated_at: string;
+  /** Ergebnis der letzten Prüfung (Checks + Git-Zustand); null = noch nie geprüft */
+  readiness?: ReadinessReport | null;
+  git_state?: GitState | null;
+  checked_at?: string | null;
 }
 
 export type SessionStatus = 'open' | 'closed';

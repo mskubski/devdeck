@@ -152,6 +152,11 @@ wird (nicht zwingend auf dem Server selbst). Pro Maschine braucht es einmalig:
 - **Regeln für Claude Code:** Bei Sync/Provision schreibt der Agent `.devdeck/` und `.claude/rules/devdeck.md` (Kontext lesen,
   nach jeder Änderung bauen/testen/committen/pushen). Beide Pfade werden lokal über `.git/info/exclude` ignoriert; das
   Repository bleibt sauber. Wer eigene Regeln in `CLAUDE.md` pflegt, setzt dort den Marker `<!-- devdeck:rules-included -->`.
+- **Workspace-Status (ready / warning / blocked / unknown):** Der Status kommt vom Agenten und fasst die Prüfpunkte zusammen (Git, Repository,
+  Toolchain/Abhängigkeiten laut optionalem Manifest, `.env` nur bei verlangter Projektion, Kontext, Abgleich mit GitHub). Ein Klick auf den Status
+  im Tab **Workspaces** zeigt jeden Prüfpunkt mit Begründung; **Prüfen** liest den Zustand neu (ohne Sync). `unknown` heißt „noch nie geprüft“ und
+  verschwindet automatisch kurz nach dem Registrieren bzw. sobald der Agent online ist. Typische Hinweise: *„N Commits nicht gepusht“* (pushen),
+  *„Ordner existiert noch nicht“* (Provision), *„lokale Änderungen“* (committen).
 - **Sync/Provision schlägt mit „außerhalb des Workspace-Root“ fehl:** Der Workspace-Pfad muss immer unterhalb des Workspace-Roots der Maschine
   liegen. DevDeck prüft das jetzt schon beim Registrieren/Bearbeiten und zeigt den Root an. Falsche Pfade korrigierst du im Tab **Workspaces**
   mit **Bearbeiten** (oder **Entfernen** – löscht nur die Registrierung, nie Dateien). Den Root selbst änderst du unter **Maschinen** → „Root ändern“.

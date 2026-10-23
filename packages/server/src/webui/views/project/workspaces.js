@@ -87,6 +87,44 @@ async function runImportFlow(wsId, onDone) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
+const STATUS_EXPLAIN = {
+  ready: 'alles in Ordnung',
+  warning: 'läuft, aber es gibt Hinweise',
+  blocked: 'eine Voraussetzung fehlt (z. B. Ordner, Git, Abhängigkeiten)',
+  unknown: 'noch nicht geprüft',
+  provisioning: 'wird gerade eingerichtet',
+  offline: 'Maschine nicht erreichbar',
+};
+const CHECK_ICON = { OK: '✓', WARNING: '!', BLOCKED: '✗' };
+
+/** Warum steht der Workspace auf diesem Status? Zeigt alle Prüfpunkte und den Git-Zustand. */
+function showStatusDetails(w, machineName) {
+  const r = w.readiness;
+  const g = w.git_state;
+  const checks = r?.checks?.length
+    ? r.checks.map((c) => `
+      <tr>
+        <td><span class="badge ${c.status === 'OK' ? 'ok' : c.status === 'WARNING' ? 'warn' : 'bad'}">${CHECK_ICON[c.status] ?? ''} ${esc(c.status)}</span></td>
+        <td>${esc(c.name)}</td>
+        <td class="muted text-sm">${esc(c.detail || '')}</td>
+      </tr>`).join('')
+    : '';
+  openModal(`
+    <h2>Status: ${esc(w.status)}</h2>
+    <p class="text-sm muted"><span class="mono">${esc(w.local_path)}</span>${machineName ? ` auf ${esc(machineName)}` : ''}<br>
+      ${esc(STATUS_EXPLAIN[w.status] ?? '')}${w.checked_at ? ` · zuletzt geprüft ${fmtDate(w.checked_at)}` : ''}</p>
+    ${checks ? `<div class="table-wrap"><table><thead><tr><th>Ergebnis</th><th>Prüfpunkt</th><th>Hinweis</th></tr></thead><tbody>${checks}</tbody></table></div>`
+      : '<p class="text-sm">Noch keine Prüfung vorhanden. Mit „Prüfen“ wird der Workspace gelesen (ohne zu synchronisieren).</p>'}
+    ${g ? `<p class="text-sm muted">Git: Branch <span class="mono">${esc(g.branch ?? '–')}</span>
+      · ${g.dirty ? `<strong>${g.files?.length ?? '?'} lokale Änderung(en)</strong>` : 'keine lokalen Änderungen'}
+      · ${g.ahead ? `${g.ahead} nicht gepusht` : 'nichts zu pushen'} · ${g.behind ? `${g.behind} neu auf dem Remote` : 'aktuell'}
+      ${g.message ? `<br>Letzter Commit: ${esc(g.message)}` : ''}</p>` : ''}
+    <p class="text-sm muted">Bedeutung: <strong>ready</strong> = alles in Ordnung · <strong>warning</strong> = läuft, aber es gibt Hinweise ·
+      <strong>blocked</strong> = eine Voraussetzung fehlt · <strong>unknown</strong> = noch nicht geprüft.</p>
+    <div class="modal-actions"><button class="btn" id="st-close" type="button">Schließen</button></div>`,
+  (root) => $('#st-close', root).addEventListener('click', closeModal));
+}
+
 const sepOf = (m) => (m?.platform === 'win32' ? '\\' : '/');
 
 /**
@@ -150,10 +188,11 @@ export async function renderWorkspaces(el, project) {
       <td><span class="mono text-sm">${esc(w.local_path)}</span></td>
       <td class="muted text-sm">${esc(w.machine_id ? (machineName.get(w.machine_id) || w.machine_id) : '–')}</td>
       <td class="muted text-sm">${esc(w.branch || '–')}</td>
-      <td>${badge(w.status, w.status)}</td>
+      <td><button class="btn ghost sm" data-status="${w.id}" title="${esc(STATUS_EXPLAIN[w.status] ?? '')} – Klick für Details">${badge(w.status, w.status)}</button></td>
       <td class="muted text-sm">${w.last_sync_at ? fmtDate(w.last_sync_at) : 'nie'}</td>
       <td class="actions">
         ${canManage ? `
+          <button class="btn ghost sm" data-check="${w.id}" title="Nur prüfen (Git-Zustand, Voraussetzungen) – ändert nichts">Prüfen</button>
           <button class="btn ghost sm" data-sync="${w.id}">Sync</button>
           ${roleAtLeast(project.role, 'maintainer') ? `<button class="btn ghost sm" data-import="${w.id}">Importieren</button>` : ''}
           <button class="btn ghost sm" data-provision="${w.id}">Provision</button>
@@ -191,6 +230,23 @@ export async function renderWorkspaces(el, project) {
     } catch (err) { setModalError(res.root, err.message); }
   });
 
+  for (const btn of $$('[data-status]', el)) {
+    btn.addEventListener('click', () => {
+      const w = workspaces.find((x) => x.id === btn.dataset.status);
+      showStatusDetails(w, w.machine_id ? machineName.get(w.machine_id) : null);
+    });
+  }
+  for (const btn of $$('[data-check]', el)) {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        const { command_id } = await post(`/api/workspaces/${btn.dataset.check}/check`);
+        toast('Prüfung läuft …', 'info');
+        await waitForCommand(btn.dataset.check, command_id);
+        renderWorkspaces(el, project);
+      } catch (err) { toast(err.message, 'error'); btn.disabled = false; }
+    });
+  }
   for (const btn of $$('[data-edit]', el)) {
     btn.addEventListener('click', async () => {
       const w = workspaces.find((x) => x.id === btn.dataset.edit);

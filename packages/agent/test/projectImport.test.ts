@@ -202,3 +202,34 @@ describe('project.import (Agent → Server)', () => {
     expect((await srv.request('POST', `/api/workspaces/${workspaceId}/import`, { cookie, body: { environment: 'x' } })).status).toBe(400);
   });
 });
+
+describe('workspace.status bei fehlendem Ordner', () => {
+  it('meldet BLOCKED mit Erklärung statt nur zu scheitern (Status bleibt nicht „unknown“)', async () => {
+    const srv = await startTestServer();
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'devdeck-st-'));
+    try {
+      const cookie = await srv.login(TEST_ADMIN.email, TEST_ADMIN.password);
+      const projectId = (await srv.request('POST', '/api/projects', { cookie, body: { name: 'X' } })).body.data.id;
+      const m = await srv.enroll(cookie, 'pc');
+      const missing = path.join(root, 'noch-nicht-da');
+      const wsId = (await srv.request('POST', `/api/projects/${projectId}/workspaces`, {
+        cookie, body: { machine_id: m.machineId, local_path: missing },
+      })).body.data.id;
+      const config: AgentConfig = {
+        serverUrl: srv.base, machineId: m.machineId, machineToken: m.token, localToken: 'x',
+        workspaceRoot: root, localPort: 0, agentVersion: 'test',
+      };
+      const result = (await getAction('workspace.status')!({
+        client: new ServerClient(config), config, payload: { workspace_id: wsId, local_path: missing },
+      })) as any;
+      expect(result.readiness.overall).toBe('BLOCKED');
+      const ws = (await srv.request('GET', `/api/workspaces/${wsId}`, { cookie })).body.data;
+      expect(ws.status).toBe('blocked');
+      expect(ws.readiness.checks[0]).toMatchObject({ name: 'Verzeichnis', status: 'BLOCKED' });
+      expect(ws.readiness.checks[0].detail).toContain('Provision');
+    } finally {
+      await srv.close();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+});

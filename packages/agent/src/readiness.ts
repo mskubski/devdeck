@@ -39,10 +39,11 @@ export async function buildReadiness(input: ReadinessInput): Promise<ReadinessRe
   if (input.manifest) {
     checks.push({ name: 'Manifest', status: 'OK', detail: input.manifest.project.name });
   } else {
+    // Das Manifest ist optional: ohne es kennt DevDeck weder Toolchain noch .env-Projektion, das ist aber kein Fehler.
     checks.push({
       name: 'Manifest',
-      status: 'WARNING',
-      detail: '.devdeck/workspace.yaml fehlt',
+      status: 'OK',
+      detail: 'optional – kein .devdeck/workspace.yaml (Toolchain-/Secret-Prüfung entfällt)',
     });
   }
 
@@ -67,16 +68,20 @@ export async function buildReadiness(input: ReadinessInput): Promise<ReadinessRe
   // Secrets/Credentials: Ziel-Env-Datei (nur Existenz prüfen, nie Werte lesen)
   const envTarget = input.manifest?.environment?.target ?? '.env';
   const envPath = path.join(input.workspacePath, envTarget);
-  checks.push(
-    fs.existsSync(envPath)
-      ? { name: 'Secrets', status: 'OK' }
-      : { name: 'Secrets', status: input.manifest?.environment ? 'BLOCKED' : 'WARNING', detail: `${envTarget} fehlt` },
-  );
-  checks.push(
-    fs.existsSync(envPath)
-      ? { name: 'Credentials', status: 'OK' }
-      : { name: 'Credentials', status: 'WARNING', detail: 'Noch keine projizierten Credentials' },
-  );
+  // Nur wenn das Manifest eine .env-Projektion verlangt, ist eine fehlende Datei ein Problem
+  if (fs.existsSync(envPath)) {
+    checks.push({ name: 'Secrets', status: 'OK' }, { name: 'Credentials', status: 'OK' });
+  } else if (input.manifest?.environment) {
+    checks.push(
+      { name: 'Secrets', status: 'BLOCKED', detail: `${envTarget} fehlt – Sync/Provision projiziert sie aus dem Vault` },
+      { name: 'Credentials', status: 'WARNING', detail: 'Noch keine projizierten Credentials' },
+    );
+  } else {
+    checks.push(
+      { name: 'Secrets', status: 'OK', detail: 'keine .env-Projektion konfiguriert' },
+      { name: 'Credentials', status: 'OK', detail: 'keine .env-Projektion konfiguriert' },
+    );
+  }
 
   // Context-Dateien unter .devdeck/
   const contextPath = path.join(input.workspacePath, '.devdeck', 'CONTEXT.md');
@@ -85,6 +90,26 @@ export async function buildReadiness(input: ReadinessInput): Promise<ReadinessRe
       ? { name: 'Context', status: 'OK' }
       : { name: 'Context', status: 'WARNING', detail: 'context.refresh nicht ausgeführt' },
   );
+
+  // Abgleich mit GitHub: unveröffentlichte Commits bzw. neuer Stand auf dem Remote
+  if (input.gitState && input.isRepo) {
+    const { ahead, behind } = input.gitState;
+    if (ahead > 0) {
+      checks.push({
+        name: 'GitHub',
+        status: 'WARNING',
+        detail: `${ahead} lokale${ahead === 1 ? 'r Commit' : ' Commits'} nicht gepusht – ${behind > 0 ? `außerdem ${behind} neue auf dem Remote – ` : ''}bitte pushen`,
+      });
+    } else if (behind > 0) {
+      checks.push({
+        name: 'GitHub',
+        status: 'WARNING',
+        detail: `${behind} neue${behind === 1 ? 'r Commit' : ' Commits'} auf dem Remote – Sync ausführen`,
+      });
+    } else {
+      checks.push({ name: 'GitHub', status: 'OK', detail: 'synchron mit dem Remote' });
+    }
+  }
 
   // Git-Zustand als Hinweis (dirty blockiert nie die Readiness, aber der Sync stoppt)
   if (input.gitState?.dirty) {
