@@ -178,7 +178,6 @@ npm run build</pre>
         <p>Diese Teile der Spezifikation sind als Zielbild dokumentiert, aber in dieser Version noch nicht
         umgesetzt – damit das vorhandene Fundament stabil bleibt, statt halbfertige Funktionen auszuliefern:</p>
         <ul>
-          <li><strong>DevDeck CLI</strong> (<code>devdeck status/sync/session/...</code>) – noch kein Quellcode.</li>
           <li><strong>Service-Integrationen</strong> (GitHub, Supabase, Vercel, …) – später, optional.</li>
         </ul>`,
     },

@@ -3,6 +3,10 @@
 ## Unreleased - 2026-10-08
 
 ### Added
+- Phase H (Basis): `devdeck` CLI (`packages/cli`, ohne zusätzliche Dependencies): `login/logout/whoami`, `status`,
+  `sync`, `context`, `session start|finish`, `handover import`, `task|changelog|decision add`, `secret list`
+  (nur Metadaten) und `env run -- <cmd>` (Secrets nur in die Prozess-Umgebung des Kindprozesses).
+  Projekterkennung über `--project`, `.devdeck/project.json` oder den registrierten Workspace-Pfad.
 - Phase E (Rest): Decisions, Changelog, Known Issues und Verlauf (Routen `knowledge.ts`, neue Projekt-Tabs).
   Akzeptierte Entscheidungen und offene Known Issues fließen in `.devdeck/CONTEXT.md` / `CURRENT_STATE.md` ein.
 - Phase I: System-Backups (`services/backups.ts`, `routes/backups.ts`, UI „Backups"): konsistente Snapshots von
