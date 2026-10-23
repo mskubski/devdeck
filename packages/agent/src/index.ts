@@ -144,6 +144,9 @@ async function main(): Promise<void> {
     console.log(
       JSON.stringify(
         {
+          agent_version: AGENT_VERSION,
+          node: process.version,
+          entry: process.argv[1] ?? null,
           server_url: config.serverUrl,
           enrolled: Boolean(config.machineToken),
           machine_id: config.machineId,

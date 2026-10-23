@@ -145,7 +145,13 @@ npm run build</pre>
           <li><code>context.refresh</code> – erzeugt <code>.devdeck/*.md</code> aus der Datenbank</li>
           <li><code>env.refresh</code> – projiziert <code>.env</code> und Secret Files (0600, nie committed)</li>
           <li><code>dependencies.install</code>, <code>editor.open</code>, <code>terminal.open</code>, <code>coding_agent.start</code></li>
-        </ul>`,
+        </ul>
+        <p><strong>Update „erfolgreich“, aber die Version bleibt alt?</strong> „Agent updaten“ holt den Code (nur Fast-Forward), baut ihn, <em>startet den neuen Code probeweise</em>
+        (schlägt das fehl, wird abgebrochen und der alte Agent läuft weiter) und startet den Agenten neu. Meldet der Agent danach weiter die alte Version, zeigt die Maschinen-Liste
+        „Update nicht angekommen“ samt Startdatei, Commit und Node-Version des laufenden Prozesses. Typische Ursachen: ein <em>zweiter, älterer Agent-Prozess</em> (z. B. früher von Hand gestartet) läuft
+        parallel; der Agent läuft aus einem <em>anderen Ordner</em> als dem aktualisierten; er wird von einem Prozess-Manager/Container gestartet, der alten Code festhält. Prüfen auf der Maschine:
+        <code>ps -eo pid,lstart,cmd | grep "[a]gent/dist"</code> (Linux) bzw. Task-Manager (Windows) – es sollte genau <em>einen</em> Agent-Prozess geben; danach ihn einmal sauber neu starten.
+        Hängende Aufträge („running“) werden nach 30 Minuten automatisch als fehlgeschlagen abgeschlossen.</p>`,
     },
     {
       id: 'workspaces',

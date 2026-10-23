@@ -100,6 +100,12 @@ export interface MachineDto {
   agent_outdated: boolean;
   /** Agent kennt `agent.update` (≥ 0.2.0) – auch wenn er nicht die allerneueste Version ist. */
   agent_can_self_update: boolean;
+  /** Diagnose: Commit/Node/Startdatei des laufenden Agent-Prozesses (ab Agent 0.7.0) */
+  agent_commit?: string | null;
+  agent_node?: string | null;
+  agent_entry?: string | null;
+  /** Hinweis, wenn ein Update „erfolgreich“ war, der Agent aber noch mit alter Version läuft */
+  update_warning?: string | null;
   agent_status: MachineStatus;
   last_seen_at: string | null;
   revoked_at: string | null;

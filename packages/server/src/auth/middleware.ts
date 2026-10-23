@@ -30,6 +30,9 @@ export interface MachineRecord {
   platform: string;
   agent_version: string | null;
   workspace_root: string | null;
+  agent_commit?: string | null;
+  agent_node?: string | null;
+  agent_entry?: string | null;
   agent_status: string;
   last_seen_at: string | null;
   token_hash: string | null;

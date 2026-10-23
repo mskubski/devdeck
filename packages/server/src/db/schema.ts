@@ -392,6 +392,12 @@ const MIGRATIONS: string[] = [
     UNIQUE (project_id, from_key, to_key, label)
   );
   `,
+  // v12: Diagnose des laufenden Agent-Prozesses
+  `
+  ALTER TABLE machines ADD COLUMN agent_commit TEXT;
+  ALTER TABLE machines ADD COLUMN agent_node TEXT;
+  ALTER TABLE machines ADD COLUMN agent_entry TEXT;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

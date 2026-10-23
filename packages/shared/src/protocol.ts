@@ -17,13 +17,13 @@ export const AGENT_ACTIONS = [
 ] as const;
 
 /** Aktuelle Agent-Version; ältere Agenten kennen neuere Aktionen nicht und gelten als veraltet. */
-export const CURRENT_AGENT_VERSION = '0.6.0';
+export const CURRENT_AGENT_VERSION = '0.7.0';
 
 function versionParts(v: string): number[] {
   return v.split('.').map((p) => Number.parseInt(p, 10) || 0);
 }
 
-function compareVersions(a: string, b: string): number {
+export function compareVersions(a: string, b: string): number {
   const pa = versionParts(a);
   const pb = versionParts(b);
   for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
@@ -100,6 +100,10 @@ export interface HeartbeatRequest {
   agent_version: string;
   platform: string;
   workspace_root?: string;
+  /** Diagnose: Commit/Node/Startdatei des laufenden Agent-Prozesses */
+  agent_commit?: string | null;
+  agent_node?: string | null;
+  agent_entry?: string | null;
   workspaces?: Array<{
     workspace_id?: string;
     project?: string;
