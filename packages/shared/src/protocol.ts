@@ -22,15 +22,27 @@ function versionParts(v: string): number[] {
   return v.split('.').map((p) => Number.parseInt(p, 10) || 0);
 }
 
+function compareVersions(a: string, b: string): number {
+  const pa = versionParts(a);
+  const pb = versionParts(b);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
+    const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
 export function isAgentOutdated(version: string | null | undefined): boolean {
   if (!version) return true;
-  const a = versionParts(version);
-  const b = versionParts(CURRENT_AGENT_VERSION);
-  for (let i = 0; i < Math.max(a.length, b.length); i += 1) {
-    const diff = (a[i] ?? 0) - (b[i] ?? 0);
-    if (diff !== 0) return diff < 0;
-  }
-  return false;
+  return compareVersions(version, CURRENT_AGENT_VERSION) < 0;
+}
+
+/** Ab dieser Agent-Version existiert die Aktion `agent.update` (Selbst-Update). */
+export const MIN_SELF_UPDATE_VERSION = '0.2.0';
+
+export function supportsSelfUpdate(version: string | null | undefined): boolean {
+  if (!version) return false;
+  return compareVersions(version, MIN_SELF_UPDATE_VERSION) >= 0;
 }
 
 export type AgentAction = (typeof AGENT_ACTIONS)[number];

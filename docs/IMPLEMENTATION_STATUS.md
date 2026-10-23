@@ -129,6 +129,7 @@ Tests: 83/83 grün (`npm test`), `tsc -b` sauber. Neue Tests:
 - **J:** Connector-Interface + GitHub (`services/connectors/`, Migration v7, Tab „Integrationen“).
   Offen: GitLab, Supabase, Vercel, Brevo, Apple, Google Play, IONOS.
 - **Sessions-Scan:** Agent-Scanner für Claude-Code-Transcripts (nur Metadaten), `POST /api/agent/sessions/import`, Migration v8, Agent 0.3.0. Offen: Hooks für Live-Status (siehe ROADMAP.md).
+- **Update-Automatisierung:** System-Seite (Server-Update-Knopf inkl. Agents, optionales nächtliches Auto-Update, Rückabwicklung bei Fehlern), Auto-Merge für PRs.
 - CI: Dependabot und `npm audit`-Job.
 
 Tests: 108/108 grün, `tsc -b` sauber.

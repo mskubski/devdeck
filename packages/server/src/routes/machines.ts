@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
-import { AppError, isAgentOutdated, type MachineDto, type ProjectRole } from '@devdeck/shared';
+import { AppError, isAgentOutdated, supportsSelfUpdate, type MachineDto, type ProjectRole } from '@devdeck/shared';
 import {
   asyncHandler,
   clientIp,
@@ -24,6 +24,7 @@ function toMachineDto(row: MachineRecord): MachineDto {
     agent_version: row.agent_version,
     workspace_root: row.workspace_root,
     agent_outdated: isAgentOutdated(row.agent_version),
+    agent_can_self_update: supportsSelfUpdate(row.agent_version),
     agent_status: row.revoked_at ? 'revoked' : (row.agent_status as MachineDto['agent_status']),
     last_seen_at: row.last_seen_at,
     revoked_at: row.revoked_at,
@@ -160,7 +161,7 @@ export function machineRoutes(ctx: AppContext): Router {
       }
       if (row.revoked_at) throw new AppError('AGENT_OFFLINE', 'Maschine ist widerrufen');
       if (row.agent_status !== 'online') throw new AppError('AGENT_OFFLINE', 'Maschine ist nicht online');
-      if (isAgentOutdated(row.agent_version)) {
+      if (!supportsSelfUpdate(row.agent_version)) {
         throw new AppError(
           'VALIDATION',
           `Agent auf „${row.name}“ ist veraltet (${row.agent_version ?? 'unbekannt'}) und kennt diesen Befehl nicht. ` +
@@ -203,7 +204,7 @@ export function machineRoutes(ctx: AppContext): Router {
       }
       if (row.revoked_at) throw new AppError('AGENT_OFFLINE', 'Maschine ist widerrufen');
       if (row.agent_status !== 'online') throw new AppError('AGENT_OFFLINE', 'Maschine ist nicht online');
-      if (isAgentOutdated(row.agent_version)) {
+      if (!supportsSelfUpdate(row.agent_version)) {
         throw new AppError(
           'VALIDATION',
           'Dieser Agent kennt noch kein Selbst-Update – bitte einmalig manuell aktualisieren (git pull && npm run build, Agent neu starten).',

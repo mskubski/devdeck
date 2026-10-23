@@ -30,9 +30,9 @@ export async function renderMachines(el) {
       <td>${badge(m.agent_status, m.agent_status)}</td>
       <td class="muted text-sm">${m.last_seen_at ? timeAgo(m.last_seen_at) : 'nie'}</td>
       <td class="actions">
-        ${m.agent_status === 'online' && m.agent_outdated ? `<button class="btn ghost sm" data-howto="1">Update-Anleitung</button>` : ''}
-        ${m.agent_status === 'online' && !m.agent_outdated ? `<button class="btn ghost sm" data-update="${m.id}" data-name="${esc(m.name)}">Agent updaten</button>` : ''}
-        ${m.agent_status === 'online' && !m.agent_outdated ? `<button class="btn ghost sm" data-root="${m.id}" data-name="${esc(m.name)}" data-current="${esc(m.workspace_root || '')}">Root ändern</button>` : ''}
+        ${m.agent_status === 'online' && !m.agent_can_self_update ? `<button class="btn ghost sm" data-howto="1">Update-Anleitung</button>` : ''}
+        ${m.agent_status === 'online' && m.agent_can_self_update ? `<button class="btn ghost sm" data-update="${m.id}" data-name="${esc(m.name)}">Agent updaten</button>` : ''}
+        ${m.agent_status === 'online' && m.agent_can_self_update ? `<button class="btn ghost sm" data-root="${m.id}" data-name="${esc(m.name)}" data-current="${esc(m.workspace_root || '')}">Root ändern</button>` : ''}
         ${m.agent_status !== 'revoked' ? `<button class="btn ghost sm" data-revoke="${m.id}" data-name="${esc(m.name)}">Widerrufen</button>` : ''}
       </td>
     </tr>`).join('');

@@ -1,5 +1,5 @@
-import { get, post } from '../lib/api.js';
-import { $, esc, badge, toast, confirmModal } from '../lib/ui.js';
+import { get, post, api } from '../lib/api.js';
+import { $, esc, badge, toast, confirmModal, fmtDate } from '../lib/ui.js';
 import { icon } from '../lib/icons.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -28,7 +28,11 @@ async function waitForRestart(el) {
 }
 
 export async function renderSystem(el, refresh = false) {
-  const v = await get(`/api/system/version${refresh ? '?refresh=1' : ''}`);
+  const [v, settings] = await Promise.all([
+    get(`/api/system/version${refresh ? '?refresh=1' : ''}`),
+    get('/api/system/settings'),
+  ]);
+  const last = settings.last_update;
   const upToDate = v.behind === 0 && !v.on_other_branch;
   let status;
   if (v.fetch_error) status = badge('GitHub nicht erreichbar', 'bad');
@@ -50,14 +54,43 @@ export async function renderSystem(el, refresh = false) {
         <div><span class="muted">Laufender Stand</span><br><span class="mono">${esc(v.commit)}</span> · ${esc(v.subject)}</div>
         <div><span class="muted">Branch</span><br><span class="mono">${esc(v.branch)}</span> (Ziel: <span class="mono">${esc(v.target_branch)}</span>)</div>
         <div>${status}</div>
+        ${last ? `<div><span class="muted">Letztes Update</span><br>${fmtDate(last.at)} · ${esc(last.by)} · ${badge(last.result === 'success' ? 'erfolgreich' : 'fehlgeschlagen', last.result === 'success' ? 'ok' : 'bad')} <span class="muted">${esc(last.detail)}</span></div>` : ''}
         ${v.can_restart ? '' : '<div class="muted">Kein systemd erkannt: Nach dem Update muss der Server manuell neu gestartet werden.</div>'}
       </div>
-      <div class="row" style="margin-top:var(--space-4);gap:var(--space-3)">
+      <label class="row text-sm" style="margin-top:var(--space-4);gap:var(--space-2)">
+        <input type="checkbox" id="chk-agents" checked style="width:auto" />
+        Danach auch alle online befindlichen Agents aktualisieren
+      </label>
+      <div class="row" style="margin-top:var(--space-3);gap:var(--space-3)">
         <button class="btn" id="btn-update" ${v.dirty || v.fetch_error ? 'disabled' : ''}>${icon('check')}Server aktualisieren</button>
         <button class="btn ghost" id="btn-check">Nach Updates suchen</button>
       </div>
       <div id="update-status" class="stack" style="margin-top:var(--space-4)"></div>
+    </div>
+    <div class="card" style="margin-top:var(--space-5)">
+      <h2>Automatisches Update</h2>
+      <p class="muted text-sm">Optional: Der Server aktualisiert sich (inkl. Agents) einmal pro Nacht zur gewählten Stunde selbstständig,
+        wenn <span class="mono">${esc(v.target_branch)}</span> neuer ist. Standardmäßig aus – du behältst die Kontrolle, solange du es nicht einschaltest.
+        Vorher wird immer ein Backup erstellt; bei lokalen Änderungen im Server-Ordner wird übersprungen.</p>
+      <div class="row" style="gap:var(--space-4);align-items:center">
+        <label class="row text-sm" style="gap:var(--space-2)"><input type="checkbox" id="chk-auto" ${settings.auto_update_enabled ? 'checked' : ''} style="width:auto" /> aktiv</label>
+        <label class="row text-sm" style="gap:var(--space-2)">um
+          <select id="sel-hour" style="width:auto">${Array.from({ length: 24 }, (_, h) => `<option value="${h}" ${h === settings.auto_update_hour ? 'selected' : ''}>${String(h).padStart(2, '0')}:00</option>`).join('')}</select> Uhr (Serverzeit)
+        </label>
+      </div>
     </div>`;
+
+  const saveAuto = async () => {
+    try {
+      await api('/api/system/settings', {
+        method: 'PUT',
+        body: JSON.stringify({ auto_update_enabled: $('#chk-auto', el).checked, auto_update_hour: Number($('#sel-hour', el).value) }),
+      });
+      toast('Gespeichert', 'success');
+    } catch (err) { toast(err.message, 'error'); }
+  };
+  $('#chk-auto', el).addEventListener('change', saveAuto);
+  $('#sel-hour', el).addEventListener('change', saveAuto);
 
   $('#btn-check', el).addEventListener('click', () => renderSystem(el, true));
   $('#btn-update', el).addEventListener('click', async () => {
@@ -65,7 +98,7 @@ export async function renderSystem(el, refresh = false) {
       title: 'Server aktualisieren',
       message: upToDate
         ? 'Der Server ist laut letztem Stand aktuell. Trotzdem prüfen und ggf. aktualisieren?'
-        : 'Backup erstellen, neuesten Code von GitHub holen, bauen und den Server neu starten. Die Oberfläche ist dabei kurz nicht erreichbar.',
+        : 'Backup erstellen, neuesten Code von GitHub holen, bauen und den Server neu starten (danach ggf. die Agents). Die Oberfläche ist dabei kurz nicht erreichbar.',
       confirmLabel: 'Aktualisieren',
       danger: false,
     });
@@ -73,7 +106,7 @@ export async function renderSystem(el, refresh = false) {
     $('#btn-update', el).disabled = true;
     const box = $('#update-status', el);
     try {
-      await post('/api/system/update');
+      await post('/api/system/update', { agents: $('#chk-agents', el).checked });
       for (let i = 0; i < 600; i += 1) {
         await sleep(2000);
         let s;

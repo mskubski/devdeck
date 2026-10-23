@@ -12,6 +12,7 @@ import { hashPassword } from './auth/passwords.js';
 import { audit } from './services/audit.js';
 import { sweepExpiredCommands, sweepOfflineAgents } from './services/provisioning.js';
 import type { UserRecord } from './auth/middleware.js';
+import { runAutoUpdateTick } from './services/autoUpdate.js';
 import { runScheduledBackup } from './services/backups.js';
 import { VaultService } from './vault/vault.js';
 
@@ -130,6 +131,11 @@ export async function startServer(
     }
   }, 3_600_000);
   backupTimer.unref();
+  // Automatisches Update (nur wenn in der System-Seite aktiviert): alle 10 Minuten prüfen
+  const updateTimer = setInterval(() => {
+    runAutoUpdateTick(ctx).catch((err) => console.error('[DevDeck] Auto-Update fehlgeschlagen:', err));
+  }, 600_000);
+  updateTimer.unref();
   setTimeout(() => {
     try {
       runScheduledBackup(ctx);
@@ -146,6 +152,7 @@ export async function startServer(
     close: async () => {
       clearInterval(sweeper);
       clearInterval(backupTimer);
+      clearInterval(updateTimer);
       await new Promise<void>((resolve) => server.close(() => resolve()));
       ctx.vault?.close();
       ctx.db.close();

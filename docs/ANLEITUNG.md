@@ -154,14 +154,20 @@ Beispiel: Entwicklung auf dem Windows-PC `mauriceZ`, DevDeck läuft produktiv au
 1. **Am PC entwickeln.** Im Workspace-Ordner (z. B. `D:\DEVDECK\DEV\devdeck`) mit Claude Code arbeiten. Läuft der Agent
    und ist der Workspace registriert, erscheint die Sitzung automatisch im Tab **Sessions**.
 2. **GitHub aktualisieren – nach jeder Code-Anpassung.** Das erledigt Claude Code selbst (Regel in `CLAUDE.md`):
-   `npm run build && npm test`, Feature-Branch committen und pushen, Pull Request öffnen, CI abwarten, bei grün nach
-   `main` mergen. (`main` ist durch den Check `build-and-test` geschützt; der PC braucht GitHub-Zugangsdaten und `gh`.)
+   `npm run build && npm test`, Feature-Branch committen und pushen, Pull Request öffnen und Auto-Merge
+   einschalten (`gh pr merge --auto --merge`): GitHub mergt nach `main`, sobald die CI grün ist. (`main` ist durch den Check `build-and-test` geschützt; der PC braucht GitHub-Zugangsdaten und `gh`.)
 3. **Server aktualisieren – ein Klick:** In DevDeck unter **System** → **„Server aktualisieren“**. Der Server erstellt
    automatisch ein Backup, holt `main` von GitHub (nur Fast-Forward), führt `npm ci` und den Build aus und startet sich
    neu (wenige Sekunden). Schlägt ein Schritt fehl, wird auf den vorherigen Stand zurückgesetzt und der Server läuft
    unverändert weiter. Das geht von jeder Maschine aus, auf der du in DevDeck angemeldet bist.
-4. **Andere Maschinen nachziehen:** Unter **Maschinen** → „Agent updaten“ (Fast-Forward-Pull, Build, Neustart).
-   Projekt-Workspaces mit **Sync** (oder `devdeck sync`) auf den neuen Stand bringen.
+4. **Agents:** Das Häkchen „Danach auch alle online befindlichen Agents aktualisieren“ (Standard an) beauftragt alle
+   Agents ab Version 0.2.0, sich selbst zu aktualisieren (Fast-Forward-Pull, `npm ci`, Build, Neustart) – ein Klick für
+   alles. Ältere Agents werden übersprungen und müssen einmalig von Hand aktualisiert werden. Einzelne Agents gehen
+   weiterhin unter **Maschinen** → „Agent updaten“. Projekt-Workspaces danach mit **Sync** (`devdeck sync`) nachziehen.
+5. **Optional – automatisches Update:** Auf der Seite **System** einschalten. Der Server prüft dann einmal pro Nacht
+   (Standard 03:00 Serverzeit, wählbar), ob `main` neuer ist, und aktualisiert sich samt Agents. Nur mit sauberem
+   Server-Ordner, mit vorherigem Backup, höchstens einmal pro Tag und nicht, während ein Agent-Auftrag läuft.
+   Standardmäßig **aus**; das Ergebnis steht auf der System-Seite unter „Letztes Update“.
 
 Einmalig nötig: Der Server muss den Update-Knopf selbst erst haben. Auf dem Server-Rechner dafür einmal von Hand
 `git checkout main && git pull --ff-only && npm ci && npm run build && systemctl --user restart devdeck-server devdeck-agent`
