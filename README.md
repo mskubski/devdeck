@@ -104,6 +104,21 @@ Open <http://localhost:8080> (or your `DEVDECK_PORT`) and log in. Change the pas
 
 See `packages/server/src/config.ts` for the complete list.
 
+### Development workflow (PC → GitHub → server)
+
+Code only travels via GitHub; DevDeck never transfers source code itself.
+
+1. Develop on your PC in a registered workspace (e.g. with Claude Code) on a feature branch – the agent picks the session up automatically.
+2. `npm run build && npm test`, then commit, push, open a pull request, wait for CI and merge to `main`.
+3. In the web UI create a backup (**Backups**), then update the server machine:
+   ```bash
+   git pull --ff-only && npm install && npm run build
+   systemctl --user restart devdeck-server devdeck-agent
+   ```
+4. Update other machines via **Machines → Update agent** and sync their workspaces (**Sync** / `devdeck sync`).
+
+See [ANLEITUNG.md](docs/ANLEITUNG.md) (German, section 9) for details.
+
 ### Backups and restore
 
 Admins can create and verify system backups in the web UI (**Backups**); the vault key is never included –

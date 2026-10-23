@@ -161,6 +161,36 @@ npm run build</pre>
         Rückfrage ab, statt etwas zu überschreiben.</p>`,
     },
     {
+      id: 'workflow',
+      icon: 'code',
+      title: 'Entwickeln am PC & auf dem Server ausrollen',
+      body: `
+        <p>Typischer Ablauf, wenn du am PC (z. B. <em>mauriceZ</em>) entwickelst und DevDeck auf einem Server
+        (z. B. <em>debian01</em>) läuft. <strong>Der Code reist ausschließlich über GitHub</strong> – DevDeck
+        selbst überträgt keinen Quellcode.</p>
+        <ol>
+          <li><strong>Am PC arbeiten:</strong> im Workspace-Ordner (z. B. <code>D:\DEVDECK\DEV\devdeck</code>)
+            einen Branch anlegen (<code>git checkout -b feature/xyz</code>) und mit Claude Code entwickeln.
+            Die Sitzung erscheint automatisch unter <em>Sessions</em> (Quelle „Claude Code“), sobald der
+            Agent läuft und der Workspace registriert ist.</li>
+          <li><strong>Prüfen:</strong> <code>npm run build</code> und <code>npm test</code>.</li>
+          <li><strong>Auf GitHub bringen:</strong> committen, <code>git push</code>, Pull Request öffnen,
+            CI abwarten, nach <code>main</code> mergen.</li>
+          <li><strong>Server sichern:</strong> unter <em>Backups</em> „Backup jetzt erstellen“ (Datenbank-Migrationen
+            laufen beim Start automatisch).</li>
+          <li><strong>Server aktualisieren</strong> (auf dem Server-Rechner):
+            <div class="secret-value">cd ~/Development/devdeck &amp;&amp; git pull --ff-only &amp;&amp; npm install &amp;&amp; npm run build
+systemctl --user restart devdeck-server devdeck-agent</div>
+            Der Neustart dauert wenige Sekunden; Agents verbinden sich selbstständig wieder.</li>
+          <li><strong>Andere Maschinen:</strong> unter <em>Maschinen</em> „Agent updaten“ (Fast-Forward-Pull, Build, Neustart);
+            Projekt-Workspaces mit <em>Sync</em> (<code>devdeck sync</code>) auf den neuen Stand bringen.</li>
+        </ol>
+        <p class="muted">Hinweise: Der Server-Rechner braucht Zugriff auf GitHub (<code>git pull</code>). Bei lokalen
+        Änderungen im Server-Ordner bricht ein Pull bzw. „Agent updaten“ ab – dort nicht direkt editieren.
+        Wissen wie Tasks, Changelog und Entscheidungen liegt in der DevDeck-Datenbank, nicht in Git
+        (Import vorhandener Dateien: <code>devdeck import all</code>).</p>`,
+    },
+    {
       id: 'audit',
       icon: 'history',
       title: 'Audit-Log',

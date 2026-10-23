@@ -146,6 +146,40 @@ wird (nicht zwingend auf dem Server selbst). Pro Maschine braucht es einmalig:
 | Maschine bleibt „offline“ | Agent läuft nicht, oder Heartbeat erreicht den Server nicht (Server-URL/Netzwerk prüfen). Nach 90 s ohne Heartbeat markiert der Server die Maschine automatisch als offline. |
 | Secret-Wert lässt sich nicht anzeigen | Dafür ist die Capability `secret.reveal` nötig (implizit bei Projektrolle `owner`/`maintainer`). Siehe Hilfe-Seite „Secrets & DevDeck Vault“. |
 
+## 9. Am PC entwickeln und auf dem Server ausrollen
+
+Beispiel: Entwicklung auf dem Windows-PC `mauriceZ`, DevDeck läuft produktiv auf `debian01`. Der Quellcode reist
+**nur über GitHub**; DevDeck überträgt keinen Code.
+
+1. **Am PC entwickeln.** Im Workspace-Ordner (z. B. `D:\DEVDECK\DEV\devdeck`) einen Branch anlegen
+   (`git checkout -b feature/xyz`) und mit Claude Code arbeiten. Läuft der Agent und ist der Workspace registriert,
+   erscheint die Sitzung automatisch im Tab **Sessions**. Optional: `node packages/cli/dist/index.js session start`
+   bzw. `... claude` (Launcher) für Ziel und Handover.
+2. **Prüfen:** `npm run build` und `npm test`.
+3. **Auf GitHub bringen:** committen, `git push`, Pull Request öffnen, CI abwarten, nach `main` mergen.
+   (Der PC braucht dafür GitHub-Zugangsdaten, z. B. über den Git Credential Manager.)
+4. **Server sichern:** In der Web-UI unter **Backups** → „Backup jetzt erstellen“. Datenbank-Migrationen laufen
+   beim Start automatisch.
+5. **Server aktualisieren** (Terminal auf `debian01`):
+   ```bash
+   cd ~/Development/devdeck
+   git pull --ff-only
+   npm install
+   npm run build
+   systemctl --user restart devdeck-server devdeck-agent
+   ```
+   Der Neustart dauert wenige Sekunden; die Agents verbinden sich selbstständig wieder.
+6. **Andere Maschinen nachziehen:** Unter **Maschinen** → „Agent updaten“ (Fast-Forward-Pull, Build, Neustart).
+   Projekt-Workspaces mit **Sync** (oder `devdeck sync`) auf den neuen Stand bringen.
+
+Hinweise:
+- Bricht `git pull` oder „Agent updaten“ wegen lokaler Änderungen ab, wurde im Server-/Agent-Ordner direkt editiert –
+  dort nicht entwickeln, sondern nur über GitHub aktualisieren.
+- Tasks, Changelog und Entscheidungen liegen in der DevDeck-Datenbank, nicht in Git. Vorhandene Dateien
+  (`CHANGELOG.md`, `ROADMAP.md`, `.env`) lassen sich mit `devdeck import all` übernehmen.
+- Der Agent startet unter Windows nicht automatisch; nach einem Neustart des PCs erneut starten:
+  `node packages/agent/dist/index.js start --workspace-root D:\DEVDECK\DEV`.
+
 ## Backups, CLI und Integrationen
 
 - **Backups:** Als Admin unter **Backups** in der Web-UI. Automatisch täglich (`DEVDECK_BACKUP_INTERVAL_HOURS`),

@@ -3,6 +3,7 @@
 ## Unreleased - 2026-10-23
 
 ### Added
+- Dokumentation des Workflows „Am PC entwickeln → GitHub → Server aktualisieren“ (Hilfe-Seite, ANLEITUNG §9, README).
 - Claude-Code-Sessions werden automatisch erfasst: Der Agent (`sessionScanner.ts`, alle 5 Minuten, Abschalten mit
   `DEVDECK_SCAN_SESSIONS=0`) liest `~/.claude/projects/…/*.jsonl` (CLI und Desktop) für die registrierten Workspaces
   und meldet NUR Metadaten (Titel, Zeiten, Branch, PR-Link, Nachrichtenanzahl) an `POST /api/agent/sessions/import`.
