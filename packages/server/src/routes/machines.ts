@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
-import { AppError, isAgentOutdated, supportsSelfUpdate, type MachineDto, type ProjectRole } from '@devdeck/shared';
+import { AppError, compareVersions, isAgentOutdated, supportsSelfUpdate, type MachineDto, type ProjectRole } from '@devdeck/shared';
 import {
   asyncHandler,
   clientIp,
@@ -10,12 +10,36 @@ import {
   requireString,
 } from '../http.js';
 import type { AppContext } from '../context.js';
+import type { Database } from '../db/database.js';
 import { getProjectMembership, requireUser, type MachineRecord } from '../auth/middleware.js';
 import { generateToken, hashToken } from '../auth/tokens.js';
 import { audit } from '../services/audit.js';
 import { enqueueCommand } from '../services/provisioning.js';
 
-function toMachineDto(row: MachineRecord): MachineDto {
+/** Update lief „erfolgreich“, der Agent meldet aber noch eine ältere Version als die gebaute → Hinweis für die UI. */
+function updateWarning(db: Database, row: MachineRecord): string | null {
+  const last = db.get<{ finished_at: string | null; result_json: string | null }>(
+    `SELECT finished_at, result_json FROM agent_commands
+     WHERE machine_id = ? AND action = 'agent.update' AND status = 'done' ORDER BY finished_at DESC LIMIT 1`,
+    row.id,
+  );
+  if (!last?.finished_at || !last.result_json || !row.agent_version) return null;
+  // Dem Agenten etwas Zeit für den Neustart lassen
+  if (Date.now() - Date.parse(last.finished_at) < 3 * 60_000) return null;
+  try {
+    const r = JSON.parse(last.result_json) as { new_version?: string; restarting?: boolean };
+    if (r.restarting && r.new_version && compareVersions(row.agent_version, r.new_version) < 0) {
+      return `Das letzte Update hat Version ${r.new_version} gebaut, der Agent läuft aber noch mit ${row.agent_version}. ` +
+        'Vermutlich läuft er aus einem anderen Ordner, ein zweiter/älterer Agent-Prozess ist aktiv oder er wurde nicht neu gestartet – ' +
+        'siehe Hilfe „Maschinen & Agent“.';
+    }
+  } catch {
+    /* kein auswertbares Ergebnis */
+  }
+  return null;
+}
+
+function toMachineDto(row: MachineRecord, db: Database): MachineDto {
   return {
     id: row.id,
     owner_user_id: row.owner_user_id,
@@ -25,6 +49,10 @@ function toMachineDto(row: MachineRecord): MachineDto {
     workspace_root: row.workspace_root,
     agent_outdated: isAgentOutdated(row.agent_version),
     agent_can_self_update: supportsSelfUpdate(row.agent_version),
+    agent_commit: row.agent_commit ?? null,
+    agent_node: row.agent_node ?? null,
+    agent_entry: row.agent_entry ?? null,
+    update_warning: updateWarning(db, row),
     agent_status: row.revoked_at ? 'revoked' : (row.agent_status as MachineDto['agent_status']),
     last_seen_at: row.last_seen_at,
     revoked_at: row.revoked_at,
@@ -32,7 +60,7 @@ function toMachineDto(row: MachineRecord): MachineDto {
   };
 }
 
-const MACHINE_COLUMNS = `id, owner_user_id, name, platform, agent_version, workspace_root, agent_status,
+const MACHINE_COLUMNS = `id, owner_user_id, name, platform, agent_version, workspace_root, agent_commit, agent_node, agent_entry, agent_status,
                          last_seen_at, token_hash, revoked_at, created_at`;
 
 /** Machine Registry: Enrollment-Tokens, Übersicht, Widerruf (Spezifikation §15). */
@@ -111,7 +139,7 @@ export function machineRoutes(ctx: AppContext): Router {
            ORDER BY name`,
           projectId,
         );
-        res.json({ data: rows.map(toMachineDto) });
+        res.json({ data: rows.map((r) => toMachineDto(r, db)) });
         return;
       }
       if (user.system_role !== 'admin') {
@@ -120,7 +148,7 @@ export function machineRoutes(ctx: AppContext): Router {
       const rows = db.all<MachineRecord>(
         `SELECT ${MACHINE_COLUMNS} FROM machines ORDER BY name`,
       );
-      res.json({ data: rows.map(toMachineDto) });
+      res.json({ data: rows.map((r) => toMachineDto(r, db)) });
     }),
   );
 
@@ -143,7 +171,7 @@ export function machineRoutes(ctx: AppContext): Router {
         );
         if (!member) throw new AppError('FORBIDDEN', 'Kein Zugriff auf diese Maschine');
       }
-      res.json({ data: toMachineDto(row) });
+      res.json({ data: toMachineDto(row, db) });
     }),
   );
 

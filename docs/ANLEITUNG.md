@@ -152,6 +152,10 @@ wird (nicht zwingend auf dem Server selbst). Pro Maschine braucht es einmalig:
 - **Regeln für Claude Code:** Bei Sync/Provision schreibt der Agent `.devdeck/` und `.claude/rules/devdeck.md` (Kontext lesen,
   nach jeder Änderung bauen/testen/committen/pushen). Beide Pfade werden lokal über `.git/info/exclude` ignoriert; das
   Repository bleibt sauber. Wer eigene Regeln in `CLAUDE.md` pflegt, setzt dort den Marker `<!-- devdeck:rules-included -->`.
+- **„Agent updaten“ meldet Erfolg, die Version bleibt aber alt:** Der Update-Auftrag holt den Code, baut ihn, startet den neuen Code probeweise (Fehler → Abbruch, alter Agent läuft weiter)
+  und startet neu. Bleibt die gemeldete Version trotzdem alt, zeigt **Maschinen** den Hinweis „Update nicht angekommen“ mit Startdatei, Commit und Node-Version des laufenden Prozesses (ab Agent 0.7.0).
+  Meist läuft ein zweiter, älterer Agent-Prozess parallel oder der Agent wird aus einem anderen Ordner/Container gestartet. Auf der Maschine prüfen: `ps -eo pid,lstart,cmd | grep "[a]gent/dist"` –
+  es darf genau einen Agent-Prozess geben (alle anderen beenden, einmal sauber neu starten, z. B. `systemctl --user restart devdeck-agent`).
 - **Workspace-Status (ready / warning / blocked / unknown):** Der Status kommt vom Agenten und fasst die Prüfpunkte zusammen (Git, Repository,
   Toolchain/Abhängigkeiten laut optionalem Manifest, `.env` nur bei verlangter Projektion, Kontext, Abgleich mit GitHub). Ein Klick auf den Status
   im Tab **Workspaces** zeigt jeden Prüfpunkt mit Begründung; **Prüfen** liest den Zustand neu (ohne Sync). `unknown` heißt „noch nie geprüft“ und

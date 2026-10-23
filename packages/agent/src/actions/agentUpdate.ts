@@ -7,6 +7,8 @@ import { registerAction } from './index.js';
 import { git, gitStatus } from '../git.js';
 import { log } from '../logger.js';
 import { planUpdate } from '../updatePlan.js';
+import { AGENT_VERSION } from '../config.js';
+import { getRunningHead, setRunningHead } from '../runtimeInfo.js';
 
 const exec = promisify(execFile);
 
@@ -26,15 +28,35 @@ async function npm(cwd: string, args: string[]): Promise<void> {
   });
 }
 
-let runningHead: string | null = null;
+/**
+ * Prüft den frisch gebauten Code, bevor der laufende Agent ersetzt wird: `index.js status` muss starten und die
+ * erwartete Version melden. So bricht ein defektes Update VOR dem Neustart ab (der alte Agent läuft weiter) und
+ * die Fehlermeldung nennt Node-Version und Ausgabe.
+ */
+async function smokeTest(root: string): Promise<{ version: string; node: string }> {
+  const entry = path.join(root, 'packages', 'agent', 'dist', 'index.js');
+  try {
+    const { stdout } = await exec(process.execPath, [entry, 'status'], { cwd: root, timeout: 30_000, windowsHide: true });
+    const info = JSON.parse(stdout) as { agent_version?: string; node?: string };
+    if (!info.agent_version) throw new Error('Status-Ausgabe ohne agent_version');
+    return { version: info.agent_version, node: info.node ?? process.version };
+  } catch (err) {
+    const e = err as { stderr?: string; message?: string };
+    throw new AppError(
+      'INTERNAL',
+      `Der neu gebaute Agent startet nicht (Node ${process.version}, ${entry}): ${(e.stderr || e.message || 'unbekannter Fehler').trim().split('\n').slice(-4).join(' | ').slice(0, 400)} – ` +
+        'Update abgebrochen, der bisherige Agent läuft weiter.',
+    );
+  }
+}
 
 /** Beim Agent-Start aufrufen: merkt sich den Commit, aus dem der laufende Code stammt. */
 export async function recordRunningHead(): Promise<void> {
   try {
     const r = await git(repoRoot(), ['rev-parse', '--short', 'HEAD']);
-    if (r.code === 0) runningHead = r.stdout.trim();
+    if (r.code === 0) setRunningHead(r.stdout.trim());
   } catch {
-    runningHead = null;
+    setRunningHead(null);
   }
 }
 
@@ -81,7 +103,7 @@ registerAction('agent.update', async () => {
     throw new AppError('GIT_UNREACHABLE', `git pull fehlgeschlagen: ${pull.stderr.trim()}`);
   }
   const after = (await git(root, ['rev-parse', '--short', 'HEAD'])).stdout.trim();
-  const plan = planUpdate(before, after, runningHead);
+  const plan = planUpdate(before, after, getRunningHead());
   try {
     // `npm ci` statt `npm install`: verändert die package-lock.json nicht (sonst gilt der Ordner als „geändert“)
     if (plan.install) {
@@ -103,7 +125,14 @@ registerAction('agent.update', async () => {
     log.info(`Agent ist bereits auf dem neuesten Stand (${after})`);
     return { from: before, to: after, restarting: false, up_to_date: true };
   }
-  log.info(`Update ${before} -> ${after} abgeschlossen`);
+  log.info(`Update ${before} -> ${after}: Build fertig, prüfe neuen Code …`);
+  const fresh = await smokeTest(root);
+  const mode = process.env.INVOCATION_ID ? 'systemd (Exit-Code 75)' : 'Neustart als neuer Prozess';
+  log.info(`Update ${before} -> ${after} abgeschlossen: neue Version ${fresh.version}, Node ${process.version}, Neustart: ${mode}`);
   scheduleRestart();
-  return { from: before, to: after, restarting: true };
+  return {
+    from: before, to: after, restarting: true,
+    new_version: fresh.version, running_version: AGENT_VERSION, node: process.version,
+    entry: process.argv[1] ?? '', restart_mode: mode,
+  };
 });

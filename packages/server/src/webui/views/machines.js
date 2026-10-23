@@ -25,7 +25,8 @@ export async function renderMachines(el) {
     <tr>
       <td>${esc(m.name)}</td>
       <td class="muted text-sm">${esc(m.platform)}</td>
-      <td class="muted text-sm">${esc(m.agent_version || '–')}${m.agent_outdated ? ' ' + badge('veraltet', 'warn') : ''}</td>
+      <td class="muted text-sm" ${m.agent_entry ? `title="${esc(m.agent_entry)}"` : ''}>${esc(m.agent_version || '–')}${m.agent_outdated ? ' ' + badge('veraltet', 'warn') : ''}${m.update_warning ? ' ' + badge('Update nicht angekommen', 'bad') : ''}
+        ${m.agent_commit || m.agent_node ? `<br><span class="mono">${esc([m.agent_commit, m.agent_node].filter(Boolean).join(' · '))}</span>` : ''}</td>
       <td class="muted text-sm"><span class="mono">${esc(m.workspace_root || '–')}</span></td>
       <td>${badge(m.agent_status, m.agent_status)}</td>
       <td class="muted text-sm">${m.last_seen_at ? timeAgo(m.last_seen_at) : 'nie'}</td>
@@ -45,6 +46,7 @@ export async function renderMachines(el) {
       </div>
       ${canCreateToken ? '<div class="page-actions"><button class="btn" id="btn-new-token">' + icon('plus') + 'Enrollment-Token erzeugen</button></div>' : ''}
     </div>
+    ${machines.filter((m) => m.update_warning).map((m) => `<div class="alert danger"><span><strong>${esc(m.name)}:</strong> ${esc(m.update_warning)}${m.agent_entry ? ` Der laufende Agent wurde gestartet aus: <span class="mono">${esc(m.agent_entry)}</span>.` : ''}</span></div>`).join('')}
     <div class="card">
       <div class="table-wrap">
         <table>

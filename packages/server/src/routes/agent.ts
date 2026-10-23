@@ -111,14 +111,21 @@ export function agentRoutes(ctx: AppContext): Router {
       const now = new Date().toISOString();
       const agentVersion = optionalString(body, 'agent_version', 40);
 
+      const previousVersion = machine.agent_version;
       db.run(
         `UPDATE machines SET last_seen_at = ?, agent_status = 'online',
                              agent_version = COALESCE(?, agent_version),
-                             workspace_root = COALESCE(?, workspace_root)
+                             workspace_root = COALESCE(?, workspace_root),
+                             agent_commit = COALESCE(?, agent_commit),
+                             agent_node = COALESCE(?, agent_node),
+                             agent_entry = COALESCE(?, agent_entry)
          WHERE id = ?`,
         now,
         agentVersion ?? null,
         optionalString(body, 'workspace_root', 1000) ?? null,
+        optionalString(body, 'agent_commit', 60),
+        optionalString(body, 'agent_node', 40),
+        optionalString(body, 'agent_entry', 500),
         machine.id,
       );
 
@@ -176,6 +183,13 @@ export function agentRoutes(ctx: AppContext): Router {
         machine.id,
       );
       for (const w of unchecked) requestWorkspaceStatus(db, w, null);
+      // Neuer Agent-Code (z. B. nach einem Update) liefert andere/mehr Fakten → alle Workspaces der Maschine neu prüfen
+      if (agentVersion && agentVersion !== previousVersion) {
+        const all = db.all<{ id: string; machine_id: string | null; local_path: string }>(
+          'SELECT id, machine_id, local_path FROM workspaces WHERE machine_id = ?', machine.id,
+        );
+        for (const w of all) requestWorkspaceStatus(db, w, null, true);
+      }
 
       res.json({ data: { ok: true, server_time: now, workspaces: registered } });
     }),

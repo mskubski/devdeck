@@ -87,6 +87,15 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 /** Ablaufende Commands markieren. */
 export function sweepExpiredCommands(db: Database): number {
   const now = new Date().toISOString();
+  // Hängende „running“-Aufträge (Agent beendet/neu gestartet, bevor er ein Ergebnis melden konnte) nach 30 Minuten abschließen
+  const stale = new Date(Date.now() - 30 * 60_000).toISOString();
+  db.run(
+    `UPDATE agent_commands SET status = 'failed', finished_at = ?,
+       error = 'Kein Ergebnis vom Agenten (Prozess vermutlich beendet oder neu gestartet)'
+     WHERE status = 'running' AND started_at IS NOT NULL AND started_at < ?`,
+    now,
+    stale,
+  );
   const res = db.run(
     `UPDATE agent_commands SET status = 'expired', finished_at = ?, error = 'expired'
      WHERE status = 'queued' AND expires_at IS NOT NULL AND expires_at < ?`,

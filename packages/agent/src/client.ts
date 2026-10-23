@@ -1,5 +1,6 @@
 import { AppError, type AgentCommandPayload } from '@devdeck/shared';
 import type { AgentConfig } from './config.js';
+import { getRunningHead } from './runtimeInfo.js';
 
 /** Verständliche Fehlermeldung statt „fetch failed“ / „This operation was aborted“. */
 export function unreachable(serverUrl: string, err: unknown, timedOut: boolean): AppError {
@@ -98,6 +99,10 @@ export class ServerClient {
         platform: process.platform,
         workspace_root: this.config.workspaceRoot,
         workspaces,
+        // Diagnose: aus welchem Code/Ordner läuft dieser Agent? (hilft, wenn ein Update „nicht ankommt“)
+        agent_commit: getRunningHead(),
+        agent_node: process.version,
+        agent_entry: process.argv[1] ?? null,
       },
       timeoutMs: 10_000,
     });
