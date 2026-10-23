@@ -11,6 +11,10 @@ export interface ServerConfig {
   vaultDir: string;
   vaultKeyPath: string;
   backupTarget: string;
+  /** Git-Checkout, aus dem der Server läuft (für das Self-Update). */
+  repoRoot: string;
+  /** Branch, auf den das Self-Update aktualisiert (Default main). */
+  updateBranch: string;
   /** 0 = Scheduler aus. */
   backupIntervalHours: number;
   backupRetentionDaily: number;
@@ -48,6 +52,8 @@ export function loadConfig(env: Env = process.env, overrides: Partial<ServerConf
     vaultDir: path.join(dataDir, 'vault'),
     vaultKeyPath: path.join(dataDir, 'vault', 'vault.key'),
     backupTarget: path.resolve(env.DEVDECK_BACKUP_TARGET ?? env.DEVDECK_BACKUP_DIR ?? path.join(dataDir, 'backups')),
+    repoRoot: path.resolve(env.DEVDECK_REPO_ROOT ?? path.dirname(fileURLToPath(import.meta.url)), ...(env.DEVDECK_REPO_ROOT ? [] : ['..', '..', '..'])),
+    updateBranch: env.DEVDECK_UPDATE_BRANCH ?? 'main',
     backupIntervalHours: Number(env.DEVDECK_BACKUP_INTERVAL_HOURS ?? 24),
     backupRetentionDaily: Number(env.DEVDECK_BACKUP_RETENTION_DAILY ?? 7),
     backupRetentionWeekly: Number(env.DEVDECK_BACKUP_RETENTION_WEEKLY ?? 4),

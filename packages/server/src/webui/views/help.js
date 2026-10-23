@@ -161,6 +161,35 @@ npm run build</pre>
         Rückfrage ab, statt etwas zu überschreiben.</p>`,
     },
     {
+      id: 'workflow',
+      icon: 'code',
+      title: 'Entwickeln am PC & auf dem Server ausrollen',
+      body: `
+        <p>Typischer Ablauf, wenn du am PC (z. B. <em>mauriceZ</em>) entwickelst und DevDeck auf einem Server
+        (z. B. <em>debian01</em>) läuft. <strong>Der Code reist ausschließlich über GitHub</strong> – DevDeck
+        selbst überträgt keinen Quellcode.</p>
+        <ol>
+          <li><strong>Am PC arbeiten:</strong> im Workspace-Ordner (z. B. <code>D:\DEVDECK\DEV\devdeck</code>)
+            einen Branch anlegen (<code>git checkout -b feature/xyz</code>) und mit Claude Code entwickeln.
+            Claude Code hält dabei GitHub aktuell (Regel in <code>CLAUDE.md</code>: nach jeder Änderung bauen, testen, Pull Request, bei grüner CI mergen).
+            Die Sitzung erscheint automatisch unter <em>Sessions</em> (Quelle „Claude Code“), sobald der
+            Agent läuft und der Workspace registriert ist.</li>
+          <li><strong>Auf GitHub bringen</strong> (macht Claude Code automatisch): bauen und testen, committen, pushen,
+            Pull Request öffnen, CI abwarten, nach <code>main</code> mergen.</li>
+          <li><strong>Server aktualisieren:</strong> in DevDeck unter <em>System</em> auf „Server aktualisieren“ klicken.
+            Ein Backup wird automatisch erstellt, der neueste Stand von <code>main</code> geholt, gebaut und der Server
+            neu gestartet (wenige Sekunden; Agents verbinden sich selbstständig wieder). Schlägt etwas fehl, bleibt der
+            alte Stand aktiv. Das geht von jeder Maschine aus, die in DevDeck angemeldet ist.</li>
+          <li><strong>Andere Maschinen:</strong> unter <em>Maschinen</em> „Agent updaten“ (Fast-Forward-Pull, Build, Neustart);
+            Projekt-Workspaces mit <em>Sync</em> (<code>devdeck sync</code>) auf den neuen Stand bringen.</li>
+        </ol>
+        <p class="muted">Hinweise: Der Server-Rechner braucht Zugriff auf GitHub (<code>git fetch</code>). Bei lokalen
+        Änderungen im Server-Ordner bricht das Update bzw. „Agent updaten“ ab – dort nichts uncommittet liegen lassen.
+        Das Update läuft auf dem Branch <code>main</code> (änderbar mit <code>DEVDECK_UPDATE_BRANCH</code>).
+        Wissen wie Tasks, Changelog und Entscheidungen liegt in der DevDeck-Datenbank, nicht in Git
+        (Import vorhandener Dateien: <code>devdeck import all</code>).</p>`,
+    },
+    {
       id: 'audit',
       icon: 'history',
       title: 'Audit-Log',

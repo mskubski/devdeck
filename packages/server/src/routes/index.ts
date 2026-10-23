@@ -13,6 +13,7 @@ import { sessionRoutes } from './sessions.js';
 import { vaultRoutes } from './vault.js';
 import { knowledgeRoutes } from './knowledge.js';
 import { connectorRoutes } from './connectors.js';
+import { systemRoutes } from './system.js';
 import { backupRoutes } from './backups.js';
 
 /** Alle authentifizierten DevDeck-API-Router unter /api montieren. */
@@ -35,6 +36,7 @@ export function apiRoutes(ctx: AppContext): Router {
   router.use('/', knowledgeRoutes(ctx));
   router.use('/', connectorRoutes(ctx));
   router.use('/', backupRoutes(ctx));
+  router.use('/', systemRoutes(ctx));
 
   return router;
 }

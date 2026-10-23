@@ -146,6 +146,36 @@ wird (nicht zwingend auf dem Server selbst). Pro Maschine braucht es einmalig:
 | Maschine bleibt „offline“ | Agent läuft nicht, oder Heartbeat erreicht den Server nicht (Server-URL/Netzwerk prüfen). Nach 90 s ohne Heartbeat markiert der Server die Maschine automatisch als offline. |
 | Secret-Wert lässt sich nicht anzeigen | Dafür ist die Capability `secret.reveal` nötig (implizit bei Projektrolle `owner`/`maintainer`). Siehe Hilfe-Seite „Secrets & DevDeck Vault“. |
 
+## 9. Am PC entwickeln und auf dem Server ausrollen
+
+Beispiel: Entwicklung auf dem Windows-PC `mauriceZ`, DevDeck läuft produktiv auf `debian01`. Der Quellcode reist
+**nur über GitHub**; DevDeck überträgt keinen Code.
+
+1. **Am PC entwickeln.** Im Workspace-Ordner (z. B. `D:\DEVDECK\DEV\devdeck`) mit Claude Code arbeiten. Läuft der Agent
+   und ist der Workspace registriert, erscheint die Sitzung automatisch im Tab **Sessions**.
+2. **GitHub aktualisieren – nach jeder Code-Anpassung.** Das erledigt Claude Code selbst (Regel in `CLAUDE.md`):
+   `npm run build && npm test`, Feature-Branch committen und pushen, Pull Request öffnen, CI abwarten, bei grün nach
+   `main` mergen. (`main` ist durch den Check `build-and-test` geschützt; der PC braucht GitHub-Zugangsdaten und `gh`.)
+3. **Server aktualisieren – ein Klick:** In DevDeck unter **System** → **„Server aktualisieren“**. Der Server erstellt
+   automatisch ein Backup, holt `main` von GitHub (nur Fast-Forward), führt `npm ci` und den Build aus und startet sich
+   neu (wenige Sekunden). Schlägt ein Schritt fehl, wird auf den vorherigen Stand zurückgesetzt und der Server läuft
+   unverändert weiter. Das geht von jeder Maschine aus, auf der du in DevDeck angemeldet bist.
+4. **Andere Maschinen nachziehen:** Unter **Maschinen** → „Agent updaten“ (Fast-Forward-Pull, Build, Neustart).
+   Projekt-Workspaces mit **Sync** (oder `devdeck sync`) auf den neuen Stand bringen.
+
+Einmalig nötig: Der Server muss den Update-Knopf selbst erst haben. Auf dem Server-Rechner dafür einmal von Hand
+`git checkout main && git pull --ff-only && npm ci && npm run build && systemctl --user restart devdeck-server devdeck-agent`
+ausführen; ab dann genügt der Knopf. Voraussetzung: Der Server läuft per systemd (`deploy/install-systemd.sh`),
+sonst muss er nach dem Update von Hand neu gestartet werden. Zielbranch: `DEVDECK_UPDATE_BRANCH` (Standard `main`).
+
+Hinweise:
+- Bricht das Server-Update oder „Agent updaten“ wegen lokaler Änderungen ab, liegen im Server-/Agent-Ordner uncommittete
+  Änderungen – diese committen und pushen (bzw. verwerfen) und es erneut versuchen.
+- Tasks, Changelog und Entscheidungen liegen in der DevDeck-Datenbank, nicht in Git. Vorhandene Dateien
+  (`CHANGELOG.md`, `ROADMAP.md`, `.env`) lassen sich mit `devdeck import all` übernehmen.
+- Der Agent startet unter Windows nicht automatisch; nach einem Neustart des PCs erneut starten:
+  `node packages/agent/dist/index.js start --workspace-root D:\DEVDECK\DEV`.
+
 ## Backups, CLI und Integrationen
 
 - **Backups:** Als Admin unter **Backups** in der Web-UI. Automatisch täglich (`DEVDECK_BACKUP_INTERVAL_HOURS`),
