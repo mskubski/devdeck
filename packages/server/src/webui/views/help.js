@@ -178,12 +178,8 @@ npm run build</pre>
         <p>Diese Teile der Spezifikation sind als Zielbild dokumentiert, aber in dieser Version noch nicht
         umgesetzt – damit das vorhandene Fundament stabil bleibt, statt halbfertige Funktionen auszuliefern:</p>
         <ul>
-          <li><strong>DevDeck CLI</strong> (<code>devdeck status/sync/session/...</code>) – noch kein Quellcode.</li>
-          <li><strong>Backups/Restore</strong> – Datenmodell vorhanden, keine Implementierung.</li>
-          <li><strong>Decisions/Changelog/Known Issues</strong> als eigene UI – Datenbanktabellen existieren,
-            Changelog fließt bereits in <code>.devdeck/CHANGELOG_RECENT.md</code> ein, aber es gibt noch keine
-            eigenen Verwaltungs-Routen/Oberflächen dafür.</li>
-          <li><strong>Service-Integrationen</strong> (GitHub, Supabase, Vercel, …) – später, optional.</li>
+          <li><strong>Weitere Service-Integrationen</strong> (GitLab, Supabase, Vercel, Brevo, Apple, Google Play, IONOS) –
+            GitHub ist als erster Konnektor umgesetzt (Tab „Integrationen“), weitere folgen nach Bedarf.</li>
         </ul>`,
     },
   ];

@@ -5,17 +5,26 @@ import { icon } from '../lib/icons.js';
 import { renderOverview } from './project/overview.js';
 import { renderMembers } from './project/members.js';
 import { renderTasks } from './project/tasks.js';
+import { renderDecisions, renderChangelog, renderKnownIssues, renderHistory } from './project/knowledge.js';
 import { renderSessions } from './project/sessions.js';
 import { renderSecrets } from './project/secrets.js';
 import { renderWorkspaces } from './project/workspaces.js';
+import { renderConnectors } from './project/connectors.js';
+import { renderSyncLog } from './project/synclog.js';
 
 const TABS = [
   { key: 'overview', icon: 'dashboard', label: 'Übersicht', render: renderOverview },
   { key: 'members', icon: 'users', label: 'Mitglieder', render: renderMembers },
   { key: 'tasks', icon: 'tasks', label: 'Tasks', render: renderTasks },
+  { key: 'decisions', icon: 'compass', label: 'Entscheidungen', render: renderDecisions },
+  { key: 'changelog', icon: 'package', label: 'Changelog', render: renderChangelog },
+  { key: 'issues', icon: 'hourglass', label: 'Known Issues', render: renderKnownIssues },
+  { key: 'history', icon: 'history', label: 'Verlauf', render: renderHistory },
   { key: 'sessions', icon: 'code', label: 'Sessions', render: renderSessions },
   { key: 'secrets', icon: 'key', label: 'Secrets', render: renderSecrets },
   { key: 'workspaces', icon: 'laptop', label: 'Workspaces', render: renderWorkspaces },
+  { key: 'connectors', icon: 'layers', label: 'Integrationen', render: renderConnectors },
+  { key: 'synclog', icon: 'info', label: 'Sync-Log', render: renderSyncLog },
 ];
 
 export async function renderProjectDetail(el, idAndQuery, setBreadcrumb) {

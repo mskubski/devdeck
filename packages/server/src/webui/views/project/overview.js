@@ -31,6 +31,12 @@ export async function renderOverview(el, project) {
       <div class="card">
         <h2>Letzte Coding Sessions</h2>
         ${sessions.length === 0 ? '<div class="empty-state">Noch keine Sessions.</div>' : `
+        <div class="text-sm" style="margin-bottom:var(--space-3)">
+          <span class="muted">Zuletzt aktiv</span><br>
+          <strong>${esc(sessions[0].goal || 'Claude-Code-Session')}</strong><br>
+          <span class="muted">${fmtDate(sessions[0].last_activity_at || sessions[0].ended_at || sessions[0].started_at)}
+            ${sessions[0].git_branch ? `· ${esc(sessions[0].git_branch)}` : ''}${sessions[0].agent_name ? ` · ${esc(sessions[0].agent_name)}` : ''}</span>
+        </div>
         <div class="stack">
           ${sessions.slice(0, 5).map((s) => `
             <div class="row between">

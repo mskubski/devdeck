@@ -96,6 +96,8 @@ export interface MachineDto {
   name: string;
   platform: string;
   agent_version: string | null;
+  workspace_root: string | null;
+  agent_outdated: boolean;
   agent_status: MachineStatus;
   last_seen_at: string | null;
   revoked_at: string | null;
@@ -140,6 +142,13 @@ export interface CodingSessionDto {
   ended_at: string | null;
   handover_id: string | null;
   git_state: Record<string, unknown> | null;
+  /** 'devdeck' = in DevDeck gestartet, 'claude-code' = vom Agent aus dem Claude-Transcript erfasst */
+  source?: 'devdeck' | 'claude-code';
+  git_branch?: string | null;
+  pr_url?: string | null;
+  message_count?: number | null;
+  last_activity_at?: string | null;
+  user_email?: string | null;
 }
 
 /** Strukturierter Handover gemäß Spezifikation §20 (Codex/Claude → DevDeck). */

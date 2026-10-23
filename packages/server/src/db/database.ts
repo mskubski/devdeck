@@ -109,6 +109,12 @@ export class Database {
     }
   }
 
+  /** Konsistente Kopie der laufenden DB (VACUUM INTO) – auch bei aktivem WAL. */
+  snapshotTo(destPath: string): void {
+    if (/['\0]/.test(destPath)) throw new Error('Ungültiger Snapshot-Pfad');
+    this.#db.exec(`VACUUM INTO '${destPath}'`);
+  }
+
   close(): void {
     this.#statements.clear();
     this.#db.close();

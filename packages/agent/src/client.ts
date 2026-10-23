@@ -70,14 +70,19 @@ export class ServerClient {
 
   async heartbeat(workspaces: unknown[] = []): Promise<void> {
     const res = await this.request('POST', '/api/agent/heartbeat', {
-      body: { agent_version: this.config.agentVersion, platform: process.platform, workspaces },
+      body: {
+        agent_version: this.config.agentVersion,
+        platform: process.platform,
+        workspace_root: this.config.workspaceRoot,
+        workspaces,
+      },
       timeoutMs: 10_000,
     });
     if (res.status === 401) {
       throw new AppError('UNAUTHORIZED', 'Agent-Token abgelehnt (widerrufen?)');
     }
-    if (res.status >= 500) {
-      throw new AppError('AGENT_OFFLINE', `Serverfehler: ${res.status}`);
+    if (res.status >= 400) {
+      throw new AppError('AGENT_OFFLINE', `Serverfehler: HTTP ${res.status}`);
     }
   }
 
@@ -90,7 +95,10 @@ export class ServerClient {
     if (res.status === 204) return [];
     if (res.status !== 200 || !res.data) {
       if (res.status === 401) throw new AppError('UNAUTHORIZED', 'Agent-Token ungültig');
-      return [];
+      throw new AppError(
+        'INTERNAL',
+        `Unerwartete Server-Antwort beim Command-Poll: HTTP ${res.status}${res.error ? ` – ${res.error.message}` : ''}`,
+      );
     }
     return res.data;
   }
@@ -103,6 +111,14 @@ export class ServerClient {
       error?: { code: string; message: string };
     },
   ): Promise<void> {
-    await this.request('POST', `/api/agent/commands/${commandId}/result`, { body: payload });
+    const res = await this.request('POST', `/api/agent/commands/${commandId}/result`, {
+      body: payload,
+    });
+    if (res.status >= 400) {
+      throw new AppError(
+        'INTERNAL',
+        `Ergebnis für Befehl ${commandId} konnte nicht gemeldet werden: HTTP ${res.status}${res.error ? ` – ${res.error.message}` : ''}`,
+      );
+    }
   }
 }

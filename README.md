@@ -36,14 +36,15 @@ syncing source code through a file-sync service or a proprietary mechanism.
                         DevDeck Server
               Web UI / API · SQLite · Vault
         Users & roles · Tasks · Sessions & handovers
+          Decisions · Changelog · Known issues
           Machine registry · Audit log · Backups
 ```
 
 | Component | Role |
 |---|---|
-| **Server** (`packages/server`) | Central web UI and API: users, projects, memberships, machine registry, tasks, coding sessions/handovers, encrypted secret vault, audit log |
+| **Server** (`packages/server`) | Central web UI and API: users, projects, memberships, machine registry, tasks, decisions/changelog/known issues, coding sessions/handovers, encrypted secret vault, system backups, service connectors, audit log |
 | **Agent** (`packages/agent`) | Runs on each developer machine: enrolls with the server, sends heartbeats, executes commands (provision/sync workspaces, install dependencies, write coding context, project secrets) |
-| **CLI** (`packages/cli`) | Planned developer-facing command line (not implemented yet) |
+| **CLI** (`packages/cli`) | Developer-facing command line (`devdeck login|status|sync|context|session|handover|task|changelog|decision|secret|env run|claude|codex`) |
 | **Shared** (`packages/shared`) | Protocol types, roles and errors shared by all components |
 
 ## Features
@@ -51,14 +52,18 @@ syncing source code through a file-sync service or a proprietary mechanism.
 - Multi-user, multi-project with roles (owner, maintainer, developer, viewer)
 - Machine enrollment and command queue between server and agents
 - Workspace registry, `workspace.yaml` manifest, provisioning, sync and readiness checks
-- Tasks, coding sessions and handovers between machines/people
+- Tasks, decisions, changelog, known issues and a project history timeline
+- Coding sessions and handovers between machines/people; Claude Code sessions (CLI and desktop) are picked up automatically by the agent (metadata only)
 - Generated coding context (`.devdeck/CONTEXT.md` and friends) for AI coding agents
 - Encrypted vault (AES-256-GCM) for secret values and secret files, with per-capability access and auditing
+- `devdeck` CLI (status, sync, sessions, handovers, `env run`) and launchers for Claude Code / Codex (`devdeck claude`, `devdeck codex`)
+- System backups (database + encrypted vault) with verification, retention and a scheduler; restore is terminal-only by design
+- Service connectors with vault-backed credentials (GitHub first)
 - Plain HTML/CSS/JS web UI – no frontend build step
 - Audit log for security-relevant actions
 
 See [IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) for what is implemented and what is
-still planned (CLI, backups/restore, service integrations).
+still planned (further service connectors: GitLab, Supabase, Vercel, Brevo, Apple, Google Play, IONOS).
 
 ## Requirements
 
@@ -93,8 +98,28 @@ Open <http://localhost:8080> (or your `DEVDECK_PORT`) and log in. Change the pas
 | `DEVDECK_PORT` | `8080` | HTTP port |
 | `DEVDECK_DATA_DIR` | `./data` | SQLite database, vault and runtime data |
 | `DEVDECK_ADMIN_EMAIL` / `DEVDECK_ADMIN_PASSWORD` | – | Bootstrap admin on first start |
+| `DEVDECK_BACKUP_TARGET` | `<data dir>/backups` | Backup target – use a path independent of the data dir (e.g. NAS) |
+| `DEVDECK_BACKUP_INTERVAL_HOURS` | `24` | Automatic backup interval (`0` disables) |
+| `DEVDECK_BACKUP_RETENTION_DAILY` / `_WEEKLY` | `7` / `4` | Daily and weekly backups to keep |
 
 See `packages/server/src/config.ts` for the complete list.
+
+### Backups and restore
+
+Admins can create and verify system backups in the web UI (**Backups**); the vault key is never included –
+store it separately. Restoring overwrites production data and is therefore only possible interactively in a
+terminal (stop the server first): `node packages/server/dist/restore.js <backup-dir>`.
+
+### CLI
+
+```bash
+node packages/cli/dist/index.js login --server http://localhost:8080
+node packages/cli/dist/index.js status
+node packages/cli/dist/index.js claude --goal "Fix the login bug"   # or: codex
+```
+
+Run `devdeck help` for all commands. `devdeck import all [--apply]` imports an existing `CHANGELOG.md`, `ROADMAP.md`/`TODO.md` and `.env`/`credentials.md` into a project (preview by default). The project is detected from `--project`, `.devdeck/project.json`
+or the registered workspace path.
 
 ## Development
 
@@ -113,7 +138,7 @@ packages/
   server/   HTTP API, SQLite schema, vault, web UI (src/webui)
   agent/    Machine agent and workspace actions
   shared/   Shared protocol types
-  cli/      Planned CLI
+  cli/      DevDeck CLI
 ```
 
 Further design documents (German): [DEVDECK_v5.md](docs/DEVDECK_v5.md),
@@ -128,7 +153,7 @@ audit – use at your own risk. See [SECURITY.md](SECURITY.md) for how to report
 
 ## Status
 
-Early development (v0.1). APIs and the database schema may change without notice.
+Early development (v0.1). Phases A–I and the GitHub connector of phase J are implemented. APIs and the database schema may change without notice.
 
 ## License
 

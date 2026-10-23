@@ -312,6 +312,39 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE handovers ADD COLUMN created_by TEXT REFERENCES users(id);
   `,
+
+  // v6 – Workspace-Root des Agenten (per Heartbeat gemeldet, remote änderbar)
+  `
+  ALTER TABLE machines ADD COLUMN workspace_root TEXT;
+  `,
+  // v7: Service-Integrationen (Phase J) – Zugangsdaten bleiben im Vault, hier nur die Referenz
+  `
+  CREATE TABLE project_connectors (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    name TEXT NOT NULL,
+    config_json TEXT NOT NULL DEFAULT '{}',
+    secret_id TEXT REFERENCES secrets(id) ON DELETE SET NULL,
+    last_check_at TEXT,
+    last_check_ok INTEGER,
+    last_check_message TEXT,
+    created_by TEXT REFERENCES users(id),
+    created_at TEXT NOT NULL,
+    UNIQUE (project_id, name)
+  );
+  `,
+  // v8: automatisch erfasste Claude-Code-Sessions (Agent-Scanner, nur Metadaten)
+  `
+  ALTER TABLE coding_sessions ADD COLUMN source TEXT NOT NULL DEFAULT 'devdeck';
+  ALTER TABLE coding_sessions ADD COLUMN external_id TEXT;
+  ALTER TABLE coding_sessions ADD COLUMN git_branch TEXT;
+  ALTER TABLE coding_sessions ADD COLUMN pr_url TEXT;
+  ALTER TABLE coding_sessions ADD COLUMN message_count INTEGER;
+  ALTER TABLE coding_sessions ADD COLUMN last_activity_at TEXT;
+  CREATE UNIQUE INDEX idx_codingsessions_external
+    ON coding_sessions(machine_id, external_id) WHERE external_id IS NOT NULL;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

@@ -1,5 +1,6 @@
 import type { AgentConfig } from './config.js';
 import { ServerClient } from './client.js';
+import { log } from './logger.js';
 
 /** Heartbeat-Loop: hält die Maschine online (Spezifikation: alle ~30 s). */
 export function startHeartbeat(
@@ -20,7 +21,7 @@ export function startHeartbeat(
       await client.heartbeat(workspaces);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      console.error(`[DevDeck Agent] Heartbeat fehlgeschlagen: ${message}`);
+      log.error(`Heartbeat fehlgeschlagen: ${message}`);
     }
   };
 

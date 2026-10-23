@@ -11,6 +11,9 @@ import { agentRoutes } from './agent.js';
 import { workspaceRoutes } from './workspaces.js';
 import { sessionRoutes } from './sessions.js';
 import { vaultRoutes } from './vault.js';
+import { knowledgeRoutes } from './knowledge.js';
+import { connectorRoutes } from './connectors.js';
+import { backupRoutes } from './backups.js';
 
 /** Alle authentifizierten DevDeck-API-Router unter /api montieren. */
 export function apiRoutes(ctx: AppContext): Router {
@@ -29,6 +32,9 @@ export function apiRoutes(ctx: AppContext): Router {
   router.use('/', taskRoutes(ctx));
   router.use('/', sessionRoutes(ctx));
   router.use('/', vaultRoutes(ctx));
+  router.use('/', knowledgeRoutes(ctx));
+  router.use('/', connectorRoutes(ctx));
+  router.use('/', backupRoutes(ctx));
 
   return router;
 }

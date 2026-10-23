@@ -27,7 +27,12 @@ registerAction('workspace.provision', async (ctx) => {
   const root = path.resolve(ctx.config.workspaceRoot);
   const rel = path.relative(root, workspacePath);
   if (rel.startsWith('..') || path.isAbsolute(rel)) {
-    throw new AppError('FORBIDDEN', `Pfad liegt außerhalb des Workspace-Root (${root})`);
+    throw new AppError(
+      'FORBIDDEN',
+      `Pfad ${workspacePath} liegt außerhalb des Workspace-Root (${root}) – Aktion abgelehnt. ` +
+        'Workspace-Root des Agenten anpassen: "devdeck-agent start --workspace-root <Pfad>" ' +
+        '(oder "workspaceRoot" in der Agent-Konfiguration / DEVDECK_WORKSPACE_ROOT) und Agent neu starten.',
+    );
   }
 
   const repoRemote =

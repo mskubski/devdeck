@@ -1,17 +1,19 @@
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
-import { AppError, type MachineDto, type ProjectRole } from '@devdeck/shared';
+import { AppError, isAgentOutdated, type MachineDto, type ProjectRole } from '@devdeck/shared';
 import {
   asyncHandler,
   clientIp,
   optionalString,
   param,
   requireConfirmation,
+  requireString,
 } from '../http.js';
 import type { AppContext } from '../context.js';
 import { getProjectMembership, requireUser, type MachineRecord } from '../auth/middleware.js';
 import { generateToken, hashToken } from '../auth/tokens.js';
 import { audit } from '../services/audit.js';
+import { enqueueCommand } from '../services/provisioning.js';
 
 function toMachineDto(row: MachineRecord): MachineDto {
   return {
@@ -20,6 +22,8 @@ function toMachineDto(row: MachineRecord): MachineDto {
     name: row.name,
     platform: row.platform,
     agent_version: row.agent_version,
+    workspace_root: row.workspace_root,
+    agent_outdated: isAgentOutdated(row.agent_version),
     agent_status: row.revoked_at ? 'revoked' : (row.agent_status as MachineDto['agent_status']),
     last_seen_at: row.last_seen_at,
     revoked_at: row.revoked_at,
@@ -27,7 +31,7 @@ function toMachineDto(row: MachineRecord): MachineDto {
   };
 }
 
-const MACHINE_COLUMNS = `id, owner_user_id, name, platform, agent_version, agent_status,
+const MACHINE_COLUMNS = `id, owner_user_id, name, platform, agent_version, workspace_root, agent_status,
                          last_seen_at, token_hash, revoked_at, created_at`;
 
 /** Machine Registry: Enrollment-Tokens, Übersicht, Widerruf (Spezifikation §15). */
@@ -139,6 +143,113 @@ export function machineRoutes(ctx: AppContext): Router {
         if (!member) throw new AppError('FORBIDDEN', 'Kein Zugriff auf diese Maschine');
       }
       res.json({ data: toMachineDto(row) });
+    }),
+  );
+
+  // Workspace-Root des Agenten remote ändern (Befehl agent.configure)
+  router.post(
+    '/:id/workspace-root',
+    asyncHandler(async (req, res) => {
+      const user = req.user!;
+      const id = param(req, 'id')!;
+      const root = requireString(req.body, 'workspace_root').trim().slice(0, 1000);
+      const row = db.get<MachineRecord>(`SELECT ${MACHINE_COLUMNS} FROM machines WHERE id = ?`, id);
+      if (!row) throw new AppError('NOT_FOUND', 'Maschine nicht gefunden');
+      if (row.owner_user_id !== user.id && user.system_role !== 'admin') {
+        throw new AppError('FORBIDDEN', 'Nur Besitzer oder admin darf den Workspace-Root ändern');
+      }
+      if (row.revoked_at) throw new AppError('AGENT_OFFLINE', 'Maschine ist widerrufen');
+      if (row.agent_status !== 'online') throw new AppError('AGENT_OFFLINE', 'Maschine ist nicht online');
+      if (isAgentOutdated(row.agent_version)) {
+        throw new AppError(
+          'VALIDATION',
+          `Agent auf „${row.name}“ ist veraltet (${row.agent_version ?? 'unbekannt'}) und kennt diesen Befehl nicht. ` +
+            'Einmalig manuell aktualisieren: "git pull && npm run build" und Agent neu starten ' +
+            '(ggf. mit --workspace-root <Pfad>). Danach sind Updates über die Web UI möglich.',
+        );
+      }
+      const commandId = enqueueCommand(db, {
+        machineId: id,
+        action: 'agent.configure',
+        payload: { workspace_root: root },
+        requestedBy: user.id,
+      });
+      audit(db, {
+        actor_type: 'user',
+        actor_id: user.id,
+        actor_label: user.email,
+        action: 'machine.workspace_root.request',
+        machine_id: id,
+        target_type: 'machine',
+        target_id: id,
+        result: 'success',
+        detail: { command_id: commandId, workspace_root: root },
+        ip: clientIp(req),
+      });
+      res.status(202).json({ data: { command_id: commandId } });
+    }),
+  );
+
+  // Agent aktualisieren (git pull --ff-only, Build, Neustart)
+  router.post(
+    '/:id/update',
+    asyncHandler(async (req, res) => {
+      const user = req.user!;
+      const id = param(req, 'id')!;
+      const row = db.get<MachineRecord>(`SELECT ${MACHINE_COLUMNS} FROM machines WHERE id = ?`, id);
+      if (!row) throw new AppError('NOT_FOUND', 'Maschine nicht gefunden');
+      if (row.owner_user_id !== user.id && user.system_role !== 'admin') {
+        throw new AppError('FORBIDDEN', 'Nur Besitzer oder admin darf den Agent aktualisieren');
+      }
+      if (row.revoked_at) throw new AppError('AGENT_OFFLINE', 'Maschine ist widerrufen');
+      if (row.agent_status !== 'online') throw new AppError('AGENT_OFFLINE', 'Maschine ist nicht online');
+      if (isAgentOutdated(row.agent_version)) {
+        throw new AppError(
+          'VALIDATION',
+          'Dieser Agent kennt noch kein Selbst-Update – bitte einmalig manuell aktualisieren (git pull && npm run build, Agent neu starten).',
+        );
+      }
+      const commandId = enqueueCommand(db, {
+        machineId: id,
+        action: 'agent.update',
+        payload: {},
+        requestedBy: user.id,
+        ttlSeconds: 300,
+      });
+      audit(db, {
+        actor_type: 'user',
+        actor_id: user.id,
+        actor_label: user.email,
+        action: 'machine.agent_update.request',
+        machine_id: id,
+        target_type: 'machine',
+        target_id: id,
+        result: 'success',
+        detail: { command_id: commandId },
+        ip: clientIp(req),
+      });
+      res.status(202).json({ data: { command_id: commandId } });
+    }),
+  );
+
+  // Status eines Befehls (für UI-Rückmeldung)
+  router.get(
+    '/:id/commands/:commandId',
+    asyncHandler(async (req, res) => {
+      const user = req.user!;
+      const id = param(req, 'id')!;
+      const row = db.get<{ owner_user_id: string }>('SELECT owner_user_id FROM machines WHERE id = ?', id);
+      if (!row) throw new AppError('NOT_FOUND', 'Maschine nicht gefunden');
+      if (row.owner_user_id !== user.id && user.system_role !== 'admin') {
+        throw new AppError('FORBIDDEN', 'Kein Zugriff auf diese Maschine');
+      }
+      const cmd = db.get<{ id: string; status: string; error: string | null; result_json: string | null }>(
+        'SELECT id, status, error, result_json FROM agent_commands WHERE id = ? AND machine_id = ?',
+        param(req, 'commandId')!,
+        id,
+      );
+      if (!cmd) throw new AppError('NOT_FOUND', 'Befehl nicht gefunden');
+      res.json({ data: { id: cmd.id, status: cmd.status, error: cmd.error } });
     }),
   );
 

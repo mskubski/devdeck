@@ -68,7 +68,7 @@ export async function renderWorkspaces(el, project) {
     btn.addEventListener('click', async () => {
       try {
         await post(`/api/workspaces/${btn.dataset.sync}/sync`);
-        toast('Sync beauftragt – der Agent führt dies asynchron aus', 'success');
+        toast('Sync beauftragt – Ergebnis siehe Tab „Sync-Log“', 'success');
       } catch (err) { toast(err.message, 'error'); }
     });
   }
@@ -83,7 +83,7 @@ export async function renderWorkspaces(el, project) {
       if (!ok) return;
       try {
         await post(`/api/workspaces/${btn.dataset.provision}/provision`, { confirm: true });
-        toast('Provisioning beauftragt', 'success');
+        toast('Provisioning beauftragt – Ergebnis siehe Tab „Sync-Log“', 'success');
       } catch (err) { toast(err.message, 'error'); }
     });
   }

@@ -10,7 +10,7 @@ import {
 } from '../http.js';
 import type { AppContext } from '../context.js';
 import { requireProjectRole, requireUser } from '../auth/middleware.js';
-import { enqueueCommand } from '../services/provisioning.js';
+import { enqueueCommand, syncLogForProject } from '../services/provisioning.js';
 import { audit } from '../services/audit.js';
 
 interface WorkspaceRow {
@@ -86,6 +86,15 @@ export function workspaceRoutes(ctx: AppContext): Router {
         req.project!.id,
       );
       res.json({ data: rows.map(toWorkspaceDto) });
+    }),
+  );
+
+  // Sync-Log: Verlauf aller Sync-/Provision-Aufträge inkl. Fehlern
+  router.get(
+    '/projects/:projectId/sync-log',
+    requireProjectRole(db, 'viewer'),
+    asyncHandler(async (req, res) => {
+      res.json({ data: syncLogForProject(db, req.project!.id) });
     }),
   );
 

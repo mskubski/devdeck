@@ -1,7 +1,7 @@
 # DevDeck – IMPLEMENTATION_STATUS.md
 
 Aktueller Umsetzungsstand der Phasen gemäß `IMPLEMENTATION_PLAN.md` §14.
-Aktualisiert nach jeder Phase (Code → Tests → Typecheck → Dokumentation).
+Stand: 2026-10-23. Aktualisiert nach jeder Phase (Code → Tests → Typecheck → Dokumentation).
 
 ## Gesamtstatus
 
@@ -11,12 +11,12 @@ Aktualisiert nach jeder Phase (Code → Tests → Typecheck → Dokumentation).
 | B | Agent-Protokoll: Machine Registry, Enrollment, Heartbeat, Command-Queue, Agent-Gerüst | ✅ abgeschlossen |
 | C | Workspace Registry, workspace.yaml, Workspace Status, Readiness | ✅ abgeschlossen |
 | D | Provision Workspace, Sync Workspace, Dependencies | ✅ abgeschlossen |
-| E | Tasks ✅ · Decisions/Changelog/Known Issues/History | ⏳ Tasks fertig, Rest bewusst zurückgestellt (siehe unten) |
+| E | Tasks ✅ · Decisions/Changelog/Known Issues/History ✅ | ✅ abgeschlossen |
 | F | Coding Sessions ✅ · .devdeck Context ✅ · Handovers ✅ | ✅ abgeschlossen |
 | G | DevDeck Vault: Metadata, Values, Files, Permissions, Projektion | ✅ abgeschlossen |
-| H | DevDeck CLI, Claude-Launcher, Codex-Launcher | ⬜ kein Quellcode vorhanden |
-| I | Backups, Restore, Retention | ⬜ nur Datenmodell, keine Implementierung |
-| J | Service-Integrationen (Konnektoren) | ⬜ |
+| H | DevDeck CLI ✅ · Claude-/Codex-Launcher | ✅ abgeschlossen (`devdeck claude\|codex` startet den Agent im Workspace mit Kontext + Session) |
+| I | Backups, Restore, Retention | ✅ System-Backup, Verify, Retention, Scheduler, Terminal-Restore (Projekt-Backups/Konnektoren in J) |
+| J | Service-Integrationen (Konnektoren) | ⏳ Interface + GitHub fertig; GitLab, Supabase, Vercel, Brevo, Apple, Google Play, IONOS offen |
 
 ## Review & Vervollständigung – 2026-10-08
 
@@ -118,3 +118,17 @@ Tests: 83/83 grün (`npm test`), `tsc -b` sauber. Neue Tests:
 **Tests:** `packages/server/test/agent.test.ts` (17) → Suite gesamt **36/36 grün**, `tsc -b` sauber.
 
 ---
+
+## Phasen E, H, I und J (Start) – 2026-10-23
+
+- **E:** `routes/knowledge.ts` (Decisions, Changelog, Known Issues, History), vier neue Projekt-Tabs; Kontext-Builder
+  übernimmt akzeptierte Entscheidungen und offene Known Issues.
+- **H:** `packages/cli` (Basis-Befehle, `env run`) und Launcher `devdeck claude|codex` mit Allowlist.
+- **I:** `services/backups.ts`, `routes/backups.ts`, `restore.ts` (nur interaktiv im Terminal; kein API-/UI-Restore),
+  Scheduler im Server. Offen: projektbezogene Backups (z. B. Supabase) über Konnektoren.
+- **J:** Connector-Interface + GitHub (`services/connectors/`, Migration v7, Tab „Integrationen“).
+  Offen: GitLab, Supabase, Vercel, Brevo, Apple, Google Play, IONOS.
+- **Sessions-Scan:** Agent-Scanner für Claude-Code-Transcripts (nur Metadaten), `POST /api/agent/sessions/import`, Migration v8, Agent 0.3.0. Offen: Hooks für Live-Status (siehe ROADMAP.md).
+- CI: Dependabot und `npm audit`-Job.
+
+Tests: 108/108 grün, `tsc -b` sauber.

@@ -1,0 +1,14 @@
+[Unit]
+Description=DevDeck Agent
+After=devdeck-server.service
+Wants=devdeck-server.service
+
+[Service]
+Type=simple
+WorkingDirectory=@REPO@
+ExecStart=/usr/bin/env node packages/agent/dist/index.js start
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

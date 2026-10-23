@@ -27,9 +27,13 @@ export async function renderSessions(el, project) {
     return `
     <tr>
       <td>
-        <strong>${esc(s.goal || '(ohne Ziel)')}</strong><br>
-        <span class="muted text-sm">${esc(s.user_email || '')} ${s.agent_name ? `· ${esc(s.agent_name)}` : ''}</span>
+        <strong>${esc(s.goal || (s.source === 'claude-code' ? 'Claude-Code-Session' : '(ohne Ziel)'))}</strong><br>
+        <span class="muted text-sm">${esc(s.user_email || '')} ${s.agent_name ? `· ${esc(s.agent_name)}` : ''}
+          ${s.git_branch ? `· <span class="mono">${esc(s.git_branch)}</span>` : ''}
+          ${s.message_count ? `· ${esc(s.message_count)} Nachrichten` : ''}
+          ${s.pr_url ? `· <a href="${esc(s.pr_url)}" target="_blank" rel="noopener noreferrer">PR</a>` : ''}</span>
       </td>
+      <td class="muted text-sm">${s.source === 'claude-code' ? 'Claude Code (automatisch)' : 'DevDeck'}</td>
       <td>${badge(s.status === 'open' ? 'läuft' : 'beendet', s.status === 'open' ? 'warn' : 'ok')}</td>
       <td class="muted text-sm">${fmtDate(s.started_at)}</td>
       <td class="muted text-sm">${s.ended_at ? fmtDate(s.ended_at) : '–'}</td>
@@ -49,8 +53,8 @@ export async function renderSessions(el, project) {
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Ziel</th><th>Status</th><th>Start</th><th>Ende</th><th></th></tr></thead>
-          <tbody>${rows || '<tr><td colspan="5"><div class="empty-state"><div class="icon">' + icon('code', { size: 32 }) + '</div>Noch keine Coding Sessions.</div></td></tr>'}</tbody>
+          <thead><tr><th>Ziel</th><th>Quelle</th><th>Status</th><th>Start</th><th>Ende</th><th></th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="6"><div class="empty-state"><div class="icon">' + icon('code', { size: 32 }) + '</div>Noch keine Coding Sessions.</div></td></tr>'}</tbody>
         </table>
       </div>
     </div>`;

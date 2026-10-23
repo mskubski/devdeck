@@ -11,3 +11,5 @@ import './dependenciesInstall.js';
 import './editorOpen.js';
 import './terminalOpen.js';
 import './codingAgentStart.js';
+import './agentConfigure.js';
+import './agentUpdate.js';

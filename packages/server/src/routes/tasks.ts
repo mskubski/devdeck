@@ -50,8 +50,8 @@ export function taskRoutes(ctx: AppContext): Router {
       const now = new Date().toISOString();
       const taskId = randomUUID();
       db.run(
-        `INSERT INTO tasks (id, project_id, title, description, status, priority, created_by, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO tasks (id, project_id, title, description, status, priority, created_by, created_at, updated_at, closed_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         taskId,
         req.project!.id,
         title,
@@ -61,6 +61,7 @@ export function taskRoutes(ctx: AppContext): Router {
         req.user!.id,
         now,
         now,
+        status === 'done' ? now : null,
       );
 
       audit(db, {

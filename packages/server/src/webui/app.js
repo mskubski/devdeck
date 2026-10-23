@@ -7,12 +7,14 @@ import { renderProjectDetail } from './views/projectDetail.js';
 import { renderMachines } from './views/machines.js';
 import { renderUsers } from './views/users.js';
 import { renderAudit } from './views/audit.js';
+import { renderBackups } from './views/backups.js';
 import { renderHelp } from './views/help.js';
 
 const NAV = [
   { hash: '#/projects', icon: 'folder', label: 'Projekte', match: (h) => h.startsWith('#/projects') },
   { hash: '#/machines', icon: 'monitor', label: 'Maschinen', match: (h) => h.startsWith('#/machines') },
   { hash: '#/users', icon: 'users', label: 'Benutzer', match: (h) => h.startsWith('#/users'), adminOnly: true },
+  { hash: '#/backups', icon: 'database', label: 'Backups', match: (h) => h.startsWith('#/backups'), adminOnly: true },
   { hash: '#/audit', icon: 'history', label: 'Audit-Log', match: (h) => h.startsWith('#/audit') },
   { hash: '#/help', icon: 'help', label: 'Hilfe', match: (h) => h.startsWith('#/help') },
 ];
@@ -108,6 +110,9 @@ async function route() {
     } else if (path.startsWith('users')) {
       if (state.user.system_role !== 'admin') throw Object.assign(new Error('Nur für Administratoren'), { status: 403 });
       await renderUsers(content);
+    } else if (path.startsWith('backups')) {
+      if (state.user.system_role !== 'admin') throw Object.assign(new Error('Nur für Administratoren'), { status: 403 });
+      await renderBackups(content);
     } else if (path.startsWith('audit')) {
       await renderAudit(content, query);
     } else if (path.startsWith('help')) {

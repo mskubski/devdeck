@@ -95,7 +95,7 @@ Der Agent soll keine generische unbegrenzte Remote-Shell bereitstellen. Er arbei
 
 Die CLI dient Entwicklern, Scripts und Coding Agents als lokale Schnittstelle.
 
-Geplante Befehle:
+Umgesetzte Befehle (zusätzlich `login`, `logout`, `whoami`, `devdeck claude` und `devdeck codex`):
 
 ```bash
 devdeck status
@@ -694,16 +694,17 @@ Die wichtigste Regel bleibt:
 
 ### Phase 7: Backups
 
-- DevDeck System Backup
-- Vault Backup
-- projektbezogene Backups
-- Scheduling
-- Retention
-- Restore
+- DevDeck System Backup ✅
+- Vault Backup ✅ (ohne Vault-Key)
+- Scheduling ✅
+- Retention ✅
+- Restore ✅ (nur interaktiv im Terminal)
+- projektbezogene Backups (offen, Teil der Service Integrations)
 
 ### Phase 8: Service Integrations
 
 Je nach Projektbedarf können Integrationen zu Git-, Hosting-, Backend- und weiteren Services ergänzt werden.
+Umgesetzt: Konnektor-Interface und GitHub. Offen: GitLab, Supabase, Vercel, Brevo, Apple, Google Play, IONOS.
 
 ### Phase 9: Optionale DevDeck AI
 
@@ -711,11 +712,12 @@ Erst nachdem der deterministische Core stabil funktioniert.
 
 ## Status
 
-DevDeck befindet sich aktuell in **Phase 1–4 + 6 (teilweise)**: Server mit Authentifizierung,
-Benutzerverwaltung, Machine Enrollment, Workspace-Registry/-Provisioning/-Sync, Tasks, Coding
-Sessions/Handovers, Coding-Context-Erzeugung und ein vollständig verdrahteter DevDeck Vault sind
-funktionsfähig. Bewusst noch nicht umgesetzt: DevDeck CLI, Backups/Restore, eigene
-Decisions/Changelog/Known-Issues-Verwaltung sowie Service-Integrationen – siehe
+DevDeck befindet sich aktuell in **Phase 1–7 (umgesetzt)** und **Phase 8 (begonnen)**: Server mit
+Authentifizierung, Benutzerverwaltung, Machine Enrollment, Workspace-Registry/-Provisioning/-Sync, Tasks,
+Decisions/Changelog/Known Issues/Verlauf, Coding Sessions/Handovers, Coding-Context-Erzeugung, Vault,
+System-Backups (Restore nur im Terminal), die `devdeck` CLI inklusive Claude-/Codex-Launcher und ein
+GitHub-Konnektor sind funktionsfähig. Noch offen: weitere Service-Integrationen (GitLab, Supabase, Vercel,
+Brevo, Apple, Google Play, IONOS) und die optionale AI-Phase – siehe
 [IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) für den genauen Stand und die Hilfe-Seite
 in der Web-UI für eine nutzerorientierte Erklärung. Nicht alle in diesem README beschriebenen
 Funktionen sind bereits implementiert – es bleibt teils Zielbild.
