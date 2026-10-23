@@ -3,6 +3,11 @@
 ## Unreleased - 2026-10-23
 
 ### Added
+- Claude-Code-Sessions werden automatisch erfasst: Der Agent (`sessionScanner.ts`, alle 5 Minuten, Abschalten mit
+  `DEVDECK_SCAN_SESSIONS=0`) liest `~/.claude/projects/…/*.jsonl` (CLI und Desktop) für die registrierten Workspaces
+  und meldet NUR Metadaten (Titel, Zeiten, Branch, PR-Link, Nachrichtenanzahl) an `POST /api/agent/sessions/import`.
+  Prompts und Gespräche verlassen den Rechner nie. Sessions-Tab zeigt Quelle, Branch, PR; Übersicht zeigt „Zuletzt aktiv“.
+  Migration v8, Agent-Version 0.3.0 (ältere Agenten gelten als veraltet).
 - `devdeck import changelog|tasks|secrets|all`: übernimmt vorhandene `CHANGELOG.md`, `ROADMAP.md`/`TODO.md` (Checkboxen)
   und `.env`/`credentials.md` in ein DevDeck-Projekt. Standardmäßig nur Vorschau (`--apply` schreibt), idempotent,
   Secret-Werte werden nie ausgegeben. `--create` erzeugt eine `ROADMAP.md` aus den DevDeck-Tasks. Changelog-Einträge

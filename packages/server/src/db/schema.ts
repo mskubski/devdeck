@@ -334,6 +334,17 @@ const MIGRATIONS: string[] = [
     UNIQUE (project_id, name)
   );
   `,
+  // v8: automatisch erfasste Claude-Code-Sessions (Agent-Scanner, nur Metadaten)
+  `
+  ALTER TABLE coding_sessions ADD COLUMN source TEXT NOT NULL DEFAULT 'devdeck';
+  ALTER TABLE coding_sessions ADD COLUMN external_id TEXT;
+  ALTER TABLE coding_sessions ADD COLUMN git_branch TEXT;
+  ALTER TABLE coding_sessions ADD COLUMN pr_url TEXT;
+  ALTER TABLE coding_sessions ADD COLUMN message_count INTEGER;
+  ALTER TABLE coding_sessions ADD COLUMN last_activity_at TEXT;
+  CREATE UNIQUE INDEX idx_codingsessions_external
+    ON coding_sessions(machine_id, external_id) WHERE external_id IS NOT NULL;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

@@ -11,6 +11,7 @@
 - [x] Phase E: Decisions, Changelog, Known Issues, History
 - [x] Dependabot und npm audit in CI
 - [x] Phase J: Konnektor-Interface und GitHub-Konnektor
+- [x] Coding Sessions aus Claude Code automatisch erfassen (Transcript-Scanner im Agent)
 
 ## Offen
 
@@ -21,6 +22,6 @@
 - [ ] Konnektor Brevo (P1)
 - [ ] Konnektoren Apple App Store und Google Play (P1)
 - [ ] Konnektor IONOS (P1)
-- [ ] Coding Sessions aus Claude Code automatisch erfassen (Transcript-Scanner und Hooks) (P4)
+- [ ] Claude-Code-Hooks (SessionStart/SessionEnd) für Live-Status laufender Sessions (P4)
 - [ ] Agent als installierbares Paket (`devdeck-agent`-Kommando, Windows/macOS-Installer) (P3)
 - [ ] Phase 9: Optionale DevDeck AI – muss mit AI = disabled voll funktionieren (P1)

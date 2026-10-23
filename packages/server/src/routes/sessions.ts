@@ -32,6 +32,12 @@ export function sessionRoutes(ctx: AppContext): Router {
       ended_at: row.ended_at ?? null,
       handover_id: row.handover_id ?? null,
       git_state: row.git_state_json ? JSON.parse(row.git_state_json) : null,
+      source: (row.source ?? 'devdeck') as 'devdeck' | 'claude-code',
+      git_branch: row.git_branch ?? null,
+      pr_url: row.pr_url ?? null,
+      message_count: row.message_count ?? null,
+      last_activity_at: row.last_activity_at ?? null,
+      user_email: row.user_email ?? null,
     };
   }
 

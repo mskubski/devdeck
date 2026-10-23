@@ -159,5 +159,10 @@ wird (nicht zwingend auf dem Server selbst). Pro Maschine braucht es einmalig:
   Liest `CHANGELOG.md`, `ROADMAP.md`/`TODO.md` (Checkboxen `- [ ]`/`- [x]`, optional `(P1)`–`(P5)`) sowie `.env`,
   `.env.<umgebung>` und `credentials.md` (Zeilen `KEY=wert`, `KEY: wert` oder Tabellenzeilen). Bereits vorhandene
   Einträge werden übersprungen; Secrets landen verschlüsselt im Vault, ihre Werte werden nie angezeigt.
+- **Claude-Code-Sessions:** Der Agent liest alle 5 Minuten die Claude-Code-Transcripts (`~/.claude/projects`, unter
+  Windows im Benutzerordner `.claude\projects`; anderer Ort über `CLAUDE_CONFIG_DIR`) für registrierte Workspaces und meldet
+  nur Metadaten (Titel, Zeiten, Branch, PR-Link, Nachrichtenanzahl) – keine Prompts. Anzeige im Tab **Sessions** (Quelle
+  „Claude Code (automatisch)“) und auf der Projektübersicht. Abschalten: `DEVDECK_SCAN_SESSIONS=0`.
+  Voraussetzung: Der Workspace ist für diese Maschine registriert.
 - **Wissen:** Im Projekt gibt es die Tabs **Entscheidungen**, **Changelog**, **Known Issues** und **Verlauf**.
 - **Integrationen:** Tab **Integrationen** – GitHub-Konnektor mit Token aus einem Projekt-Secret.

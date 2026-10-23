@@ -14,6 +14,7 @@ import {
 import { ServerClient } from './client.js';
 import { startHeartbeat } from './heartbeat.js';
 import { startWorker } from './worker.js';
+import { startSessionScanner } from './sessionScanner.js';
 import { startLocalApi } from './localApi.js';
 import { log, logFilePath } from './logger.js';
 import './actions/all.js';
@@ -112,6 +113,7 @@ async function runStart(args: CliArgs): Promise<void> {
   const local = startLocalApi(config);
   const heartbeat = startHeartbeat(config);
   const worker = startWorker(config);
+  const scanner = startSessionScanner(config);
 
   log.info(
     `läuft – Server: ${config.serverUrl}, Maschine: ${config.machineId}, ` +
@@ -122,6 +124,7 @@ async function runStart(args: CliArgs): Promise<void> {
   const shutdown = (): void => {
     heartbeat.stop();
     worker.stop();
+    scanner.stop();
     void local.close().then(() => process.exit(0));
   };
   process.on('SIGINT', shutdown);

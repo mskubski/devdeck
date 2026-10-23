@@ -282,6 +282,103 @@ export function agentRoutes(ctx: AppContext): Router {
     }),
   );
 
+  // Workspaces dieser Maschine (der Agent scannt nur diese Pfade nach Claude-Code-Sessions)
+  router.get(
+    '/workspaces',
+    asyncHandler(async (req, res) => {
+      const rows = db.all<{ id: string; project_id: string; local_path: string }>(
+        'SELECT id, project_id, local_path FROM workspaces WHERE machine_id = ?',
+        req.machine!.id,
+      );
+      res.json({ data: rows });
+    }),
+  );
+
+  // Claude-Code-Sessions importieren (nur Metadaten, idempotent über external_id)
+  router.post(
+    '/sessions/import',
+    asyncHandler(async (req, res) => {
+      const machine = req.machine!;
+      const list = Array.isArray(req.body?.sessions) ? (req.body.sessions as Array<Record<string, unknown>>) : null;
+      if (!list) throw new AppError('VALIDATION', 'sessions muss ein Array sein');
+      const str = (v: unknown, max: number): string | null =>
+        typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null;
+      const iso = (v: unknown): string | null => {
+        const s = str(v, 40);
+        return s && !Number.isNaN(Date.parse(s)) ? new Date(s).toISOString() : null;
+      };
+      const ACTIVE_MS = 15 * 60_000;
+      let created = 0;
+      let updated = 0;
+      let skipped = 0;
+      for (const item of list.slice(0, 200)) {
+        const externalId = str(item.external_id, 100);
+        const startedAt = iso(item.started_at);
+        const lastActivity = iso(item.last_activity_at) ?? startedAt;
+        const wsId = str(item.workspace_id, 100);
+        const ws = wsId
+          ? db.get<{ id: string; project_id: string }>(
+              'SELECT id, project_id FROM workspaces WHERE id = ? AND machine_id = ?',
+              wsId,
+              machine.id,
+            )
+          : undefined;
+        if (!externalId || !startedAt || !lastActivity || !ws) {
+          skipped++;
+          continue;
+        }
+        const active = Date.now() - Date.parse(lastActivity) < ACTIVE_MS;
+        const status = active ? 'open' : 'closed';
+        const endedAt = active ? null : lastActivity;
+        const count = Number.isFinite(Number(item.message_count)) ? Math.max(0, Math.floor(Number(item.message_count))) : null;
+        const existing = db.get<{ id: string }>(
+          'SELECT id FROM coding_sessions WHERE machine_id = ? AND external_id = ?',
+          machine.id,
+          externalId,
+        );
+        if (existing) {
+          db.run(
+            `UPDATE coding_sessions SET goal = COALESCE(?, goal), git_branch = COALESCE(?, git_branch),
+               pr_url = COALESCE(?, pr_url), message_count = ?, last_activity_at = ?, status = ?, ended_at = ?
+             WHERE id = ?`,
+            str(item.title, 300),
+            str(item.git_branch, 200),
+            str(item.pr_url, 500),
+            count,
+            lastActivity,
+            status,
+            endedAt,
+            existing.id,
+          );
+          updated++;
+        } else {
+          db.run(
+            `INSERT INTO coding_sessions (id, project_id, workspace_id, machine_id, user_id, agent_name, started_at,
+               ended_at, status, goal, source, external_id, git_branch, pr_url, message_count, last_activity_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'claude-code', ?, ?, ?, ?, ?)`,
+            randomUUID(),
+            ws.project_id,
+            ws.id,
+            machine.id,
+            machine.owner_user_id,
+            str(item.entrypoint, 60) ? `claude (${str(item.entrypoint, 60)})` : 'claude',
+            startedAt,
+            endedAt,
+            status,
+            str(item.title, 300),
+            externalId,
+            str(item.git_branch, 200),
+            str(item.pr_url, 500),
+            count,
+            lastActivity,
+          );
+          created++;
+        }
+      }
+      res.json({ data: { created, updated, skipped } });
+    }),
+  );
+
   // Session-Zustand vom Agenten (Start/Ende einer Coding Session)
   router.post(
     '/sessions/:id/state',

@@ -53,7 +53,7 @@ syncing source code through a file-sync service or a proprietary mechanism.
 - Machine enrollment and command queue between server and agents
 - Workspace registry, `workspace.yaml` manifest, provisioning, sync and readiness checks
 - Tasks, decisions, changelog, known issues and a project history timeline
-- Coding sessions and handovers between machines/people
+- Coding sessions and handovers between machines/people; Claude Code sessions (CLI and desktop) are picked up automatically by the agent (metadata only)
 - Generated coding context (`.devdeck/CONTEXT.md` and friends) for AI coding agents
 - Encrypted vault (AES-256-GCM) for secret values and secret files, with per-capability access and auditing
 - `devdeck` CLI (status, sync, sessions, handovers, `env run`) and launchers for Claude Code / Codex (`devdeck claude`, `devdeck codex`)
