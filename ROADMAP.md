@@ -11,6 +11,7 @@
 - [x] Phase E: Decisions, Changelog, Known Issues, History
 - [x] Dependabot und npm audit in CI
 - [x] Phase J: Konnektor-Interface und GitHub-Konnektor
+- [x] Server-Update per Knopfdruck (System-Seite)
 - [x] Coding Sessions aus Claude Code automatisch erfassen (Transcript-Scanner im Agent)
 
 ## Offen

@@ -108,16 +108,14 @@ See `packages/server/src/config.ts` for the complete list.
 
 Code only travels via GitHub; DevDeck never transfers source code itself.
 
-1. Develop on your PC in a registered workspace (e.g. with Claude Code) on a feature branch – the agent picks the session up automatically.
-2. `npm run build && npm test`, then commit, push, open a pull request, wait for CI and merge to `main`.
-3. In the web UI create a backup (**Backups**), then update the server machine:
-   ```bash
-   git pull --ff-only && npm install && npm run build
-   systemctl --user restart devdeck-server devdeck-agent
-   ```
+1. Develop on any machine registered in DevDeck (e.g. with Claude Code) in a registered workspace – the agent picks the session up automatically.
+2. **After every code change, GitHub is updated** (rule in [`CLAUDE.md`](CLAUDE.md), done by Claude Code): build + test, feature branch, push, pull request, merge to `main` once CI is green.
+3. In the web UI open **System → Update server**: it creates a backup, fast-forwards to `main`, runs `npm ci` + build and restarts the server (systemd). On any failure the previous version stays active.
 4. Update other machines via **Machines → Update agent** and sync their workspaces (**Sync** / `devdeck sync`).
 
-See [ANLEITUNG.md](docs/ANLEITUNG.md) (German, section 9) for details.
+The very first time, update the server by hand so it has the button:
+`git checkout main && git pull --ff-only && npm ci && npm run build && systemctl --user restart devdeck-server devdeck-agent`.
+See [ANLEITUNG.md](docs/ANLEITUNG.md) (German, section 9) for details. Target branch: `DEVDECK_UPDATE_BRANCH` (default `main`).
 
 ### Backups and restore
 

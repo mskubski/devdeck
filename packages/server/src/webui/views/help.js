@@ -171,22 +171,21 @@ npm run build</pre>
         <ol>
           <li><strong>Am PC arbeiten:</strong> im Workspace-Ordner (z. B. <code>D:\DEVDECK\DEV\devdeck</code>)
             einen Branch anlegen (<code>git checkout -b feature/xyz</code>) und mit Claude Code entwickeln.
+            Claude Code hält dabei GitHub aktuell (Regel in <code>CLAUDE.md</code>: nach jeder Änderung bauen, testen, Pull Request, bei grüner CI mergen).
             Die Sitzung erscheint automatisch unter <em>Sessions</em> (Quelle „Claude Code“), sobald der
             Agent läuft und der Workspace registriert ist.</li>
-          <li><strong>Prüfen:</strong> <code>npm run build</code> und <code>npm test</code>.</li>
-          <li><strong>Auf GitHub bringen:</strong> committen, <code>git push</code>, Pull Request öffnen,
-            CI abwarten, nach <code>main</code> mergen.</li>
-          <li><strong>Server sichern:</strong> unter <em>Backups</em> „Backup jetzt erstellen“ (Datenbank-Migrationen
-            laufen beim Start automatisch).</li>
-          <li><strong>Server aktualisieren</strong> (auf dem Server-Rechner):
-            <div class="secret-value">cd ~/Development/devdeck &amp;&amp; git pull --ff-only &amp;&amp; npm install &amp;&amp; npm run build
-systemctl --user restart devdeck-server devdeck-agent</div>
-            Der Neustart dauert wenige Sekunden; Agents verbinden sich selbstständig wieder.</li>
+          <li><strong>Auf GitHub bringen</strong> (macht Claude Code automatisch): bauen und testen, committen, pushen,
+            Pull Request öffnen, CI abwarten, nach <code>main</code> mergen.</li>
+          <li><strong>Server aktualisieren:</strong> in DevDeck unter <em>System</em> auf „Server aktualisieren“ klicken.
+            Ein Backup wird automatisch erstellt, der neueste Stand von <code>main</code> geholt, gebaut und der Server
+            neu gestartet (wenige Sekunden; Agents verbinden sich selbstständig wieder). Schlägt etwas fehl, bleibt der
+            alte Stand aktiv. Das geht von jeder Maschine aus, die in DevDeck angemeldet ist.</li>
           <li><strong>Andere Maschinen:</strong> unter <em>Maschinen</em> „Agent updaten“ (Fast-Forward-Pull, Build, Neustart);
             Projekt-Workspaces mit <em>Sync</em> (<code>devdeck sync</code>) auf den neuen Stand bringen.</li>
         </ol>
-        <p class="muted">Hinweise: Der Server-Rechner braucht Zugriff auf GitHub (<code>git pull</code>). Bei lokalen
-        Änderungen im Server-Ordner bricht ein Pull bzw. „Agent updaten“ ab – dort nicht direkt editieren.
+        <p class="muted">Hinweise: Der Server-Rechner braucht Zugriff auf GitHub (<code>git fetch</code>). Bei lokalen
+        Änderungen im Server-Ordner bricht das Update bzw. „Agent updaten“ ab – dort nichts uncommittet liegen lassen.
+        Das Update läuft auf dem Branch <code>main</code> (änderbar mit <code>DEVDECK_UPDATE_BRANCH</code>).
         Wissen wie Tasks, Changelog und Entscheidungen liegt in der DevDeck-Datenbank, nicht in Git
         (Import vorhandener Dateien: <code>devdeck import all</code>).</p>`,
     },
