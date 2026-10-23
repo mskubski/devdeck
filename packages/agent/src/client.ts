@@ -3,7 +3,9 @@ import type { AgentConfig } from './config.js';
 
 /** Verständliche Fehlermeldung statt „fetch failed“ / „This operation was aborted“. */
 export function unreachable(serverUrl: string, err: unknown, timedOut: boolean): AppError {
-  const cause = (err as { cause?: { code?: string; message?: string } })?.cause;
+  const raw = (err as { cause?: { code?: string; message?: string; errors?: Array<{ code?: string }> } })?.cause;
+  // Bei Dual-Stack (IPv4+IPv6) liegt der Code in einer AggregateError
+  const cause = raw ? { code: raw.code ?? raw.errors?.[0]?.code, message: raw.message } : undefined;
   const reason = timedOut
     ? 'Zeitüberschreitung – keine Antwort (Firewall/anderes Netzwerk/falsche IP?)'
     : cause?.code === 'ECONNREFUSED'
