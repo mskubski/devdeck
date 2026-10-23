@@ -14,6 +14,9 @@
   Der Pfad wird beim Registrieren/Bearbeiten gegen den Workspace-Root der Maschine geprüft (Windows und Linux, Windows ohne Groß-/Kleinschreibung); der Dialog zeigt den Root
   und schlägt ihn als Pfad vor. Gleicher Pfad auf verschiedenen Maschinen ist erlaubt.
 
+### Changed
+- Architektur-Karte steht auf der Projekt-Übersicht jetzt unten; Kennzahlen, Projektinfo und letzte Sessions bleiben oben.
+
 ### Fixed
 - Dauer-„warning“: Ein fehlendes `.devdeck/workspace.yaml` ist nur noch ein optionaler Hinweis (OK), eine fehlende `.env` zählt nur, wenn das Manifest eine Projektion
   verlangt; die Kontext-Warnung entfällt, weil Sync den Kontext jetzt schreibt. Unter Windows wurde `npm` fälschlich als „nicht gefunden“ gemeldet (`.cmd` braucht eine Shell);

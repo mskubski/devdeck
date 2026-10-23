@@ -13,7 +13,6 @@ export async function renderOverview(el, project) {
   const openSessions = sessions.filter((s) => s.status === 'open').length;
 
   el.innerHTML = `
-    <div id="arch-host"></div>
     <div class="grid cols-3" style="margin-bottom:var(--space-5)">
       <div class="stat-tile"><span class="value">${openTasks}</span><span class="label">Offene Tasks</span></div>
       <div class="stat-tile"><span class="value">${openSessions}</span><span class="label">Laufende Sessions</span></div>
@@ -47,6 +46,7 @@ export async function renderOverview(el, project) {
             </div>`).join('')}
         </div>`}
       </div>
-    </div>`;
+    </div>
+    <div id="arch-host" style="margin-top:var(--space-5)"></div>`;
   void renderArchitecture(el.querySelector('#arch-host'), project);
 }
