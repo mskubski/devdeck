@@ -3,3 +3,4 @@ export * from './roles.js';
 export * from './protocol.js';
 export * from './types.js';
 export * from './importParsers.js';
+export * from './architecture.js';

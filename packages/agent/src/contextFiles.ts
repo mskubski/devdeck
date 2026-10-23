@@ -1,6 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+/** Nur generierte Dateien ausschließen; `.devdeck/workspace.yaml` und `.devdeck/architecture.yaml` gehören ins Repo. */
+export const GENERATED_PATTERNS = [
+  '.devdeck/CONTEXT.md', '.devdeck/CURRENT_STATE.md', '.devdeck/CHANGELOG_RECENT.md', '.devdeck/SECRETS.md',
+  '.devdeck/RULES.md', '.devdeck/state.json', '.devdeck/project.json', '.devdeck/session.json', '.devdeck/handover/',
+];
+
 const RULES_MARKER_IN_REPO = 'devdeck:rules-included';
 
 /** Lokal (nur in dieser Arbeitskopie) ignorieren, ohne eine versionierte Datei zu verändern. */
@@ -17,6 +23,15 @@ export function ensureGitExclude(workspacePath: string, patterns: string[]): voi
     current = fs.readFileSync(file, 'utf8');
   } catch {
     /* noch nicht vorhanden */
+  }
+  // Frühere Agent-Versionen haben pauschal `.devdeck/` ausgeschlossen – das würde versionierte Dateien wie
+  // `.devdeck/architecture.yaml` verstecken. Diese Zeile (nur in unserem Block) wird entfernt.
+  if (current.includes('# DevDeck (lokal, nicht versioniert)') && patterns.every((p) => p !== '.devdeck/')) {
+    const cleaned = current.replace(/^\.devdeck\/\r?\n/m, '');
+    if (cleaned !== current) {
+      current = cleaned;
+      fs.writeFileSync(file, current);
+    }
   }
   const have = new Set(current.split(/\r?\n/).map((l) => l.trim()));
   const missing = patterns.filter((p) => !have.has(p));
@@ -66,7 +81,7 @@ export function writeContextFiles(workspacePath: string, files: Record<string, s
   }
   fs.mkdirSync(path.join(target, 'handover'), { recursive: true });
   // Generierter Kontext gehört nicht in die Versionierung und darf den Sync nicht blockieren
-  ensureGitExclude(workspacePath, ['.devdeck/']);
+  ensureGitExclude(workspacePath, GENERATED_PATTERNS);
   installClaudeRules(workspacePath, files['RULES.md']);
   return written;
 }

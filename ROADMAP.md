@@ -11,6 +11,7 @@
 - [x] Phase E: Decisions, Changelog, Known Issues, History
 - [x] Dependabot und npm audit in CI
 - [x] Phase J: Konnektor-Interface und GitHub-Konnektor
+- [x] Architektur-Karte auf der Projekt-Übersicht (Automatik + Manifest + manuell)
 - [x] Import bestehender Projektdaten per Knopf (Workspaces → Importieren)
 - [x] Coding-Regeln für Claude Code (`.claude/rules/devdeck.md`) per Sync
 - [x] Server-Update per Knopfdruck (System-Seite)
@@ -21,6 +22,7 @@
 
 ## Offen
 
+- [ ] Architektur-Karte: Live-Daten – Supabase (Größe/Region per Token), Vercel, IONOS (P3)
 - [ ] Phase J: Service-Integrationen (Konnektoren)
 - [ ] Konnektor GitLab (P2)
 - [ ] Konnektor Supabase inkl. projektbezogenem DB-/Storage-Backup (P3)

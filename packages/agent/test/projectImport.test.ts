@@ -44,8 +44,11 @@ describe('Kontextdateien + Claude-Regeln (Agent)', () => {
     // idempotent
     writeContextFiles(repo, FILES);
     const exclude = fs.readFileSync(path.join(repo, '.git', 'info', 'exclude'), 'utf8');
-    expect(exclude.match(/\.devdeck\//g)).toHaveLength(1);
-    expect(exclude.match(/devdeck\.md/g)).toHaveLength(1);
+    expect(exclude.match(/\.devdeck\/CONTEXT\.md/g)).toHaveLength(1);
+    expect(exclude.match(/rules\/devdeck\.md/g)).toHaveLength(1);
+    // versionierbare Dateien (architecture.yaml) werden nicht ausgeschlossen
+    fs.writeFileSync(path.join(repo, '.devdeck', 'architecture.yaml'), 'version: 1\n');
+    expect(git(repo, 'status', '--porcelain', '-uall')).toContain('.devdeck/architecture.yaml');
   });
 
   it('überspringt Regeln, wenn das Repo eigene enthält (Marker in CLAUDE.md); aktualisiert geänderte Regeln', () => {

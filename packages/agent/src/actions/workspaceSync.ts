@@ -8,6 +8,7 @@ import { gitStatus, isGitRepo, pullFFOnly } from '../git.js';
 import { buildReadiness } from '../readiness.js';
 import { installDependencies, lockfileHash } from '../dependencies.js';
 import { writeContextFiles } from '../contextFiles.js';
+import { collectFacts } from '../facts.js';
 
 /**
  * workspace.sync – SICHERER Workspace-Sync (Spezifikation §10):
@@ -84,7 +85,7 @@ registerAction('workspace.sync', async (ctx) => {
   });
   if (workspaceId) {
     await ctx.client.request('POST', `/api/agent/workspaces/${workspaceId}/status`, {
-      body: { git: afterSync, readiness },
+      body: { git: afterSync, readiness, facts: collectFacts(workspacePath) },
     });
   }
   if (currentHash) {

@@ -202,8 +202,8 @@ describe('workspace.sync / workspace.provision (Agent)', () => {
   it('erkennt veraltete Agent-Versionen', () => {
     expect(isAgentOutdated('0.1.0')).toBe(true);
     expect(isAgentOutdated(null)).toBe(true);
-    expect(isAgentOutdated('0.4.0')).toBe(true);
-    expect(isAgentOutdated('0.5.0')).toBe(false);
+    expect(isAgentOutdated('0.5.0')).toBe(true);
+    expect(isAgentOutdated('0.6.0')).toBe(false);
     expect(isAgentOutdated('0.10.0')).toBe(false);
   });
 

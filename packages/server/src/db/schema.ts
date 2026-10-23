@@ -359,6 +359,39 @@ const MIGRATIONS: string[] = [
   ALTER TABLE workspaces ADD COLUMN git_json TEXT;
   ALTER TABLE workspaces ADD COLUMN checked_at TEXT;
   `,
+  // v11: Architektur-Karte – vom Agenten gesammelte Fakten + manuelle Anpassungen
+  `
+  ALTER TABLE workspaces ADD COLUMN facts_json TEXT;
+  ALTER TABLE workspaces ADD COLUMN facts_at TEXT;
+
+  CREATE TABLE arch_components (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    key TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    name TEXT NOT NULL,
+    provider TEXT,
+    description TEXT,
+    details_json TEXT,
+    hidden INTEGER NOT NULL DEFAULT 0,
+    updated_by TEXT REFERENCES users(id),
+    updated_at TEXT NOT NULL,
+    UNIQUE (project_id, key)
+  );
+
+  CREATE TABLE arch_links (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    from_key TEXT NOT NULL,
+    to_key TEXT NOT NULL,
+    label TEXT NOT NULL,
+    description TEXT,
+    hidden INTEGER NOT NULL DEFAULT 0,
+    updated_by TEXT REFERENCES users(id),
+    updated_at TEXT NOT NULL,
+    UNIQUE (project_id, from_key, to_key, label)
+  );
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

@@ -26,5 +26,13 @@ coverage/
 # Lokale Claude-Code-Einstellungen
 .claude/settings.local.json
 
-# Lokaler DevDeck-Workspace-State
-.devdeck/
+# Lokaler DevDeck-Workspace-State (generiert) – .devdeck/workspace.yaml und .devdeck/architecture.yaml gehören ins Repo
+.devdeck/CONTEXT.md
+.devdeck/CURRENT_STATE.md
+.devdeck/CHANGELOG_RECENT.md
+.devdeck/SECRETS.md
+.devdeck/RULES.md
+.devdeck/state.json
+.devdeck/project.json
+.devdeck/session.json
+.devdeck/handover/
