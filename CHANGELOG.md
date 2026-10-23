@@ -2,6 +2,10 @@
 
 ## Unreleased - 2026-10-23
 
+### Fixed
+- Agent: Verbindungsfehler (Enrollment, Heartbeat, …) nennen jetzt URL und Ursache („Verbindung abgelehnt“, „Zeitüberschreitung – Firewall/anderes Netzwerk?“,
+  „Hostname nicht auflösbar“) statt „This operation was aborted“; Enrollment gibt nach 15 s auf statt nach 40 s.
+
 ### Added
 - „Alle Agents mit updaten“: Das Server-Update reiht (Häkchen, Standard an) `agent.update` für alle online befindlichen Agents ab 0.2.0 ein.
   Agent-Update nutzt `npm ci` (fasst die Lockfile nicht an) und startet nur neu, wenn sich der Code wirklich geändert hat
