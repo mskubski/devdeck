@@ -15,7 +15,7 @@ Aktualisiert nach jeder Phase (Code → Tests → Typecheck → Dokumentation).
 | F | Coding Sessions ✅ · .devdeck Context ✅ · Handovers ✅ | ✅ abgeschlossen |
 | G | DevDeck Vault: Metadata, Values, Files, Permissions, Projektion | ✅ abgeschlossen |
 | H | DevDeck CLI, Claude-Launcher, Codex-Launcher | ⬜ kein Quellcode vorhanden |
-| I | Backups, Restore, Retention | ⬜ nur Datenmodell, keine Implementierung |
+| I | Backups, Restore, Retention | ✅ System-Backup, Verify, Retention, Scheduler, Terminal-Restore (Projekt-Backups/Konnektoren in J) |
 | J | Service-Integrationen (Konnektoren) | ⬜ |
 
 ## Review & Vervollständigung – 2026-10-08

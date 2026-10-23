@@ -11,6 +11,10 @@ export interface ServerConfig {
   vaultDir: string;
   vaultKeyPath: string;
   backupTarget: string;
+  /** 0 = Scheduler aus. */
+  backupIntervalHours: number;
+  backupRetentionDaily: number;
+  backupRetentionWeekly: number;
   webuiDir: string;
   sessionTtlMs: number;
   secureCookies: boolean;
@@ -43,7 +47,10 @@ export function loadConfig(env: Env = process.env, overrides: Partial<ServerConf
     dbPath: path.join(dataDir, 'devdeck.db'),
     vaultDir: path.join(dataDir, 'vault'),
     vaultKeyPath: path.join(dataDir, 'vault', 'vault.key'),
-    backupTarget: path.resolve(env.DEVDECK_BACKUP_TARGET ?? path.join(dataDir, 'backups')),
+    backupTarget: path.resolve(env.DEVDECK_BACKUP_TARGET ?? env.DEVDECK_BACKUP_DIR ?? path.join(dataDir, 'backups')),
+    backupIntervalHours: Number(env.DEVDECK_BACKUP_INTERVAL_HOURS ?? 24),
+    backupRetentionDaily: Number(env.DEVDECK_BACKUP_RETENTION_DAILY ?? 7),
+    backupRetentionWeekly: Number(env.DEVDECK_BACKUP_RETENTION_WEEKLY ?? 4),
     webuiDir: path.resolve(env.DEVDECK_WEBUI_DIR ?? resolveWebuiDir()),
     sessionTtlMs: Number(env.DEVDECK_SESSION_TTL_DAYS ?? 14) * 24 * 60 * 60 * 1000,
     secureCookies: env.DEVDECK_SECURE_COOKIES === '1',

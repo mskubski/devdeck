@@ -179,7 +179,6 @@ npm run build</pre>
         umgesetzt – damit das vorhandene Fundament stabil bleibt, statt halbfertige Funktionen auszuliefern:</p>
         <ul>
           <li><strong>DevDeck CLI</strong> (<code>devdeck status/sync/session/...</code>) – noch kein Quellcode.</li>
-          <li><strong>Backups/Restore</strong> – Datenmodell vorhanden, keine Implementierung.</li>
           <li><strong>Decisions/Changelog/Known Issues</strong> als eigene UI – Datenbanktabellen existieren,
             Changelog fließt bereits in <code>.devdeck/CHANGELOG_RECENT.md</code> ein, aber es gibt noch keine
             eigenen Verwaltungs-Routen/Oberflächen dafür.</li>

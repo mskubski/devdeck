@@ -173,6 +173,11 @@ export class VaultService {
     return row;
   }
 
+  /** Konsistenter Snapshot der Vault-DB (nur verschlüsselte Blobs, niemals der Key). */
+  snapshotTo(destPath: string): void {
+    this.#db.snapshotTo(destPath);
+  }
+
   close(): void {
     this.#db.close();
   }

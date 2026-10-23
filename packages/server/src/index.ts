@@ -12,6 +12,7 @@ import { hashPassword } from './auth/passwords.js';
 import { audit } from './services/audit.js';
 import { sweepExpiredCommands, sweepOfflineAgents } from './services/provisioning.js';
 import type { UserRecord } from './auth/middleware.js';
+import { runScheduledBackup } from './services/backups.js';
 import { VaultService } from './vault/vault.js';
 
 export interface RunningServer {
@@ -120,6 +121,22 @@ export async function startServer(
     }
   }, 60_000);
   sweeper.unref();
+  // Backup-Scheduler: stündlich prüfen, ob das Intervall (Default 24 h) verstrichen ist
+  const backupTimer = setInterval(() => {
+    try {
+      runScheduledBackup(ctx);
+    } catch (err) {
+      console.error('[DevDeck] Geplantes Backup fehlgeschlagen:', err);
+    }
+  }, 3_600_000);
+  backupTimer.unref();
+  setTimeout(() => {
+    try {
+      runScheduledBackup(ctx);
+    } catch (err) {
+      console.error('[DevDeck] Geplantes Backup fehlgeschlagen:', err);
+    }
+  }, 30_000).unref();
   console.warn(`[DevDeck] Server läuft auf http://${host}:${port} (Schema v${SCHEMA_VERSION})`);
   return {
     app,
@@ -128,6 +145,7 @@ export async function startServer(
     server,
     close: async () => {
       clearInterval(sweeper);
+      clearInterval(backupTimer);
       await new Promise<void>((resolve) => server.close(() => resolve()));
       ctx.vault?.close();
       ctx.db.close();

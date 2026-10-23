@@ -13,6 +13,7 @@ npm run build > /dev/null 2>&1 || echo "⚠️  Warnung: Build hatte teilweise F
 # Setze Umgebungsvariablen für externen Zugriff
 export DEVDECK_HOST=0.0.0.0
 export DEVDECK_PORT=8080
+export DEVDECK_BACKUP_TARGET="${DEVDECK_BACKUP_TARGET:-$HOME/devdeck-backups}"
 
 # Läuft schon ein Server? Dann nicht ein zweites Mal starten (Port-Konflikt, doppelter Agent).
 if curl -s -o /dev/null "http://localhost:${DEVDECK_PORT}/api/health"; then

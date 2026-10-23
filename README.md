@@ -58,7 +58,7 @@ syncing source code through a file-sync service or a proprietary mechanism.
 - Audit log for security-relevant actions
 
 See [IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) for what is implemented and what is
-still planned (CLI, backups/restore, service integrations).
+still planned (CLI, service integrations).
 
 ## Requirements
 
