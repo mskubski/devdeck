@@ -1,4 +1,4 @@
-import { get, post } from '../../lib/api.js';
+import { get, post, patch, del } from '../../lib/api.js';
 import { $, $$, esc, badge, fmtDate, toast, formModal, setModalError, confirmModal, closeModal, openModal } from '../../lib/ui.js';
 import { roleAtLeast } from '../../lib/roles.js';
 import { icon } from '../../lib/icons.js';
@@ -87,6 +87,56 @@ async function runImportFlow(wsId, onDone) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
+const sepOf = (m) => (m?.platform === 'win32' ? '\\' : '/');
+
+/**
+ * Formular zum Registrieren/Bearbeiten eines Workspaces. Zeigt den Workspace-Root der gewählten Maschine
+ * (der Pfad muss darunter liegen) und füllt ihn als Vorschlag ein.
+ */
+function workspaceForm({ title, submitLabel, machines, initial = {} }) {
+  return new Promise((resolve) => {
+    const machineOptions = machines.map((m) =>
+      `<option value="${esc(m.id)}" ${m.id === initial.machine_id ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
+    openModal(`
+      <h2>${esc(title)}</h2>
+      <form id="modal-form" class="stack">
+        <label>Maschine
+          <select name="machine_id"><option value="">– später zuordnen –</option>${machineOptions}</select>
+        </label>
+        <p class="text-sm muted" id="root-hint"></p>
+        <label>Lokaler Pfad <input name="local_path" required value="${esc(initial.local_path ?? '')}" /></label>
+        <label>Branch <input name="branch" value="${esc(initial.branch ?? '')}" placeholder="main" /></label>
+        <label>Repository (optional – sonst das des Projekts) <input name="repo_remote" value="${esc(initial.repo_remote ?? '')}" placeholder="https://github.com/…" /></label>
+        <p class="error" id="modal-error"></p>
+        <div class="modal-actions">
+          <button class="btn ghost" type="button" id="modal-cancel">Abbrechen</button>
+          <button class="btn" type="submit">${esc(submitLabel)}</button>
+        </div>
+      </form>`, (root) => {
+      const form = $('#modal-form', root);
+      const select = form.elements.machine_id;
+      const pathInput = form.elements.local_path;
+      let lastSuggestion = '';
+      const refreshHint = () => {
+        const m = machines.find((x) => x.id === select.value);
+        const hint = $('#root-hint', root);
+        if (!m) { hint.textContent = 'Ohne Maschine wird der Pfad erst beim Zuordnen geprüft.'; return; }
+        if (!m.workspace_root) { hint.textContent = `Für „${m.name}“ ist noch kein Workspace-Root bekannt.`; return; }
+        hint.innerHTML = `Der Pfad muss unterhalb des Workspace-Roots von „${esc(m.name)}“ liegen: <span class="mono">${esc(m.workspace_root)}</span>`;
+        const suggestion = m.workspace_root.replace(/[\\/]+$/, '') + sepOf(m);
+        if (!pathInput.value || pathInput.value === lastSuggestion) { pathInput.value = suggestion; lastSuggestion = suggestion; }
+      };
+      select.addEventListener('change', refreshHint);
+      refreshHint();
+      $('#modal-cancel', root).addEventListener('click', () => { closeModal(); resolve(null); });
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        resolve({ data: Object.fromEntries(new FormData(form)), root });
+      });
+    });
+  });
+}
+
 export async function renderWorkspaces(el, project) {
   const [workspaces, machines] = await Promise.all([
     get(`/api/projects/${project.id}/workspaces`),
@@ -106,7 +156,9 @@ export async function renderWorkspaces(el, project) {
         ${canManage ? `
           <button class="btn ghost sm" data-sync="${w.id}">Sync</button>
           ${roleAtLeast(project.role, 'maintainer') ? `<button class="btn ghost sm" data-import="${w.id}">Importieren</button>` : ''}
-          <button class="btn ghost sm" data-provision="${w.id}">Provision</button>` : ''}
+          <button class="btn ghost sm" data-provision="${w.id}">Provision</button>
+          <button class="btn ghost sm" data-edit="${w.id}">Bearbeiten</button>
+          ${roleAtLeast(project.role, 'maintainer') ? `<button class="btn ghost sm" data-delete="${w.id}" data-path="${esc(w.local_path)}">Entfernen</button>` : ''}` : ''}
       </td>
     </tr>`).join('');
 
@@ -126,17 +178,7 @@ export async function renderWorkspaces(el, project) {
     </div>`;
 
   $('#btn-new-workspace', el)?.addEventListener('click', async () => {
-    const machineOptions = machines.map((m) => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('');
-    const res = await formModal({
-      title: 'Workspace registrieren',
-      submitLabel: 'Registrieren',
-      bodyHtml: `
-        <label>Lokaler Pfad <input name="local_path" required placeholder="/home/alice/Development/WebApp" /></label>
-        <label>Branch <input name="branch" placeholder="main" /></label>
-        <label>Maschine
-          <select name="machine_id"><option value="">– später zuordnen –</option>${machineOptions}</select>
-        </label>`,
-    });
+    const res = await workspaceForm({ title: 'Workspace registrieren', submitLabel: 'Registrieren', machines });
     if (!res) return;
     try {
       await post(`/api/projects/${project.id}/workspaces`, {
@@ -148,6 +190,35 @@ export async function renderWorkspaces(el, project) {
       renderWorkspaces(el, project);
     } catch (err) { setModalError(res.root, err.message); }
   });
+
+  for (const btn of $$('[data-edit]', el)) {
+    btn.addEventListener('click', async () => {
+      const w = workspaces.find((x) => x.id === btn.dataset.edit);
+      const res = await workspaceForm({ title: 'Workspace bearbeiten', submitLabel: 'Speichern', machines, initial: w });
+      if (!res) return;
+      try {
+        await patch(`/api/workspaces/${w.id}`, { ...res.data, machine_id: res.data.machine_id || undefined });
+        closeModal();
+        toast('Workspace gespeichert', 'success');
+        renderWorkspaces(el, project);
+      } catch (err) { setModalError(res.root, err.message); }
+    });
+  }
+  for (const btn of $$('[data-delete]', el)) {
+    btn.addEventListener('click', async () => {
+      const ok = await confirmModal({
+        title: 'Workspace entfernen',
+        message: `„${btn.dataset.path}“ aus DevDeck entfernen? Es werden keine Dateien auf der Maschine gelöscht – nur die Registrierung (und wartende Aufträge dafür).`,
+        confirmLabel: 'Entfernen',
+      });
+      if (!ok) return;
+      try {
+        await del(`/api/workspaces/${btn.dataset.delete}`, { confirm: true });
+        toast('Workspace entfernt', 'success');
+        renderWorkspaces(el, project);
+      } catch (err) { toast(err.message, 'error'); }
+    });
+  }
 
   for (const btn of $$('[data-sync]', el)) {
     btn.addEventListener('click', async () => {

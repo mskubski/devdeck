@@ -152,8 +152,9 @@ wird (nicht zwingend auf dem Server selbst). Pro Maschine braucht es einmalig:
 - **Regeln für Claude Code:** Bei Sync/Provision schreibt der Agent `.devdeck/` und `.claude/rules/devdeck.md` (Kontext lesen,
   nach jeder Änderung bauen/testen/committen/pushen). Beide Pfade werden lokal über `.git/info/exclude` ignoriert; das
   Repository bleibt sauber. Wer eigene Regeln in `CLAUDE.md` pflegt, setzt dort den Marker `<!-- devdeck:rules-included -->`.
-- **Sync schlägt mit „außerhalb des Workspace-Root“ fehl:** Der Workspace-Pfad muss unterhalb des Roots der Maschine liegen
-  (Maschinen → „Root ändern“, oder Agent mit `--workspace-root` starten).
+- **Sync/Provision schlägt mit „außerhalb des Workspace-Root“ fehl:** Der Workspace-Pfad muss immer unterhalb des Workspace-Roots der Maschine
+  liegen. DevDeck prüft das jetzt schon beim Registrieren/Bearbeiten und zeigt den Root an. Falsche Pfade korrigierst du im Tab **Workspaces**
+  mit **Bearbeiten** (oder **Entfernen** – löscht nur die Registrierung, nie Dateien). Den Root selbst änderst du unter **Maschinen** → „Root ändern“.
 
 ## 8. Troubleshooting
 
