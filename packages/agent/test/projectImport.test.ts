@@ -139,6 +139,36 @@ describe('project.import (Agent → Server)', () => {
     expect((await srv.request('GET', `/api/projects/${projectId}/secrets`, { cookie })).body.data).toHaveLength(2);
   });
 
+  it('findet Dateien unabhängig von der Schreibweise (auch in docs/), fasst doppelte Secrets zusammen (.env gewinnt)', async () => {
+    fs.rmSync(path.join(ws, 'CHANGELOG.md'));
+    fs.rmSync(path.join(ws, 'TODO.md'));
+    fs.mkdirSync(path.join(ws, 'docs'));
+    fs.writeFileSync(path.join(ws, 'docs', 'Changelog.md'), '## 2026-10-20\n- Insta-Freigabe\n');
+    fs.writeFileSync(path.join(ws, 'Roadmap.md'), '## Geplant\n- TikTok\n## Erledigt\n- Telegram ✅\n');
+    fs.writeFileSync(path.join(ws, '.env'), 'GUI_PASS=aus-env\nONLY_ENV=a\n');
+    fs.writeFileSync(path.join(ws, 'Credentials.md'), 'GUI_PASS: aus-doku\nONLY_DOC: b\n');
+    fs.rmSync(path.join(ws, 'credentials.md'), { force: true });
+    const preview = (await run({ dry_run: true, environment: 'production' })) as any;
+    expect(preview.files).toEqual(expect.arrayContaining(['docs/Changelog.md', 'Roadmap.md', '.env', 'Credentials.md']));
+    expect(preview).toMatchObject({ duplicates: 1, conflicts: 1, changelog: { new: 1 }, tasks: { new: 2, new_done: 1 }, secrets: { total: 3, new: 3 } });
+    expect(preview.samples.tasks.map((t: any) => t.title)).toEqual(['TikTok', 'Telegram']);
+
+    await run({ dry_run: false, environment: 'production' }); // darf nicht am Unique-Constraint scheitern
+    const secrets = (await srv.request('GET', `/api/projects/${projectId}/secrets`, { cookie })).body.data;
+    const gui = secrets.find((x: any) => x.name === 'GUI_PASS');
+    expect((await srv.request('GET', `/api/projects/${projectId}/secrets/${gui.id}/values`, { cookie })).body.data.value).toBe('aus-env');
+    expect(secrets).toHaveLength(3);
+  });
+
+  it('nennt bei fehlendem Changelog/Tasks die vorhandenen Textdateien (nur Namen)', async () => {
+    fs.rmSync(path.join(ws, 'CHANGELOG.md'));
+    fs.rmSync(path.join(ws, 'TODO.md'));
+    fs.writeFileSync(path.join(ws, 'NOTIZEN.md'), 'irgendwas');
+    const preview = (await run({ dry_run: true })) as any;
+    expect(preview.files_seen).toEqual(expect.arrayContaining(['NOTIZEN.md']));
+    expect(preview.changelog.total).toBe(0);
+  });
+
   it('lehnt Pfade außerhalb des Roots und fremde Workspaces ab', async () => {
     await expect(run({ local_path: os.tmpdir() })).rejects.toMatchObject({ code: 'FORBIDDEN' });
     const other = await srv.enroll(cookie, 'andere');

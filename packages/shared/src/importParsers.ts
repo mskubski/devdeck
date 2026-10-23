@@ -14,20 +14,36 @@ export interface ChangelogItem {
 const stripMd = (s: string): string =>
   s.replace(/\*\*(.+?)\*\*/g, '$1').replace(/`([^`]+)`/g, '$1').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').trim();
 
-/** Keep-a-Changelog-ähnlich: `## <Version/Unreleased> - <Datum>`, `### Added`, Bullets. */
+const VERSIONISH = /(\d{4}-\d{2}-\d{2}|\d{1,2}\.\d{1,2}\.\d{4}|\bv?\d+\.\d+(?:\.\d+)?\b|unreleased|unveröffentlicht)/i;
+
+function headingDate(text: string): string | null {
+  const iso = /(\d{4})-(\d{2})-(\d{2})/.exec(text);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const de = /(\d{1,2})\.(\d{1,2})\.(\d{4})/.exec(text);
+  if (de) return `${de[3]}-${de[2]!.padStart(2, '0')}-${de[1]!.padStart(2, '0')}`;
+  return null;
+}
+
+/**
+ * Changelogs im Keep-a-Changelog-Stil und typische Varianten: Überschriften mit Version und/oder Datum
+ * (`## 1.2.0 - 2026-10-01`, `## [Unreleased]`, `### 23.10.2026`), darunter Bullets, nummerierte Listen oder
+ * Fließtext-Absätze; Unterüberschriften (`### Added`) werden dem Eintrag vorangestellt.
+ */
 export function parseChangelog(md: string): ChangelogItem[] {
   const items: ChangelogItem[] = [];
   let version: string | null = null;
   let date: string | null = null;
   let section: string | null = null;
+  let seenVersion = false;
   let current: string[] | null = null;
+  let inFence = false;
 
   const flush = (): void => {
     if (!current) return;
     const text = stripMd(current.join(' ').replace(/\s+/g, ' '));
     if (text) {
       const first = current[0] ? stripMd(current[0]) : text;
-      const summary = (first.length > 200 ? `${first.slice(0, 197)}…` : first);
+      const summary = first.length > 200 ? `${first.slice(0, 197)}…` : first;
       const rest = text === summary ? '' : text;
       items.push({
         version,
@@ -40,31 +56,50 @@ export function parseChangelog(md: string): ChangelogItem[] {
   };
 
   for (const raw of md.split(/\r?\n/)) {
-    const h2 = /^##\s+(?!#)(.+)$/.exec(raw);
-    if (h2) {
-      flush();
-      section = null;
-      const heading = h2[1]!.replace(/[[\]]/g, '').trim();
-      const dm = /(\d{4}-\d{2}-\d{2})/.exec(heading);
-      date = dm ? dm[1]! : null;
-      const label = heading.replace(/\d{4}-\d{2}-\d{2}/, '').replace(/^\s*(version)\s+/i, '').replace(/[\s\-–—(),]+$/g, '').replace(/^[\s\-–—]+/, '').trim();
-      version = label || null;
+    if (/^\s*```/.test(raw)) {
+      inFence = !inFence;
       continue;
     }
-    const h3 = /^###\s+(.+)$/.exec(raw);
-    if (h3) {
+    if (inFence) continue;
+    const heading = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(raw);
+    if (heading) {
       flush();
-      section = h3[1]!.trim();
+      const level = heading[1]!.length;
+      const text = heading[2]!.replace(/[[\]]/g, '').trim();
+      if (level <= 3 && VERSIONISH.test(text)) {
+        seenVersion = true;
+        section = null;
+        date = headingDate(text);
+        const label = text
+          .replace(/\d{4}-\d{2}-\d{2}|\d{1,2}\.\d{1,2}\.\d{4}/, '')
+          .replace(/^\s*(version|release)\s+/i, '')
+          .replace(/[\s\-–—(),:]+$/g, '')
+          .replace(/^[\s\-–—:]+/, '')
+          .trim();
+        version = label || null;
+      } else if (level >= 3 || (level === 2 && seenVersion)) {
+        section = text;
+      } else {
+        section = null;
+      }
       continue;
     }
-    const bullet = /^[-*]\s+(.*)$/.exec(raw);
+    if (/^\s*([-*_]{3,}|<!--.*|\|.*|>.*)\s*$/.test(raw)) {
+      flush();
+      continue;
+    }
+    const bullet = /^(?:[-*]|\d+[.)])\s+(.*)$/.exec(raw);
     if (bullet) {
       flush();
       current = [bullet[1]!];
       continue;
     }
-    if (current && /^\s+\S/.test(raw)) current.push(raw.trim());
-    else if (!raw.trim()) flush();
+    if (!raw.trim()) {
+      flush();
+      continue;
+    }
+    if (current) current.push(raw.trim()); // eingerückte Fortsetzung oder weitere Zeile desselben Absatzes
+    else if (seenVersion) current = [raw.trim()]; // Fließtext-Absatz unter einer Versionsüberschrift
   }
   flush();
   return items;
@@ -77,11 +112,21 @@ export interface TaskItem {
   section: string | null;
 }
 
-/** Checkbox-Listen (`- [ ]` / `- [x]`), Abschnittsüberschrift wird Kontext, `(P1..P5)` setzt die Priorität. */
+const DONE_SECTION = /erledigt|fertig|done|umgesetzt|abgeschlossen|implemented|completed/i;
+const NOTE_SECTION = /hinweis|notiz|legende|kontext|überblick|einleitung|info\b/i;
+
+/**
+ * Checkbox-Listen (`- [ ]` / `- [x]`); Abschnittsüberschrift wird Kontext, `(P1..P5)` setzt die Priorität.
+ * Enthält die Datei keine Checkboxen (z. B. eine reine Roadmap-Liste), werden ersatzweise die Bullets der obersten
+ * Ebene als Tasks gelesen: ✅/durchgestrichen oder eine Überschrift wie „Erledigt“ markiert sie als erledigt.
+ */
 export function parseTasks(md: string): TaskItem[] {
   const out: TaskItem[] = [];
   let section: string | null = null;
+  let inFence = false;
   for (const raw of md.split(/\r?\n/)) {
+    if (/^\s*```/.test(raw)) inFence = !inFence;
+    if (inFence) continue;
     const h = /^#{1,6}\s+(.+)$/.exec(raw);
     if (h) {
       section = stripMd(h[1]!);
@@ -97,6 +142,43 @@ export function parseTasks(md: string): TaskItem[] {
       title = title.slice(0, p.index).trim();
     }
     if (title) out.push({ title: title.slice(0, 300), done: m[1] !== ' ', priority, section });
+  }
+  if (out.length > 0) return out;
+
+  // Fallback: einfache Listen ohne Checkboxen
+  section = null;
+  inFence = false;
+  const seen = new Set<string>();
+  for (const raw of md.split(/\r?\n/)) {
+    if (/^\s*```/.test(raw)) inFence = !inFence;
+    if (inFence) continue;
+    const h = /^#{1,6}\s+(.+)$/.exec(raw);
+    if (h) {
+      section = stripMd(h[1]!);
+      continue;
+    }
+    const m = /^(?:[-*]|\d+[.)])\s+(.+)$/.exec(raw); // nur oberste Ebene (kein Einzug)
+    if (!m || (section && NOTE_SECTION.test(section))) continue;
+    const text = m[1]!;
+    const struck = /~~.+~~/.test(text);
+    const marked = /[✅☑✔]/.test(text);
+    let title = stripMd(text.replace(/~~/g, '').replace(/[✅☑✔⬜☐🔲⏳🚧]/g, ''))
+      .replace(/\s+/g, ' ')
+      .trim();
+    const p = /\s*\(P([1-5])\)\s*$/.exec(title);
+    let priority = 3;
+    if (p) {
+      priority = Number(p[1]);
+      title = title.slice(0, p.index).trim();
+    }
+    if (!title || seen.has(title)) continue;
+    seen.add(title);
+    out.push({
+      title: title.slice(0, 300),
+      done: struck || marked || Boolean(section && DONE_SECTION.test(section)),
+      priority,
+      section,
+    });
   }
   return out;
 }

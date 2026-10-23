@@ -25,10 +25,13 @@ function previewHtml(r) {
   return `
     <p class="text-sm muted">Gefundene Dateien: ${r.files.length ? r.files.map((f) => `<span class="mono">${esc(f)}</span>`).join(', ') : 'keine'}</p>
     <ul class="text-sm">
-      <li><strong>Changelog:</strong> ${r.changelog.new} neu, ${r.changelog.existing} bereits vorhanden</li>
-      <li><strong>Tasks:</strong> ${r.tasks.new} neu (davon ${r.tasks.new_done} erledigt), ${r.tasks.existing} bereits vorhanden</li>
-      <li><strong>Secrets:</strong> ${r.secrets.new} neu, ${r.secrets.existing} bereits vorhanden</li>
+      <li><strong>Changelog:</strong> ${r.changelog.new} neu, ${r.changelog.existing} bereits vorhanden
+        ${r.samples?.changelog?.length ? `<br><span class="muted">z. B. ${r.samples.changelog.map(esc).join(' · ')}</span>` : ''}</li>
+      <li><strong>Tasks:</strong> ${r.tasks.new} neu (davon ${r.tasks.new_done} erledigt), ${r.tasks.existing} bereits vorhanden
+        ${r.samples?.tasks?.length ? `<br><span class="muted">z. B. ${r.samples.tasks.map((t) => `${t.done ? '✓ ' : ''}${esc(t.title)}`).join(' · ')}</span>` : ''}</li>
+      <li><strong>Secrets:</strong> ${r.secrets.new} neu, ${r.secrets.existing} bereits vorhanden${r.duplicates ? ` – ${r.duplicates} doppelte Namen aus mehreren Dateien zusammengefasst (<span class="mono">.env</span> hat Vorrang vor <span class="mono">credentials.md</span>${r.conflicts ? `, bei ${r.conflicts} mit unterschiedlichem Wert` : ''})` : ''}</li>
     </ul>
+    ${(!r.changelog.total || !r.tasks.total) && r.files_seen?.length ? `<p class="text-sm muted">${!r.changelog.total ? 'Kein Changelog erkannt. ' : ''}${!r.tasks.total ? 'Keine Tasks erkannt. ' : ''}Textdateien im Workspace: ${r.files_seen.map((f) => `<span class="mono">${esc(f)}</span>`).join(', ')}. Erkannt werden Dateien namens CHANGELOG/HISTORY (Changelog) und ROADMAP/TODO (Tasks), auch in <span class="mono">docs/</span>.</p>` : ''}
     ${r.secrets.items.length ? `<div class="table-wrap"><table><thead><tr><th>Secret</th><th>Umgebung</th><th>Aktion</th></tr></thead><tbody>${secrets}</tbody></table></div>
       <p class="text-sm muted">Werte werden verschlüsselt im Vault gespeichert und hier nie angezeigt. Die Quelldateien enthalten sie weiterhin im Klartext – danach <span class="mono">credentials.md</span> löschen bzw. <span class="mono">.env</span> nicht committen.</p>` : ''}`;
 }
