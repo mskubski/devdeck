@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -106,6 +107,11 @@ export async function startServer(
   overrides: Partial<ServerConfig> = {},
 ): Promise<RunningServer> {
   const ctx = createServerContext(env, overrides);
+  try {
+    ctx.runningCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ctx.config.repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch {
+    /* kein Git-Checkout – Staleness-Erkennung entfällt */
+  }
   const app = createApp(ctx);
   const { host, port } = ctx.config;
   const server = await new Promise<Server>((resolve, reject) => {

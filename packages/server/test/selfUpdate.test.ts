@@ -98,6 +98,18 @@ describe('System-Update per Knopfdruck', () => {
     expect(audits.map((a) => a.action)).toEqual(['system.update.start', 'system.update.agents', 'system.update.finish']);
   });
 
+  it('baut und startet auch dann neu, wenn der Code auf der Platte schon aktuell ist, der laufende Prozess aber älter (z. B. von Hand gepullt)', async () => {
+    publish(2);
+    git(prod, 'pull', '--ff-only'); // jemand hat von Hand gepullt: HEAD == origin/main, built.txt aber noch v1
+    srv.ctx.runningCommit = 'alter-prozess-commit';
+    const done = await trigger();
+    expect(done.state).toBe('success');
+    expect(done.restarting).toBe(true);
+    expect(done.steps.map((x: any) => x.name)).toContain('Bauen');
+    expect(fs.readFileSync(path.join(prod, 'built.txt'), 'utf8')).toBe('v2');
+    expect(restarts).toBe(1);
+  });
+
   it('meldet "bereits aktuell" ohne Neustart', async () => {
     const done = await trigger();
     expect(done.state).toBe('success');

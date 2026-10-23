@@ -200,7 +200,9 @@ async function performUpdate(ctx: AppContext, actor: UpdateActor, options: Updat
 
     await step('Von GitHub laden', async () => must(await git(root, ['fetch', 'origin', target], 60_000), 'git fetch'));
     const remoteHash = (await git(root, ['rev-parse', `origin/${target}`])).stdout.trim();
-    if (remoteHash === beforeHash && beforeBranch === target) {
+    // Code auf der Platte kann neuer sein als der laufende Prozess (z. B. von Hand gepullt): dann trotzdem bauen + neu starten
+    const diskNewerThanProcess = Boolean(ctx.runningCommit) && ctx.runningCommit !== beforeHash;
+    if (remoteHash === beforeHash && beforeBranch === target && !diskNewerThanProcess) {
       state.to = info.commit;
       state.steps.push({ name: 'Server bereits auf dem neuesten Stand', status: 'done' });
       if (options.agents) {
