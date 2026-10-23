@@ -1,6 +1,23 @@
 import { AppError, type AgentCommandPayload } from '@devdeck/shared';
 import type { AgentConfig } from './config.js';
 
+/** Verständliche Fehlermeldung statt „fetch failed“ / „This operation was aborted“. */
+export function unreachable(serverUrl: string, err: unknown, timedOut: boolean): AppError {
+  const raw = (err as { cause?: { code?: string; message?: string; errors?: Array<{ code?: string }> } })?.cause;
+  // Bei Dual-Stack (IPv4+IPv6) liegt der Code in einer AggregateError
+  const cause = raw ? { code: raw.code ?? raw.errors?.[0]?.code, message: raw.message } : undefined;
+  const reason = timedOut
+    ? 'Zeitüberschreitung – keine Antwort (Firewall/anderes Netzwerk/falsche IP?)'
+    : cause?.code === 'ECONNREFUSED'
+      ? 'Verbindung abgelehnt (läuft der Server? stimmt der Port?)'
+      : cause?.code === 'ENOTFOUND'
+        ? 'Hostname nicht auflösbar'
+        : cause?.code === 'EHOSTUNREACH' || cause?.code === 'ENETUNREACH'
+          ? 'Host/Netzwerk nicht erreichbar'
+          : (cause?.message ?? (err instanceof Error ? err.message : String(err)));
+  return new AppError('AGENT_OFFLINE', `Server nicht erreichbar: ${serverUrl} – ${reason}`);
+}
+
 /** HTTP-Client des Agenten zum DevDeck Server (nur ausgehende Verbindungen). */
 export class ServerClient {
   constructor(private readonly config: AgentConfig) {}
@@ -26,12 +43,17 @@ export class ServerClient {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 40_000);
     try {
-      const res = await fetch(`${this.config.serverUrl}${apiPath}`, {
-        method,
-        headers,
-        body: options.body === undefined ? undefined : JSON.stringify(options.body),
-        signal: controller.signal,
-      });
+      let res: Response;
+      try {
+        res = await fetch(`${this.config.serverUrl}${apiPath}`, {
+          method,
+          headers,
+          body: options.body === undefined ? undefined : JSON.stringify(options.body),
+          signal: controller.signal,
+        });
+      } catch (err) {
+        throw unreachable(this.config.serverUrl, err, controller.signal.aborted);
+      }
       let body: any = null;
       if (res.status !== 204) {
         try {
@@ -52,6 +74,7 @@ export class ServerClient {
       '/api/agent/enroll',
       {
         auth: 'none',
+        timeoutMs: 15_000,
         body: {
           enrollment_token: enrollmentToken,
           name,
