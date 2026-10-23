@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isAgentOutdated, supportsSelfUpdate } from '@devdeck/shared';
+import { agentSupportsAction, isAgentOutdated, supportsSelfUpdate } from '@devdeck/shared';
 import { planUpdate } from '../src/updatePlan.js';
 
 describe('Agent-Update-Plan', () => {
@@ -18,6 +18,13 @@ describe('Agent-Update-Plan', () => {
   it('unbekannter Start-Commit: nur nach echtem Pull aktualisieren', () => {
     expect(planUpdate('bbb', 'bbb', null)).toEqual({ install: false, build: false, restart: false });
     expect(planUpdate('aaa', 'bbb', null).restart).toBe(true);
+  });
+
+  it('neuere Aktionen nur für Agents mit passender Version', () => {
+    expect(agentSupportsAction('0.3.0', 'project.import')).toBe(false);
+    expect(agentSupportsAction(null, 'project.import')).toBe(false);
+    expect(agentSupportsAction('0.4.0', 'project.import')).toBe(true);
+    expect(agentSupportsAction('0.1.0', 'workspace.sync')).toBe(true);
   });
 
   it('Selbst-Update ab 0.2.0, auch wenn der Agent nicht der neueste ist', () => {

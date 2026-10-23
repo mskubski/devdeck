@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
-import { AppError, type WorkspaceDto } from '@devdeck/shared';
+import { AppError, agentSupportsAction, type WorkspaceDto } from '@devdeck/shared';
 import {
   asyncHandler,
   optionalString,
@@ -59,8 +59,8 @@ export function workspaceRoutes(ctx: AppContext): Router {
     if (!workspace.machine_id) {
       throw new AppError('AGENT_OFFLINE', 'Workspace ist keiner Maschine zugeordnet');
     }
-    const machine = db.get<{ agent_status: string; revoked_at: string | null }>(
-      'SELECT agent_status, revoked_at FROM machines WHERE id = ?',
+    const machine = db.get<{ name: string; agent_version: string | null; agent_status: string; revoked_at: string | null }>(
+      'SELECT name, agent_version, agent_status, revoked_at FROM machines WHERE id = ?',
       workspace.machine_id,
     );
     if (!machine || machine.revoked_at) {
@@ -68,6 +68,13 @@ export function workspaceRoutes(ctx: AppContext): Router {
     }
     if (machine.agent_status !== 'online') {
       throw new AppError('AGENT_OFFLINE', 'Maschine ist nicht online');
+    }
+    if (!agentSupportsAction(machine.agent_version, action)) {
+      throw new AppError(
+        'VALIDATION',
+        `Der Agent auf „${machine.name}“ hat Version ${machine.agent_version ?? 'unbekannt'} und kennt diese Funktion noch nicht. ` +
+          'Bitte zuerst aktualisieren: Maschinen → „Agent updaten“ oder System → „Server aktualisieren“ (mit „Agents mit aktualisieren“).',
+      );
     }
     return enqueueCommand(db, {
       machineId: workspace.machine_id,

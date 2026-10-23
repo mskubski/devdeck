@@ -144,6 +144,11 @@ wird (nicht zwingend auf dem Server selbst). Pro Maschine braucht es einmalig:
   importiert nach Bestätigung. Wähle die Umgebung für die Secrets (z. B. `production`). Wiederholen ist gefahrlos
   (vorhandene Einträge werden übersprungen). Voraussetzung: Agent ab Version 0.4.0 (Server-Update mit „Agents mit aktualisieren“).
   Alternative per CLI: `devdeck import all` bzw. `--apply`.
+- **Umgebungen (development / staging / production):** Sie trennen Secret-Werte nach Einsatzzweck. *development* = Entwicklung auf dem Rechner
+  (Testwerte, Sandbox-Schlüssel; nur diese Umgebung schreibt DevDeck standardmäßig in die lokale `.env`), *staging* = Probelauf in einer
+  Testumgebung, die dem Live-Betrieb gleicht (mit Testdaten), *production* = Live-Betrieb mit den echten Schlüsseln und Konten.
+  Derselbe Name kann je Umgebung einen anderen Wert haben. Läuft die Software auf der Maschine produktiv (z. B. helferle), importiere die `.env` als
+  *production*; Abruf anderer Umgebungen: `devdeck env run --environment production -- <befehl>`.
 - **Regeln für Claude Code:** Bei Sync/Provision schreibt der Agent `.devdeck/` und `.claude/rules/devdeck.md` (Kontext lesen,
   nach jeder Änderung bauen/testen/committen/pushen). Beide Pfade werden lokal über `.git/info/exclude` ignoriert; das
   Repository bleibt sauber. Wer eigene Regeln in `CLAUDE.md` pflegt, setzt dort den Marker `<!-- devdeck:rules-included -->`.

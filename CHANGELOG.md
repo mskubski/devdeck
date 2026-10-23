@@ -3,6 +3,10 @@
 ## Unreleased - 2026-10-23
 
 ### Fixed
+- Import: Der Server prüft die Agent-Version und meldet bei zu alten Agents (< 0.4.0) verständlich, wie man sie aktualisiert, statt dass der Agent
+  „Aktion nicht erlaubt: project.import“ zurückgibt. Agent-Update setzt eine versehentlich geänderte `package-lock.json` zurück (statt „GIT_DIRTY“) und
+  fällt bei fehlgeschlagenem `npm ci` auf `npm install` zurück.
+- Import-/Secret-Dialog und Hilfe erklären jetzt development, staging und production.
 - Workspace-Sync/-Provision schrieben den generierten Kontext nicht nach `.devdeck/`; jetzt gemeinsam über `writeContextFiles`. Generierte Dateien werden lokal per
   `.git/info/exclude` ignoriert, damit der Workspace nicht „dirty“ wird und der nächste Sync nicht abbricht. Command-Ergebnisse enthalten keine Dateiinhalte mehr.
 - Agent: Verbindungsfehler (Enrollment, Heartbeat, …) nennen jetzt URL und Ursache („Verbindung abgelehnt“, „Zeitüberschreitung – Firewall/anderes Netzwerk?“,

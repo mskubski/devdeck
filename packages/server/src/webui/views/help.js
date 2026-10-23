@@ -1,4 +1,5 @@
 import { icon } from '../lib/icons.js';
+import { ENV_HELP_HTML } from '../lib/envHelp.js';
 
 export async function renderHelp(el) {
   const topics = [
@@ -66,6 +67,8 @@ export async function renderHelp(el) {
         Typ (<code>env</code>/<code>file</code>) und Environment (<code>development</code>/<code>staging</code>/
         <code>production</code>) liegen in der normalen Datenbank – der eigentliche Wert liegt
         <strong>AES-256-GCM-verschlüsselt</strong> in einer separaten Vault-Datei.</p>
+        <p><strong>Wofür sind die Umgebungen (development / staging / production)?</strong></p>
+        ${ENV_HELP_HTML}
         <p>Zugriff läuft über Capabilities, nicht nur über die Projektrolle:</p>
         <table><thead><tr><th>Capability</th><th>Bedeutung</th></tr></thead><tbody>
           <tr><td><span class="mono">secret.metadata.read</span></td><td>Name/Beschreibung sehen (nie den Wert)</td></tr>

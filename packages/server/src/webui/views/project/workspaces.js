@@ -2,6 +2,7 @@ import { get, post } from '../../lib/api.js';
 import { $, $$, esc, badge, fmtDate, toast, formModal, setModalError, confirmModal, closeModal, openModal } from '../../lib/ui.js';
 import { roleAtLeast } from '../../lib/roles.js';
 import { icon } from '../../lib/icons.js';
+import { ENV_HELP_HTML } from '../../lib/envHelp.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -41,11 +42,15 @@ async function runImportFlow(wsId, onDone) {
       <p class="text-sm muted">Der Agent liest CHANGELOG.md, ROADMAP.md/TODO.md sowie .env und credentials.md im Workspace und zeigt zuerst eine Vorschau. Es wird noch nichts importiert.</p>
       <label>Umgebung für Secrets
         <select name="environment">
-          <option value="production" selected>production</option>
-          <option value="staging">staging</option>
-          <option value="development">development</option>
+          <option value="production" selected>production (Live-Betrieb)</option>
+          <option value="staging">staging (Probelauf)</option>
+          <option value="development">development (Entwicklung)</option>
         </select>
       </label>
+      ${ENV_HELP_HTML}
+      <p class="text-sm muted"><strong>Empfehlung:</strong> Läuft die Software auf dieser Maschine produktiv (z. B. helferle), sind die Werte
+        in der <span class="mono">.env</span> die Live-Werte → <em>production</em>. Sie liegen dann sicher im Vault; DevDeck schreibt sie beim Sync nicht
+        zurück in die <span class="mono">.env</span> (das gilt nur für <em>development</em>). Dateien wie <span class="mono">.env.staging</span> gehen automatisch in die passende Umgebung.</p>
       <label class="row" style="gap:var(--space-2)"><input type="checkbox" name="overwrite" style="width:auto" /> Vorhandene Secrets überschreiben</label>`,
   });
   if (!form) return;

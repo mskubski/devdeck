@@ -2,6 +2,7 @@ import { get, post, del } from '../../lib/api.js';
 import { $, $$, esc, badge, toast, formModal, setModalError, confirmModal, openModal, closeModal } from '../../lib/ui.js';
 import { roleAtLeast } from '../../lib/roles.js';
 import { icon } from '../../lib/icons.js';
+import { ENV_HELP_HTML } from '../../lib/envHelp.js';
 
 const ENV_ORDER = ['development', 'staging', 'production'];
 
@@ -58,7 +59,8 @@ export async function renderSecrets(el, project) {
               <option value="production">production</option>
             </select>
           </label>
-        </div>`,
+        </div>
+        <details class="text-sm"><summary class="muted">Was bedeutet das?</summary>${ENV_HELP_HTML}</details>`,
     });
     if (!res) return;
     try {
