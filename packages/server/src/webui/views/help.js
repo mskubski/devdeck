@@ -153,7 +153,11 @@ npm run build</pre>
       title: 'Workspaces: Sync & Provision',
       body: `
         <p>Ein <strong>Workspace</strong> ist die lokale Arbeitskopie eines Projekts auf einer bestimmten
-        Maschine (Pfad + zugeordnete Maschine). Zwei sichere Operationen stehen zur Verfügung:</p>
+        Maschine (Pfad + zugeordnete Maschine). <strong>Der Pfad muss immer unterhalb des Workspace-Roots der Maschine liegen</strong>
+        (Sicherheitsregel: der Agent arbeitet nur dort; den Root zeigt und ändert man unter <em>Maschinen</em>). Beim Registrieren und Bearbeiten
+        zeigt DevDeck den Root an, schlägt ihn als Pfad vor und prüft die Eingabe. Mit <em>Bearbeiten</em> lassen sich Pfad, Maschine, Branch und
+        Repository nachträglich ändern; <em>Entfernen</em> (Maintainer) löscht nur die Registrierung in DevDeck – nie Dateien auf der Maschine.
+        Ohne eigenes Repository am Workspace nutzt Provision das Repository und den Standard-Branch des Projekts. Zwei sichere Operationen stehen zur Verfügung:</p>
         <p><strong>Sync</strong> prüft zuerst den Git-Status. Gibt es nicht committete, lokale Änderungen,
         <strong>bricht der Agent sofort ab</strong> (nichts wird überschrieben) – erst danach folgen
         <code>fetch</code> + <code>pull --ff-only</code> (nie <code>reset</code>/<code>stash</code>/<code>clean</code>),

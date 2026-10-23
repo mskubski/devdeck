@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 import { Router } from 'express';
 import { AppError, agentSupportsAction, type WorkspaceDto } from '@devdeck/shared';
 import {
@@ -47,6 +48,31 @@ export function workspaceRoutes(ctx: AppContext): Router {
     const row = db.get<WorkspaceRow>(`SELECT ${WS_COLUMNS} FROM workspaces WHERE id = ?`, id);
     if (!row) throw new AppError('NOT_FOUND', 'Workspace nicht gefunden');
     return row;
+  }
+
+  /**
+   * Der Agent darf nur unterhalb seines Workspace-Roots arbeiten (Sicherheitsregel). Das prüfen wir schon beim
+   * Registrieren/Ändern, damit der Fehler nicht erst beim Sync auftaucht. Pfadlogik je nach Plattform der Maschine.
+   */
+  function assertInsideMachineRoot(machineId: string | null, localPath: string): void {
+    if (!machineId) return;
+    const m = db.get<{ name: string; platform: string; workspace_root: string | null }>(
+      'SELECT name, platform, workspace_root FROM machines WHERE id = ?',
+      machineId,
+    );
+    if (!m?.workspace_root) return; // Root (noch) unbekannt – der Agent prüft selbst
+    const p = m.platform === 'win32' ? path.win32 : path.posix;
+    const norm = (v: string): string => (m.platform === 'win32' ? v.toLowerCase() : v);
+    const root = norm(p.resolve(m.workspace_root));
+    const target = norm(p.resolve(localPath));
+    const rel = p.relative(root, target);
+    if (!p.isAbsolute(localPath) || rel.startsWith('..') || p.isAbsolute(rel)) {
+      throw new AppError(
+        'VALIDATION',
+        `Der Pfad muss unterhalb des Workspace-Roots von „${m.name}“ liegen: ${m.workspace_root} ` +
+          `(z. B. ${p.join(m.workspace_root, 'projektname')}). Den Root kannst du unter Maschinen ändern.`,
+      );
+    }
   }
 
   // Command an die Maschine eines Workspaces schicken
@@ -119,9 +145,11 @@ export function workspaceRoutes(ctx: AppContext): Router {
         if (!machine) throw new AppError('NOT_FOUND', 'Maschine nicht gefunden');
       }
 
+      assertInsideMachineRoot(machineId, localPath);
       const existing = db.get<{ id: string }>(
-        `SELECT id FROM workspaces WHERE project_id = ? AND local_path = ?`,
+        `SELECT id FROM workspaces WHERE project_id = ? AND machine_id IS ? AND local_path = ?`,
         req.project!.id,
+        machineId,
         localPath,
       );
       if (existing) throw new AppError('CONFLICT', 'Workspace für diesen Pfad bereits registriert');
@@ -197,6 +225,23 @@ export function workspaceRoutes(ctx: AppContext): Router {
       const branch = optionalString(req.body, 'branch', 200);
       const machineId = optionalString(req.body, 'machine_id', 64);
 
+      if (machineId && !db.get('SELECT id FROM machines WHERE id = ?', machineId)) {
+        throw new AppError('NOT_FOUND', 'Maschine nicht gefunden');
+      }
+      const effectiveMachine = machineId ?? ws.machine_id;
+      const effectivePath = localPath ?? ws.local_path;
+      if (localPath || machineId) assertInsideMachineRoot(effectiveMachine, effectivePath);
+      if (localPath || machineId) {
+        const clash = db.get<{ id: string }>(
+          'SELECT id FROM workspaces WHERE project_id = ? AND machine_id IS ? AND local_path = ? AND id != ?',
+          ws.project_id,
+          effectiveMachine,
+          effectivePath,
+          ws.id,
+        );
+        if (clash) throw new AppError('CONFLICT', 'Für diesen Pfad auf dieser Maschine gibt es bereits einen Workspace');
+      }
+
       db.run(
         `UPDATE workspaces SET
            local_path = COALESCE(?, local_path),
@@ -212,6 +257,18 @@ export function workspaceRoutes(ctx: AppContext): Router {
         new Date().toISOString(),
         ws.id,
       );
+      audit(db, {
+        actor_type: 'user',
+        actor_id: user.id,
+        actor_label: user.email,
+        action: 'workspace.update',
+        project_id: ws.project_id,
+        machine_id: effectiveMachine,
+        target_type: 'workspace',
+        target_id: ws.id,
+        result: 'success',
+        detail: { from_path: ws.local_path, local_path: effectivePath, branch, repo_remote: repoRemote },
+      });
       res.json({ data: toWorkspaceDto(loadWorkspace(ws.id)) });
     }),
   );
@@ -316,6 +373,55 @@ export function workspaceRoutes(ctx: AppContext): Router {
     }),
   );
 
+  // Workspace-Eintrag entfernen. Löscht NIE Dateien auf der Maschine – nur die Registrierung in DevDeck.
+  router.delete(
+    '/workspaces/:id',
+    asyncHandler(async (req, res) => {
+      const ws = loadWorkspace(param(req, 'id')!);
+      const user = req.user!;
+      requireConfirmation(req.body);
+      const role = db.get<{ role: string }>(
+        'SELECT role FROM project_members WHERE project_id = ? AND user_id = ?',
+        ws.project_id,
+        user.id,
+      );
+      const effective = role?.role ?? (user.system_role === 'admin' ? 'owner' : null);
+      if (effective !== 'owner' && effective !== 'maintainer') {
+        throw new AppError('FORBIDDEN', 'Entfernen erfordert Maintainer-Rechte');
+      }
+      const running = db.get(
+        `SELECT 1 FROM agent_commands WHERE machine_id IS ? AND status = 'running'
+           AND json_extract(payload_json, '$.workspace_id') = ?`,
+        ws.machine_id,
+        ws.id,
+      );
+      if (running) throw new AppError('CONFLICT', 'Für diesen Workspace läuft gerade ein Auftrag – bitte kurz warten');
+      db.transaction(() => {
+        // Noch wartende Aufträge für diesen Workspace verwerfen
+        db.run(
+          `UPDATE agent_commands SET status = 'expired', finished_at = ?, error = 'workspace removed'
+           WHERE status = 'queued' AND json_extract(payload_json, '$.workspace_id') = ?`,
+          new Date().toISOString(),
+          ws.id,
+        );
+        db.run('DELETE FROM workspaces WHERE id = ?', ws.id);
+      });
+      audit(db, {
+        actor_type: 'user',
+        actor_id: user.id,
+        actor_label: user.email,
+        action: 'workspace.delete',
+        project_id: ws.project_id,
+        machine_id: ws.machine_id,
+        target_type: 'workspace',
+        target_id: ws.id,
+        result: 'success',
+        detail: { local_path: ws.local_path },
+      });
+      res.json({ data: { ok: true } });
+    }),
+  );
+
   // Provisionierung beauftragen – potenziell destruktiv → confirm
   router.post(
     '/workspaces/:id/provision',
@@ -333,10 +439,18 @@ export function workspaceRoutes(ctx: AppContext): Router {
       if (!effective || rank[effective]! < rank['developer']!) {
         throw new AppError('FORBIDDEN', 'Mindestens developer-Rechte nötig');
       }
+      const project = db.get<{ repo_remote: string | null; default_branch: string | null }>(
+        'SELECT repo_remote, default_branch FROM projects WHERE id = ?',
+        ws.project_id,
+      );
       const commandId = enqueueForWorkspace(
         ws,
         'workspace.provision',
-        { repo_remote: ws.repo_remote, branch: ws.branch },
+        {
+          // Ohne eigene Angabe am Workspace gelten Repository und Standard-Branch des Projekts
+          repo_remote: ws.repo_remote ?? project?.repo_remote ?? null,
+          branch: ws.branch ?? project?.default_branch ?? null,
+        },
         user.id,
       );
       audit(db, {

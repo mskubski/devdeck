@@ -2,7 +2,13 @@
 
 ## Unreleased - 2026-10-23
 
+### Added
+- Workspaces bearbeiten (Pfad, Maschine, Branch, Repository; mit Audit) und entfernen (nur die Registrierung, nie Dateien; Maintainer; wartende Aufträge werden verworfen).
+  Der Pfad wird beim Registrieren/Bearbeiten gegen den Workspace-Root der Maschine geprüft (Windows und Linux, Windows ohne Groß-/Kleinschreibung); der Dialog zeigt den Root
+  und schlägt ihn als Pfad vor. Gleicher Pfad auf verschiedenen Maschinen ist erlaubt.
+
 ### Fixed
+- Provision nutzt ohne eigenes Repository am Workspace Repository und Standard-Branch des Projekts (vorher: „Kein Git-Repository und kein repo_remote“).
 - Import: gleiche Secret-Namen in `.env` und `credentials.md` ließen den Import am Unique-Constraint scheitern → doppelte Einträge werden zusammengefasst
   (`.env.<umgebung>`, `.env.local`, `.env` vor `credentials.md`). Dateisuche unabhängig von Groß-/Kleinschreibung (Changelog/History, Roadmap/TODO/Backlog,
   credentials/zugangsdaten) auch in `docs/`; Roadmaps ohne Checkboxen werden als Listen gelesen (✅/durchgestrichen/„Erledigt“ = erledigt);
