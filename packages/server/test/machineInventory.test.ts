@@ -64,6 +64,38 @@ describe('Maschinen-Inventar (Server)', () => {
     expect(inv.network_adapters).toEqual([{ name: 'eth0', mac: 'aa:bb', ipv4: ['10.0.0.2'], ipv6: [], connected: true }]);
   });
 
+  it('speichert die Software-Liste bereinigt und liefert sie getrennt vom Detail', async () => {
+    const apps = { collected_at: '2026-10-24T12:30:00.000Z', items: [
+      { name: 'Git', version: '2.55', publisher: 'The Git Development Community', identifier: 'Git_is1', source: 'Add or remove programs', evil: 'x' },
+      { name: '', version: '1' },
+      { name: 'Node.js', version: null, source: 'MSI' },
+    ] };
+    await srv.request('POST', '/api/agent/heartbeat', { token: machineToken, body: { agent_version: '0.11.0', applications: apps } });
+    const res = await srv.request('GET', `/api/machines/${machineId}/applications`, { cookie });
+    expect(res.status).toBe(200);
+    expect(res.body.data.applications).toEqual([
+      { name: 'Git', version: '2.55', publisher: 'The Git Development Community', identifier: 'Git_is1', source: 'Add or remove programs' },
+      { name: 'Node.js', version: null, publisher: null, identifier: null, source: 'MSI' },
+    ]);
+    expect(res.body.data.applications_at).toBe('2026-10-24T12:30:00.000Z');
+    const detail = await srv.request('GET', `/api/machines/${machineId}`, { cookie });
+    expect(detail.body.data.applications).toBeUndefined(); // lange Liste nicht im Detail-Aufruf
+  });
+
+  it('behält die Software-Liste, wenn ein Heartbeat keine mitbringt; begrenzt ihre Länge', async () => {
+    const many = { collected_at: '2026-10-24T12:30:00.000Z', items: Array.from({ length: 2600 }, (_, i) => ({ name: `App ${i}`, source: 'dpkg' })) };
+    await srv.request('POST', '/api/agent/heartbeat', { token: machineToken, body: { agent_version: '0.11.0', applications: many } });
+    await srv.request('POST', '/api/agent/heartbeat', { token: machineToken, body: { agent_version: '0.11.0' } });
+    const res = await srv.request('GET', `/api/machines/${machineId}/applications`, { cookie });
+    expect(res.body.data.applications).toHaveLength(2500);
+  });
+
+  it('zeigt die Software-Liste nur berechtigten Nutzern', async () => {
+    await srv.request('POST', '/api/users', { cookie, body: { email: 'fremd4@devdeck.test', password: 'fremd-pass-123' } });
+    const foreign = await srv.login('fremd4@devdeck.test', 'fremd-pass-123');
+    expect((await srv.request('GET', `/api/machines/${machineId}/applications`, { cookie: foreign })).status).toBe(403);
+  });
+
   it('behält das letzte Inventar, wenn ein Heartbeat keines mitbringt', async () => {
     await srv.request('POST', '/api/agent/heartbeat', { token: machineToken, body: { agent_version: '0.9.0', inventory } });
     await srv.request('POST', '/api/agent/heartbeat', { token: machineToken, body: { agent_version: '0.9.0' } });

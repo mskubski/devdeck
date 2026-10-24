@@ -50,7 +50,7 @@ syncing source code through a file-sync service or a proprietary mechanism.
 ## Features
 
 - Multi-user, multi-project with roles (owner, maintainer, developer, viewer)
-- Machine enrollment and command queue between server and agents; per-machine detail page with an automatically collected inventory (disks, device, OS, security status, CPU, BIOS, memory modules, network connections for Windows/Linux/macOS) and free custom fields
+- Machine enrollment and command queue between server and agents; per-machine detail page with an automatically collected inventory (disks, device, OS, security status, CPU, BIOS, memory modules, network connections for Windows/Linux/macOS) and an installed-software list (registry on Windows, dpkg/rpm/pacman/snap/flatpak on Linux, system_profiler/Homebrew on macOS) and free custom fields
 - Workspace registry, `workspace.yaml` manifest, provisioning, sync and readiness checks
 - Per-workspace **Deploy** for software that runs on a machine (Linux, systemd user units): fast-forward to the branch, restart the services listed in `.devdeck/workspace.yaml`, health check, automatic rollback
 - Tasks, decisions, changelog, known issues and a project history timeline

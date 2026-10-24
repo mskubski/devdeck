@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
-import { AppError, compareVersions, isAgentOutdated, supportsSelfUpdate, type MachineCustomField, type MachineDetailDto, type MachineDto, type MachineInventory, type ProjectRole } from '@devdeck/shared';
+import { AppError, compareVersions, isAgentOutdated, supportsSelfUpdate, type MachineApplication, type MachineApplicationsDto, type MachineCustomField, type MachineDetailDto, type MachineDto, type MachineInventory, type ProjectRole } from '@devdeck/shared';
 import {
   asyncHandler,
   clientIp,
@@ -153,25 +153,48 @@ export function machineRoutes(ctx: AppContext): Router {
     }),
   );
 
+  /** Maschine laden; Zugriff für Besitzer, Admins und Mitglieder eines Projekts, das einen Workspace darauf hat. */
+  function loadAccessible(userId: string, systemRole: string, id: string): MachineRecord {
+    const row = db.get<MachineRecord>(`SELECT ${MACHINE_COLUMNS} FROM machines WHERE id = ?`, id);
+    if (!row) throw new AppError('NOT_FOUND', 'Maschine nicht gefunden');
+    if (row.owner_user_id !== userId && systemRole !== 'admin') {
+      const member = db.get(
+        `SELECT 1 AS x FROM project_members WHERE user_id = ? AND project_id IN
+         (SELECT project_id FROM workspaces WHERE machine_id = ?)`,
+        userId,
+        id,
+      );
+      if (!member) throw new AppError('FORBIDDEN', 'Kein Zugriff auf diese Maschine');
+    }
+    return row;
+  }
+
+  // Installierte Software (eigener Aufruf, weil die Liste lang sein kann)
+  router.get(
+    '/:id/applications',
+    asyncHandler(async (req, res) => {
+      const id = param(req, 'id')!;
+      loadAccessible(req.user!.id, req.user!.system_role, id);
+      const r = db.get<{ applications_json: string | null; applications_at: string | null }>(
+        'SELECT applications_json, applications_at FROM machines WHERE id = ?',
+        id,
+      );
+      let applications: MachineApplication[] = [];
+      try {
+        applications = r?.applications_json ? (JSON.parse(r.applications_json) as MachineApplication[]) : [];
+      } catch {
+        applications = [];
+      }
+      const data: MachineApplicationsDto = { applications, applications_at: r?.applications_at ?? null };
+      res.json({ data });
+    }),
+  );
+
   router.get(
     '/:id',
     asyncHandler(async (req, res) => {
-      const user = req.user!;
       const id = param(req, 'id')!;
-      const row = db.get<MachineRecord>(
-        `SELECT ${MACHINE_COLUMNS} FROM machines WHERE id = ?`,
-        id,
-      );
-      if (!row) throw new AppError('NOT_FOUND', 'Maschine nicht gefunden');
-      if (row.owner_user_id !== user.id && user.system_role !== 'admin') {
-        const member = db.get(
-          `SELECT 1 AS x FROM project_members WHERE user_id = ? AND project_id IN
-           (SELECT project_id FROM workspaces WHERE machine_id = ?)`,
-          user.id,
-          id,
-        );
-        if (!member) throw new AppError('FORBIDDEN', 'Kein Zugriff auf diese Maschine');
-      }
+      const row = loadAccessible(req.user!.id, req.user!.system_role, id);
       const extra = db.get<{ inventory_json: string | null; inventory_at: string | null; custom_fields_json: string | null }>(
         'SELECT inventory_json, inventory_at, custom_fields_json FROM machines WHERE id = ?',
         id,

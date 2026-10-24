@@ -206,8 +206,10 @@ describe('workspace.sync / workspace.provision (Agent)', () => {
     expect(isAgentOutdated('0.7.0')).toBe(true);
     expect(isAgentOutdated('0.8.0')).toBe(true);
     expect(isAgentOutdated('0.9.0')).toBe(true);
-    expect(isAgentOutdated('0.10.0')).toBe(false);
-    expect(isAgentOutdated('0.10.0')).toBe(false);
+    expect(isAgentOutdated('0.10.0')).toBe(true);
+    expect(isAgentOutdated('0.11.0')).toBe(false);
+    expect(isAgentOutdated('0.12.0')).toBe(false);
+    expect(isAgentOutdated('0.100.0')).toBe(false);
   });
 
   it('lehnt Provisioning außerhalb des Workspace-Root ab', async () => {

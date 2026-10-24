@@ -180,6 +180,20 @@ export interface MachineInventory {
   }>;
 }
 
+/** Installierte Software (Windows: Programme, Linux: Pakete/Snaps/Flatpaks, macOS: Apps/Homebrew). */
+export interface MachineApplication {
+  name: string;
+  version: string | null;
+  publisher: string | null;
+  identifier: string | null;
+  source: string;
+}
+
+export interface MachineApplicationsDto {
+  applications: MachineApplication[];
+  applications_at: string | null;
+}
+
 export interface MachineCustomField {
   label: string;
   value: string;

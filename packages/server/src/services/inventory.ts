@@ -1,4 +1,4 @@
-import type { InventoryLevel, MachineCustomField, MachineInventory } from '@devdeck/shared';
+import type { InventoryLevel, MachineApplication, MachineCustomField, MachineInventory } from '@devdeck/shared';
 
 const str = (v: unknown, max = 200): string | null => (typeof v === 'string' && v.trim() !== '' ? v.trim().slice(0, max) : null);
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v < 1e9 ? Math.round(v * 100) / 100 : null);
@@ -83,6 +83,29 @@ function sanitizeBios(raw: unknown): MachineInventory['bios_info'] {
     manufacturer: str(b.manufacturer, 80), serial: str(b.serial, 100), smbios_version: str(b.smbios_version), version: str(b.version),
     release_date: str(b.release_date, 40), software_id: str(b.software_id),
   };
+}
+
+/** Höchstzahl gespeicherter Programme je Maschine (Linux-Paketlisten können lang sein). */
+export const MAX_APPLICATIONS = 2500;
+
+/** Software-Liste nur in der bekannten Form übernehmen: begrenzte Längen und Anzahl. */
+export function sanitizeApplications(raw: unknown): MachineApplication[] | null {
+  const items = raw && typeof raw === 'object' ? (raw as { items?: unknown }).items : null;
+  if (!Array.isArray(items)) return null;
+  const result: MachineApplication[] = [];
+  for (const a of items) {
+    if (result.length >= MAX_APPLICATIONS) break;
+    const name = str((a as any)?.name, 150);
+    if (!name) continue;
+    result.push({
+      name,
+      version: str((a as any).version, 60),
+      publisher: str((a as any).publisher, 100),
+      identifier: str((a as any).identifier, 120),
+      source: str((a as any).source, 50) ?? 'Unbekannt',
+    });
+  }
+  return result;
 }
 
 /** Freie Felder (Label/Wert) prüfen und normalisieren. */

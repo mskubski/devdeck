@@ -3,6 +3,9 @@
 ## Unreleased - 2026-10-23
 
 ### Added
+- **Tab „Anwendungen“** auf der Maschinen-Detailseite (Agent 0.11.0, Migration v14): installierte Software mit Name, Version, Hersteller, Kennung und Quelle, mit Suche und Quellenfilter. Der Agent liest sie beim Start und stündlich:
+  Windows aus den Uninstall-Schlüsseln der Registry (MSI, klassische und Benutzerinstallationen), Linux per dpkg/rpm/pacman sowie snap/flatpak, macOS per system_profiler und Homebrew. Serverseitig auf bekannte Felder, Längen und höchstens 2500 Einträge begrenzt;
+  API `GET /api/machines/:id/applications` (eigener Aufruf, nicht im Detail).
 - **Tab „Inventar“** auf der Maschinen-Detailseite (Agent 0.10.0): Gerät, Sicherheit (inkl. TPM-Hersteller/-Spezifikation), Prozessor (Kerne, Takt, Cache, Architektur), BIOS, Speichermodule (Hersteller, Kapazität, Teilenummer, Steckplatz, Bauform, Geschwindigkeit)
   und Netzwerkverbindungen (MAC, IPv4/IPv6, verbunden) – je Abschnitt mit Zeitstempel. Windows per CIM/PnP, Linux per lscpu/dmidecode (Root)/ip, macOS per sysctl/system_profiler/ifconfig; serverseitig wie das übrige Inventar auf bekannte Felder und Längen begrenzt.
 - **Maschinen-Details:** Klick auf den Namen unter Maschinen öffnet eine Detailseite (Tab „Übersicht“, weitere Tabs vorbereitet) mit Laufwerken, Gerät, Betriebssystem, Sicherheitsstatus, Verwaltung und **Eigenen Feldern**
@@ -32,6 +35,7 @@
 - Architektur-Karte steht auf der Projekt-Übersicht jetzt unten; Kennzahlen, Projektinfo und letzte Sessions bleiben oben.
 
 ### Fixed
+- Sync-Log: Aufträge mit identischem Zeitstempel erscheinen jetzt in stabiler Reihenfolge (neueste zuerst); ein davon abhängiger Test war unter Linux gelegentlich rot.
 - Sync/Deploy-Abbruch „lokale Änderungen“ nennt jetzt die betroffenen Dateien (bis zu fünf) direkt in der Meldung und im Sync-Log.
 - Agent-Update scheiterte mit „GIT_UNREACHABLE … no such ref was fetched“, wenn der Ordner auf einem längst gemergten Feature-Branch stand, dessen Remote nach dem Merge gelöscht wurde
   (`git pull` am Branch). Das Agent-Update holt jetzt wie das Server-Update `origin/main` und wechselt bei Bedarf per Fast-Forward auf `main` (`DEVDECK_UPDATE_BRANCH`); schlägt Build oder Probelauf

@@ -404,6 +404,11 @@ const MIGRATIONS: string[] = [
   ALTER TABLE machines ADD COLUMN inventory_at TEXT;
   ALTER TABLE machines ADD COLUMN custom_fields_json TEXT;
   `,
+  // v14: installierte Software je Maschine
+  `
+  ALTER TABLE machines ADD COLUMN applications_json TEXT;
+  ALTER TABLE machines ADD COLUMN applications_at TEXT;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
