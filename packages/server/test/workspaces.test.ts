@@ -108,7 +108,7 @@ describe('Phase C: Workspace Registry (Server)', () => {
       body: { status: 'done', data: { steps: [] } },
     });
     log = await srv.request('GET', `/api/projects/${projectId}/sync-log`, { cookie });
-    expect(log.body.data[0].status).toBe('done');
+    expect(log.body.data.find((e: any) => e.id === second.body.data.command_id).status).toBe('done');
     ws = await srv.request('GET', `/api/workspaces/${wsId}`, { cookie });
     expect(ws.body.data.last_sync_at).toBeTruthy();
   });

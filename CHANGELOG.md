@@ -35,6 +35,7 @@
 - Architektur-Karte steht auf der Projekt-Übersicht jetzt unten; Kennzahlen, Projektinfo und letzte Sessions bleiben oben.
 
 ### Fixed
+- Sync-Log: Aufträge mit identischem Zeitstempel erscheinen jetzt in stabiler Reihenfolge (neueste zuerst); ein davon abhängiger Test war unter Linux gelegentlich rot.
 - Sync/Deploy-Abbruch „lokale Änderungen“ nennt jetzt die betroffenen Dateien (bis zu fünf) direkt in der Meldung und im Sync-Log.
 - Agent-Update scheiterte mit „GIT_UNREACHABLE … no such ref was fetched“, wenn der Ordner auf einem längst gemergten Feature-Branch stand, dessen Remote nach dem Merge gelöscht wurde
   (`git pull` am Branch). Das Agent-Update holt jetzt wie das Server-Update `origin/main` und wechselt bei Bedarf per Fast-Forward auf `main` (`DEVDECK_UPDATE_BRANCH`); schlägt Build oder Probelauf
