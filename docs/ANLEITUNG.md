@@ -156,6 +156,7 @@ wird (nicht zwingend auf dem Server selbst). Pro Maschine braucht es einmalig:
    Ablauf für ein Projekt wie helferle: lokal mit Claude Code entwickeln → PR/Merge nach `main` → in DevDeck **Projekt → Workspaces → Deploy**.
    Voraussetzungen: Dienste als **Benutzer-Units** (`systemctl --user`, ggf. `loginctl enable-linger`), Agent ab 0.8.0 (Server-Update mit „Agents mit aktualisieren“),
    saubere Arbeitskopie auf der VM. Vercel-Projekte (Deploy per Git-Push) brauchen das nicht.
+   Bricht das Deploy mit „lokale Änderungen“ ab, nennt die Meldung die Dateien (auch im Sync-Log): auf der Maschine committen oder entfernen.
 
 ## 7b. Bestehende Projektdaten importieren und Coding-Regeln
 

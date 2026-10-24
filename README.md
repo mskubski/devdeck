@@ -52,6 +52,7 @@ syncing source code through a file-sync service or a proprietary mechanism.
 - Multi-user, multi-project with roles (owner, maintainer, developer, viewer)
 - Machine enrollment and command queue between server and agents
 - Workspace registry, `workspace.yaml` manifest, provisioning, sync and readiness checks
+- Per-workspace **Deploy** for software that runs on a machine (Linux, systemd user units): fast-forward to the branch, restart the services listed in `.devdeck/workspace.yaml`, health check, automatic rollback
 - Tasks, decisions, changelog, known issues and a project history timeline
 - Architecture map on the project dashboard: development machines → GitHub → hosting → database → external services (mail, Telegram, LLM providers, maps …) with descriptions and relations; detected automatically (env var names, hosts without credentials, dependencies, hosting files, SQLite sizes), described in a versioned `.devdeck/architecture.yaml` that Claude Code keeps up to date, and editable in the UI
 - Coding sessions and handovers between machines/people; Claude Code sessions (CLI and desktop) are picked up automatically by the agent (metadata only)
@@ -118,6 +119,25 @@ Code only travels via GitHub; DevDeck never transfers source code itself.
 The very first time, update the server by hand so it has the button:
 `git checkout main && git pull --ff-only && npm ci && npm run build && systemctl --user restart devdeck-server devdeck-agent`.
 See [ANLEITUNG.md](docs/ANLEITUNG.md) (German, section 9) for details. Target branch: `DEVDECK_UPDATE_BRANCH` (default `main`).
+
+### Deploying a project that runs on a machine
+
+For software that runs productively on a registered Linux machine (e.g. a Python service as systemd *user* units), **Projects → Workspaces → Deploy** (maintainers, agent ≥ 0.8.0) does what you would otherwise do by hand:
+requires a clean working copy, fast-forwards to the workspace branch (else the project's default branch), reads the `deploy` block of the versioned `.devdeck/workspace.yaml`, optionally runs the install command (only if there was new code),
+restarts the listed units one after another and checks them (HTTP 2xx on a localhost URL, otherwise `systemctl --user is-active`). If a step fails or a service is unhealthy, the workspace is reset to the previous commit and the services are restarted with it.
+Each step is shown in the dialog and in the **Sync-Log** tab; only units from the manifest are ever restarted – no free-form commands.
+
+```yaml
+deploy:
+  timeout_seconds: 60
+  install: .venv/bin/pip install -r requirements.txt   # optional, no shell characters
+  services:
+    - unit: my-api
+      health_url: http://localhost:5001/health          # localhost only
+    - unit: my-worker                                   # no URL: is-active
+```
+
+Projects deployed to Vercel via a Git push don't need this. Typical abort: *„lokale Änderungen“* – the message names the files; commit or remove them on the machine.
 
 ### Backups and restore
 

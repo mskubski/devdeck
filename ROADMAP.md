@@ -18,6 +18,7 @@
 - [x] Alle Agents beim Server-Update mit aktualisieren
 - [x] Automatisches nächtliches Update (optional)
 - [x] Auto-Merge für Pull Requests
+- [x] Deploy pro Workspace (systemd-Benutzerdienste neu starten, Gesundheitsprüfung, Rücknahme)
 - [x] Coding Sessions aus Claude Code automatisch erfassen (Transcript-Scanner im Agent)
 
 ## Offen

@@ -219,6 +219,9 @@ npm run build</pre>
       health_url: http://localhost:5000/login
     - unit: helferle           # ohne health_url: is-active</pre>
         Projekte, die über GitHub/GitLab direkt auf Vercel laufen, brauchen kein Deploy hier – dort deployt der Push.</p>
+        <p><strong>Deploy bricht ab?</strong> Die Meldung steht im Dialog und im <em>Sync-Log</em>. <em>„lokale Änderungen“</em> nennt die Dateien: auf der Maschine committen oder entfernen (die Software darf nicht in versionierte Dateien schreiben).
+        <em>„Kein deploy-Block“</em>: das Manifest liegt noch nicht auf dem Branch des Workspaces. <em>„Neustart von … fehlgeschlagen“</em>: Unit-Name falsch oder es ist keine Benutzer-Unit (<code>systemctl --user status &lt;unit&gt;</code> prüfen).
+        <em>„… nicht gesund“</em>: der Dienst startet, antwortet aber nicht in der Zeit – der Workspace wurde auf den alten Stand zurückgesetzt; Logs mit <code>journalctl --user -u &lt;unit&gt;</code>.</p>
         <p><strong>Importieren</strong> (Maintainer): Der Agent liest im Workspace <code>CHANGELOG.md</code>,
         <code>ROADMAP.md</code>/<code>TODO.md</code> (Checkboxen <code>- [ ]</code>/<code>- [x]</code>, optional <code>(P1)</code>–<code>(P5)</code>)
         sowie <code>.env</code> und <code>credentials.md</code> und zeigt zuerst eine <strong>Vorschau</strong> (Secret-Namen, nie Werte).

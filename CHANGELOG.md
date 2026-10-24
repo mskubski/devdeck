@@ -22,6 +22,7 @@
   und schlägt ihn als Pfad vor. Gleicher Pfad auf verschiedenen Maschinen ist erlaubt.
 
 ### Changed
+- Doku: README (Abschnitt „Deploying a project that runs on a machine“), Hilfe-Seite (Fehlersuche beim Deploy) und ROADMAP zum Workspace-Deploy ergänzt.
 - Hilfe: Abschnitt „Maschinen & Agent“ erklärt jetzt genau, was „Agent updaten“, „Root ändern“ und „Widerrufen“ tun („Widerrufen“ löscht nichts, es sperrt nur den Agenten dauerhaft – daher unverändert benannt).
 - Architektur-Karte steht auf der Projekt-Übersicht jetzt unten; Kennzahlen, Projektinfo und letzte Sessions bleiben oben.
 
