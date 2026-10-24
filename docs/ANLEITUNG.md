@@ -121,7 +121,7 @@ wird (nicht zwingend auf dem Server selbst). Pro Maschine braucht es einmalig:
    Der Agent meldet sich per Heartbeat (alle 30 s) und fragt Kommandos per Long-Poll ab –
    es sind **keine eingehenden Ports** auf dem Entwicklungsrechner nötig.
 4. Die Maschine erscheint danach unter **Maschinen** in der Web-UI mit Status `online`. Ein Klick auf den Namen öffnet die **Detailseite** mit Inventar
-   (Laufwerke, Gerät, Betriebssystem, Sicherheit, Verwaltung) und frei anlegbaren **Eigenen Feldern** (Agent ab 0.9.0; Windows, Linux, macOS).
+   (Laufwerke, Gerät, Betriebssystem, Sicherheit, Verwaltung) und frei anlegbaren **Eigenen Feldern** (Agent ab 0.9.0; Windows, Linux, macOS). Der zweite Tab **Inventar** zeigt Gerät, Sicherheit, Prozessor, BIOS, Speichermodule und Netzwerkverbindungen im Detail (ab Agent 0.10.0; Speichermodule unter Linux nur mit Root-Rechten).
    Ein Widerruf (z. B. bei Verlust des Rechners) ist dort jederzeit mit einem Klick möglich.
 
 > Es gibt aktuell kein global installiertes `devdeck-agent`-Kommando (Packaging ist Teil der
