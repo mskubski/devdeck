@@ -23,7 +23,7 @@ export async function renderMachines(el) {
 
   const rows = machines.map((m) => `
     <tr>
-      <td>${esc(m.name)}</td>
+      <td><a class="link" href="#/machines/${esc(m.id)}" title="Details anzeigen">${esc(m.name)}</a></td>
       <td class="muted text-sm">${esc(m.platform)}</td>
       <td class="muted text-sm" ${m.agent_entry ? `title="${esc(m.agent_entry)}"` : ''}>${esc(m.agent_version || '–')}${m.agent_outdated ? ' ' + badge('veraltet', 'warn') : ''}${m.update_warning ? ' ' + badge('Update nicht angekommen', 'bad') : ''}
         ${m.agent_commit || m.agent_node ? `<br><span class="mono">${esc([m.agent_commit, m.agent_node].filter(Boolean).join(' · '))}</span>` : ''}</td>

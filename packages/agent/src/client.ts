@@ -1,4 +1,4 @@
-import { AppError, type AgentCommandPayload } from '@devdeck/shared';
+import { AppError, type AgentCommandPayload, type MachineInventory } from '@devdeck/shared';
 import type { AgentConfig } from './config.js';
 import { getRunningHead } from './runtimeInfo.js';
 
@@ -92,13 +92,14 @@ export class ServerClient {
     return { machine_id: res.data.machine_id };
   }
 
-  async heartbeat(workspaces: unknown[] = []): Promise<void> {
+  async heartbeat(workspaces: unknown[] = [], inventory?: MachineInventory): Promise<void> {
     const res = await this.request('POST', '/api/agent/heartbeat', {
       body: {
         agent_version: this.config.agentVersion,
         platform: process.platform,
         workspace_root: this.config.workspaceRoot,
         workspaces,
+        ...(inventory ? { inventory } : {}),
         // Diagnose: aus welchem Code/Ordner läuft dieser Agent? (hilft, wenn ein Update „nicht ankommt“)
         agent_commit: getRunningHead(),
         agent_node: process.version,

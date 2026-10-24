@@ -398,6 +398,12 @@ const MIGRATIONS: string[] = [
   ALTER TABLE machines ADD COLUMN agent_node TEXT;
   ALTER TABLE machines ADD COLUMN agent_entry TEXT;
   `,
+  // v13: Geräte-Inventar (vom Agenten gesammelt) und freie Felder je Maschine
+  `
+  ALTER TABLE machines ADD COLUMN inventory_json TEXT;
+  ALTER TABLE machines ADD COLUMN inventory_at TEXT;
+  ALTER TABLE machines ADD COLUMN custom_fields_json TEXT;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

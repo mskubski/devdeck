@@ -5,6 +5,7 @@ import { icon } from './lib/icons.js';
 import { renderProjects } from './views/projects.js';
 import { renderProjectDetail } from './views/projectDetail.js';
 import { renderMachines } from './views/machines.js';
+import { renderMachineDetail } from './views/machineDetail.js';
 import { renderUsers } from './views/users.js';
 import { renderAudit } from './views/audit.js';
 import { renderSystem } from './views/system.js';
@@ -61,9 +62,9 @@ function renderNav() {
     </a>`).join('');
 }
 
-function setBreadcrumb(current, parent) {
+function setBreadcrumb(current, parent, parentHref = '#/projects') {
   $('#breadcrumb').innerHTML = parent
-    ? `<a class="link muted-crumb" href="#/projects">${esc(parent)}</a><span class="sep">/</span>${esc(current)}`
+    ? `<a class="link muted-crumb" href="${parentHref}">${esc(parent)}</a><span class="sep">/</span>${esc(current)}`
     : esc(current);
 }
 
@@ -107,6 +108,8 @@ async function route() {
   try {
     if (path.startsWith('projects/')) {
       await renderProjectDetail(content, path.slice('projects/'.length) + (query ? `?${query}` : ''), setBreadcrumb);
+    } else if (path.startsWith('machines/')) {
+      await renderMachineDetail(content, path.slice('machines/'.length) + (query ? `?${query}` : ''), setBreadcrumb);
     } else if (path.startsWith('machines')) {
       await renderMachines(content);
     } else if (path.startsWith('users')) {

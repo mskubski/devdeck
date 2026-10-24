@@ -138,6 +138,15 @@ npm run build</pre>
         <span class="mono">devdeck-agent</span>-Kommando sind Teil der noch ausstehenden DevDeck-CLI-Phase –
         aktuell startet man den Agenten direkt per <span class="mono">node .../dist/index.js</span>.</p>
 
+        <h3>Maschinen-Details</h3>
+        <p>Ein Klick auf den <strong>Namen</strong> einer Maschine öffnet ihre Detailseite (Tab <em>Übersicht</em>; weitere Tabs folgen). Der Agent (ab 0.9.0) sammelt dafür
+        beim Start und danach alle 15 Minuten ein <strong>Inventar</strong> – auf Windows, Linux und macOS, nur Metadaten, keine Inhalte oder Passwörter:
+        <em>Laufwerke</em> (frei/gesamt), <em>Gerät</em> (Computername, Hersteller, Modell, Prozessor, Seriennummer, RAM, BIOS), <em>Betriebssystem</em> (Version, Build, Sprache),
+        <em>Sicherheit</em> (Secure Boot, Firewall, Verschlüsselung, Virenschutz bzw. FileVault/SIP/Gatekeeper, TPM, ausstehender Neustart; grün = in Ordnung, gelb = Hinweis, rot = Problem, grau = nicht ermittelbar),
+        <em>Verwaltung</em> (Agent, IP-Adresse, Startzeit) und <em>Eigene Felder</em>. Was ein System nicht hergibt (z. B. ohne Administratorrechte), bleibt leer oder „Unbekannt“ – es wird nie geraten.
+        <strong>Eigene Felder</strong> (Besitzer der Maschine oder Admin): beliebige Angaben als „Bezeichnung: Wert“, eine pro Zeile (z. B. Standort, Zuständiger, Kaufdatum) – bitte keine Passwörter, dafür gibt es den Vault.
+        Ist noch kein Inventar da, ist der Agent älter als 0.9.0: unter <em>Maschinen</em> „Agent updaten“.</p>
+
         <h3>Die drei Knöpfe pro Maschine</h3>
         <table><thead><tr><th>Knopf</th><th>Was passiert genau?</th><th>Voraussetzung</th></tr></thead><tbody>
           <tr><td><strong>Agent updaten</strong></td>
