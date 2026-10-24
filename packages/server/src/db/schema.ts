@@ -414,6 +414,25 @@ const MIGRATIONS: string[] = [
   ALTER TABLE machines ADD COLUMN patches_json TEXT;
   ALTER TABLE machines ADD COLUMN patches_at TEXT;
   `,
+  // v16: Fehlerprotokolle der Maschinen (30 Tage Aufbewahrung, Obergrenze je Maschine)
+  `
+  CREATE TABLE machine_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    machine_id TEXT NOT NULL REFERENCES machines(id) ON DELETE CASCADE,
+    occurred_at TEXT NOT NULL,
+    source TEXT NOT NULL,
+    provider TEXT,
+    event_id TEXT,
+    level TEXT NOT NULL,
+    message TEXT NOT NULL,
+    hash TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE (machine_id, hash)
+  );
+  CREATE INDEX idx_machine_logs_machine_time ON machine_logs (machine_id, occurred_at);
+  ALTER TABLE machines ADD COLUMN logs_at TEXT;
+  ALTER TABLE machines ADD COLUMN logs_notes_json TEXT;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
