@@ -102,6 +102,15 @@ curl http://localhost:8080/api/health
 3. Im Projekt unter **Mitglieder** weitere Benutzer mit einer Projektrolle
    (`viewer`/`developer`/`maintainer`/`owner`) hinzufügen.
 
+### Die Tabs eines Projekts
+
+Übersicht (Kennzahlen, Projektinfo, Architektur-Karte) · Mitglieder (Rollen) · Tasks (Aufgaben, Priorität 1–5) · **Entscheidungen** · Changelog · Known Issues · Verlauf ·
+Sessions · Secrets · Workspaces · Integrationen · Sync-Log. Eine ausführliche Beschreibung jedes Tabs steht in der Hilfe unter „Die Tabs eines Projekts“.
+
+**Entscheidungen** halten wichtige Festlegungen mit Begründung fest („Wir nutzen SQLite statt PostgreSQL, weil …“), damit später nachvollziehbar bleibt, was beschlossen wurde und warum.
+Ein developer schlägt vor (Titel, Begründung, Kontext, verworfene Alternative; auch per `devdeck decision add <titel>`), ein maintainer akzeptiert oder lehnt ab und löst eine akzeptierte
+Entscheidung später ggf. durch eine neuere ab. Die 15 neuesten akzeptierten Entscheidungen stehen im Coding-Kontext (`.devdeck/CONTEXT.md`), den Claude Code beim Start liest.
+
 ## 6. Einen Entwicklungsrechner verbinden (DevDeck Agent)
 
 Der DevDeck Agent läuft auf jedem Entwicklungsrechner, auf dem tatsächlich programmiert
