@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
-import { AppError, compareVersions, isAgentOutdated, supportsSelfUpdate, type MachineDto, type ProjectRole } from '@devdeck/shared';
+import { AppError, compareVersions, isAgentOutdated, supportsSelfUpdate, type MachineCustomField, type MachineDetailDto, type MachineDto, type MachineInventory, type ProjectRole } from '@devdeck/shared';
 import {
   asyncHandler,
   clientIp,
@@ -15,6 +15,7 @@ import { getProjectMembership, requireUser, type MachineRecord } from '../auth/m
 import { generateToken, hashToken } from '../auth/tokens.js';
 import { audit } from '../services/audit.js';
 import { enqueueCommand } from '../services/provisioning.js';
+import { sanitizeCustomFields } from '../services/inventory.js';
 
 /** Update lief „erfolgreich“, der Agent meldet aber noch eine ältere Version als die gebaute → Hinweis für die UI. */
 function updateWarning(db: Database, row: MachineRecord): string | null {
@@ -171,7 +172,54 @@ export function machineRoutes(ctx: AppContext): Router {
         );
         if (!member) throw new AppError('FORBIDDEN', 'Kein Zugriff auf diese Maschine');
       }
-      res.json({ data: toMachineDto(row, db) });
+      const extra = db.get<{ inventory_json: string | null; inventory_at: string | null; custom_fields_json: string | null }>(
+        'SELECT inventory_json, inventory_at, custom_fields_json FROM machines WHERE id = ?',
+        id,
+      );
+      const parse = <T>(v: string | null | undefined): T | null => {
+        try {
+          return v ? (JSON.parse(v) as T) : null;
+        } catch {
+          return null;
+        }
+      };
+      const detail: MachineDetailDto = {
+        ...toMachineDto(row, db),
+        inventory: parse<MachineInventory>(extra?.inventory_json),
+        inventory_at: extra?.inventory_at ?? null,
+        custom_fields: parse<MachineCustomField[]>(extra?.custom_fields_json) ?? [],
+      };
+      res.json({ data: detail });
+    }),
+  );
+
+  // Freie Felder (Label/Wert) einer Maschine ersetzen – Besitzer oder admin
+  router.put(
+    '/:id/custom-fields',
+    asyncHandler(async (req, res) => {
+      const user = req.user!;
+      const id = param(req, 'id')!;
+      const row = db.get<MachineRecord>(`SELECT ${MACHINE_COLUMNS} FROM machines WHERE id = ?`, id);
+      if (!row) throw new AppError('NOT_FOUND', 'Maschine nicht gefunden');
+      if (row.owner_user_id !== user.id && user.system_role !== 'admin') {
+        throw new AppError('FORBIDDEN', 'Nur Besitzer oder admin darf die Felder ändern');
+      }
+      const fields = sanitizeCustomFields(req.body?.fields);
+      if (!fields) throw new AppError('VALIDATION', 'fields muss eine Liste mit höchstens 30 Einträgen sein');
+      db.run('UPDATE machines SET custom_fields_json = ? WHERE id = ?', JSON.stringify(fields), id);
+      audit(db, {
+        actor_type: 'user',
+        actor_id: user.id,
+        actor_label: user.email,
+        action: 'machine.custom_fields.update',
+        machine_id: id,
+        target_type: 'machine',
+        target_id: id,
+        result: 'success',
+        detail: { count: fields.length },
+        ip: clientIp(req),
+      });
+      res.json({ data: { custom_fields: fields } });
     }),
   );
 

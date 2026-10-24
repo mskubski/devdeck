@@ -112,6 +112,49 @@ export interface MachineDto {
   created_at: string;
 }
 
+/** Hardware-/System-Inventar einer Maschine, vom Agenten gesammelt (keine Geheimnisse, nur Metadaten). */
+export type InventoryLevel = 'ok' | 'warn' | 'bad' | 'unknown';
+
+export interface MachineInventory {
+  collected_at: string;
+  platform: string;
+  hostname: string | null;
+  user: string | null;
+  device: {
+    manufacturer?: string | null;
+    model?: string | null;
+    version?: string | null;
+    processor?: string | null;
+    serial?: string | null;
+    ram_gb?: number | null;
+    bios?: string | null;
+  };
+  os: {
+    name?: string | null;
+    version?: string | null;
+    build?: string | null;
+    language?: string | null;
+    arch?: string | null;
+    kernel?: string | null;
+  };
+  disks: Array<{ name: string; label?: string | null; total_gb: number; free_gb: number }>;
+  /** Sicherheitsstatus je Plattform; `level` entscheidet über die Farbe in der Oberfläche. */
+  security: Array<{ label: string; value: string; level: InventoryLevel }>;
+  network: { ips: string[] };
+  runtime: { boot_time?: string | null; node?: string | null };
+}
+
+export interface MachineCustomField {
+  label: string;
+  value: string;
+}
+
+export interface MachineDetailDto extends MachineDto {
+  inventory: MachineInventory | null;
+  inventory_at: string | null;
+  custom_fields: MachineCustomField[];
+}
+
 export type WorkspaceStatus =
   | 'unknown'
   | 'provisioning'

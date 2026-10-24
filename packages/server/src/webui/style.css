@@ -467,3 +467,18 @@ svg.an-edges .an-label:hover rect { fill: #f1f5f9; }
 .an-alert { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; border-radius: 8px; padding: 8px 12px; font-size: 13px; margin: var(--space-3) 0 0; }
 .an-hint { color: #475569; font-size: 12.5px; margin: var(--space-3) 0 0; }
 .an-hint a { color: #2563eb; }
+
+/* Maschinen-Details */
+.machine-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--space-4); margin-bottom: var(--space-4); }
+.kv { display: grid; grid-template-columns: minmax(130px, 38%) 1fr; gap: 6px var(--space-3); margin: 0; font-size: var(--fs-sm); }
+.kv dt { color: var(--text-muted); }
+.kv dd { margin: 0; word-break: break-word; }
+.lvl.ok { color: var(--ok); }
+.lvl.warn { color: var(--warn); }
+.lvl.bad { color: var(--danger); }
+.disk { margin-bottom: var(--space-3); }
+.disk-head { display: flex; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; margin-bottom: 4px; font-size: var(--fs-sm); }
+.disk-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+.disk-fill { display: block; height: 100%; background: var(--accent); }
+.disk-fill.warn { background: var(--warn); }
+.disk-fill.bad { background: var(--danger); }

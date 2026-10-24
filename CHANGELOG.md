@@ -3,6 +3,9 @@
 ## Unreleased - 2026-10-23
 
 ### Added
+- **Maschinen-Details:** Klick auf den Namen unter Maschinen öffnet eine Detailseite (Tab „Übersicht“, weitere Tabs vorbereitet) mit Laufwerken, Gerät, Betriebssystem, Sicherheitsstatus, Verwaltung und **Eigenen Feldern**
+  (Bezeichnung/Wert, Besitzer oder Admin). Der Agent (0.9.0, Migration v13) sammelt das Inventar auf Windows (PowerShell/CIM), Linux (/sys, os-release, df, systemctl) und macOS (system_profiler, sw_vers, fdesetup …)
+  beim Start und alle 15 Minuten; nur Metadaten, serverseitig auf bekannte Felder und Längen begrenzt. API: `GET /api/machines/:id` (mit Inventar), `PUT /api/machines/:id/custom-fields`.
 - **Deploy pro Workspace** (Agent 0.8.0, Aktion `workspace.deploy`, Knopf „Deploy“ unter Projekt → Workspaces, Maintainer): holt per Fast-Forward den Stand des Branches, startet die im Manifest
   (`.devdeck/workspace.yaml`, Block `deploy`) genannten systemd-Benutzerdienste neu und prüft sie (HTTP 2xx auf localhost bzw. `is-active`); bei Fehlern automatische Rücknahme auf den alten Commit.
   Optionaler Install-Befehl, Ergebnis mit allen Schritten im Dialog und im Sync-Log, Audit `workspace.deploy.request`. Nur Linux; Dienste/Befehle stammen ausschließlich aus dem versionierten Manifest.

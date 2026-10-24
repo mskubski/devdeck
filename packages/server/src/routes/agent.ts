@@ -16,6 +16,7 @@ import { buildProjectContext } from '../services/contextBuilder.js';
 import { projectSecretsFor, secretVersionsFor } from '../vault/projection.js';
 import { importProjectData, type ImportSecret } from '../services/projectImport.js';
 import { sanitizeFacts } from '../services/architecture/facts.js';
+import { sanitizeInventory } from '../services/inventory.js';
 import { getProjectMembership } from '../auth/middleware.js';
 
 /** Agent-Protokoll (pollbasiert, PLAN §11). */
@@ -128,6 +129,11 @@ export function agentRoutes(ctx: AppContext): Router {
         optionalString(body, 'agent_entry', 500),
         machine.id,
       );
+
+      const inventory = sanitizeInventory(body.inventory);
+      if (inventory) {
+        db.run('UPDATE machines SET inventory_json = ?, inventory_at = ? WHERE id = ?', JSON.stringify(inventory), now, machine.id);
+      }
 
       let registered = 0;
       const summaries = Array.isArray(body.workspaces) ? body.workspaces : [];
