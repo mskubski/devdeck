@@ -5,6 +5,7 @@ export const AGENT_ACTIONS = [
   'workspace.status',
   'workspace.sync',
   'workspace.provision',
+  'workspace.deploy',
   'context.refresh',
   'env.refresh',
   'dependencies.install',
@@ -17,7 +18,7 @@ export const AGENT_ACTIONS = [
 ] as const;
 
 /** Aktuelle Agent-Version; ältere Agenten kennen neuere Aktionen nicht und gelten als veraltet. */
-export const CURRENT_AGENT_VERSION = '0.7.0';
+export const CURRENT_AGENT_VERSION = '0.8.0';
 
 function versionParts(v: string): number[] {
   return v.split('.').map((p) => Number.parseInt(p, 10) || 0);
@@ -44,6 +45,7 @@ export const MIN_SELF_UPDATE_VERSION = '0.2.0';
 /** Ab welcher Agent-Version eine (neuere) Aktion existiert; ältere Agenten lehnen sie ab. */
 export const MIN_AGENT_VERSION_FOR_ACTION: Partial<Record<string, string>> = {
   'project.import': '0.4.0',
+  'workspace.deploy': '0.8.0',
 };
 
 export function agentSupportsAction(version: string | null | undefined, action: string): boolean {

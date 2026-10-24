@@ -137,6 +137,26 @@ wird (nicht zwingend auf dem Server selbst). Pro Maschine braucht es einmalig:
 3. **Provision** richtet einen neuen/leeren Workspace komplett ein (Clone, Toolchain-Check,
    Dependencies, autorisierte Secrets/`.env`, Coding-Context).
 
+4. **Deploy** (Maintainer, Linux, Agent ab 0.8.0) für Software, die auf der Maschine produktiv läuft (z. B. helferle): holt per Fast-Forward den
+   neuesten Stand des Workspace-Branches, startet die im Manifest genannten systemd-Benutzerdienste neu und prüft, ob sie gesund sind; sonst
+   automatische Rücknahme auf den alten Commit. Konfiguration im Repository, `.devdeck/workspace.yaml`:
+
+   ```yaml
+   deploy:
+     timeout_seconds: 60
+     install: .venv/bin/pip install -r requirements.txt   # optional
+     services:
+       - unit: helferle-api
+         health_url: http://localhost:5001/v1/health
+       - unit: helferle-gui
+         health_url: http://localhost:5000/login
+       - unit: helferle          # nur is-active
+   ```
+
+   Ablauf für ein Projekt wie helferle: lokal mit Claude Code entwickeln → PR/Merge nach `main` → in DevDeck **Projekt → Workspaces → Deploy**.
+   Voraussetzungen: Dienste als **Benutzer-Units** (`systemctl --user`, ggf. `loginctl enable-linger`), Agent ab 0.8.0 (Server-Update mit „Agents mit aktualisieren“),
+   saubere Arbeitskopie auf der VM. Vercel-Projekte (Deploy per Git-Push) brauchen das nicht.
+
 ## 7b. Bestehende Projektdaten importieren und Coding-Regeln
 
 - **Importieren:** Projekt → **Workspaces** → **Importieren** (Maintainer). Der Agent liest im Workspace `CHANGELOG.md`,

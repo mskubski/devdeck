@@ -95,7 +95,7 @@ export function workspaceRoutes(ctx: AppContext): Router {
   // Command an die Maschine eines Workspaces schicken
   function enqueueForWorkspace(
     workspace: WorkspaceRow,
-    action: 'workspace.sync' | 'workspace.provision' | 'project.import' | 'workspace.status',
+    action: 'workspace.sync' | 'workspace.provision' | 'workspace.deploy' | 'project.import' | 'workspace.status',
     payload: Record<string, unknown>,
     requestedBy: string,
   ): string {
@@ -312,6 +312,55 @@ export function workspaceRoutes(ctx: AppContext): Router {
         actor_id: user.id,
         actor_label: user.email,
         action: 'workspace.sync.request',
+        project_id: ws.project_id,
+        machine_id: ws.machine_id,
+        target_type: 'workspace',
+        target_id: ws.id,
+        result: 'success',
+        detail: { command_id: commandId },
+      });
+      res.status(202).json({ data: { command_id: commandId } });
+    }),
+  );
+
+  // Deploy: Code auf den Ziel-Branch bringen und die im Manifest genannten Dienste neu starten (Maintainer)
+  router.post(
+    '/workspaces/:id/deploy',
+    asyncHandler(async (req, res) => {
+      const ws = loadWorkspace(param(req, 'id')!);
+      const user = req.user!;
+      requireConfirmation(req.body);
+      const role = db.get<{ role: string }>(
+        'SELECT role FROM project_members WHERE project_id = ? AND user_id = ?',
+        ws.project_id,
+        user.id,
+      );
+      const effective = role?.role ?? (user.system_role === 'admin' ? 'owner' : null);
+      if (effective !== 'owner' && effective !== 'maintainer') {
+        throw new AppError('FORBIDDEN', 'Deploy erfordert Maintainer-Rechte');
+      }
+      const running = db.get(
+        `SELECT 1 FROM agent_commands WHERE machine_id IS ? AND status IN ('queued', 'running') AND action = 'workspace.deploy'
+           AND json_extract(payload_json, '$.workspace_id') = ?`,
+        ws.machine_id,
+        ws.id,
+      );
+      if (running) throw new AppError('CONFLICT', 'Für diesen Workspace läuft bereits ein Deploy');
+      const project = db.get<{ default_branch: string | null }>(
+        'SELECT default_branch FROM projects WHERE id = ?',
+        ws.project_id,
+      );
+      const commandId = enqueueForWorkspace(
+        ws,
+        'workspace.deploy',
+        { branch: ws.branch ?? project?.default_branch ?? null },
+        user.id,
+      );
+      audit(db, {
+        actor_type: 'user',
+        actor_id: user.id,
+        actor_label: user.email,
+        action: 'workspace.deploy.request',
         project_id: ws.project_id,
         machine_id: ws.machine_id,
         target_type: 'workspace',

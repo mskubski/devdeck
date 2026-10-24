@@ -145,3 +145,72 @@ describe('Phase C: Workspace Registry (Server)', () => {
     expect(entries.length).toBe(1);
   });
 });
+
+describe('Workspace Deploy (Server)', () => {
+  let srv: TestServer;
+  let cookie: string;
+  let projectId: string;
+  let machineId: string;
+  let machineToken: string;
+  let wsId: string;
+
+  beforeEach(async () => {
+    srv = await startTestServer();
+    cookie = await srv.login(TEST_ADMIN.email, TEST_ADMIN.password);
+    const project = await srv.request('POST', '/api/projects', { cookie, body: { name: 'Helferle', default_branch: 'main' } });
+    projectId = project.body.data.id;
+    const enrolled = await srv.enroll(cookie, 'helferle-vm');
+    machineId = enrolled.machineId;
+    machineToken = enrolled.token;
+    srv.ctx.db.run(`UPDATE machines SET agent_version = '0.8.0' WHERE id = ?`, machineId);
+    const ws = await srv.request('POST', `/api/projects/${projectId}/workspaces`, {
+      cookie,
+      body: { local_path: '/home/k/Development/helferle', machine_id: machineId },
+    });
+    wsId = ws.body.data.id;
+  });
+  afterEach(async () => {
+    await srv.close();
+  });
+
+  it('verlangt Bestätigung', async () => {
+    const res = await srv.request('POST', `/api/workspaces/${wsId}/deploy`, { cookie });
+    expect(res.status).toBe(428);
+  });
+
+  it('beauftragt workspace.deploy mit Branch, schreibt Audit und erscheint im Sync-Log', async () => {
+    const res = await srv.request('POST', `/api/workspaces/${wsId}/deploy`, { cookie, body: { confirm: true } });
+    expect(res.status).toBe(202);
+    const poll = await srv.request('GET', '/api/agent/commands?wait=0', { token: machineToken });
+    const cmd = poll.body.data.find((c: any) => c.action === 'workspace.deploy');
+    expect(cmd.payload).toMatchObject({ workspace_id: wsId, local_path: '/home/k/Development/helferle' });
+    expect(srv.ctx.db.get(`SELECT 1 FROM audit_log WHERE action = 'workspace.deploy.request'`)).toBeTruthy();
+    const log = await srv.request('GET', `/api/projects/${projectId}/sync-log`, { cookie });
+    expect(log.body.data.some((e: any) => e.action === 'workspace.deploy')).toBe(true);
+  });
+
+  it('lehnt ein zweites paralleles Deploy ab', async () => {
+    await srv.request('POST', `/api/workspaces/${wsId}/deploy`, { cookie, body: { confirm: true } });
+    const again = await srv.request('POST', `/api/workspaces/${wsId}/deploy`, { cookie, body: { confirm: true } });
+    expect(again.status).toBe(409);
+  });
+
+  it('lehnt Agents ohne Deploy-Funktion ab', async () => {
+    srv.ctx.db.run(`UPDATE machines SET agent_version = '0.7.0' WHERE id = ?`, machineId);
+    const res = await srv.request('POST', `/api/workspaces/${wsId}/deploy`, { cookie, body: { confirm: true } });
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toContain('0.7.0');
+  });
+
+  it('verlangt Maintainer-Rechte', async () => {
+    await srv.request('POST', '/api/users', { cookie, body: { email: 'dev@devdeck.test', password: 'dev-pass-123456' } });
+    const users = srv.ctx.db.get<{ id: string }>(`SELECT id FROM users WHERE email = 'dev@devdeck.test'`)!;
+    srv.ctx.db.run(
+      `INSERT INTO project_members (project_id, user_id, role, created_at) VALUES (?, ?, 'developer', ?)`,
+      projectId, users.id, new Date().toISOString(),
+    );
+    const devCookie = await srv.login('dev@devdeck.test', 'dev-pass-123456');
+    const res = await srv.request('POST', `/api/workspaces/${wsId}/deploy`, { cookie: devCookie, body: { confirm: true } });
+    expect(res.status).toBe(403);
+  });
+});
