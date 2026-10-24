@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
-import { AppError, compareVersions, isAgentOutdated, supportsSelfUpdate, type MachineApplication, type MachineApplicationsDto, type MachineCustomField, type MachineDetailDto, type MachineDto, type MachineInventory, type ProjectRole } from '@devdeck/shared';
+import { AppError, compareVersions, isAgentOutdated, supportsSelfUpdate, type MachineApplication, type MachineApplicationsDto, type MachineCustomField, type MachineDetailDto, type MachineDto, type MachineInventory, type MachinePatches, type MachinePatchesDto, type ProjectRole } from '@devdeck/shared';
 import {
   asyncHandler,
   clientIp,
@@ -186,6 +186,24 @@ export function machineRoutes(ctx: AppContext): Router {
         applications = [];
       }
       const data: MachineApplicationsDto = { applications, applications_at: r?.applications_at ?? null };
+      res.json({ data });
+    }),
+  );
+
+  // Patch-Stand (eigener Aufruf wie die Software-Liste)
+  router.get(
+    '/:id/patches',
+    asyncHandler(async (req, res) => {
+      const id = param(req, 'id')!;
+      loadAccessible(req.user!.id, req.user!.system_role, id);
+      const r = db.get<{ patches_json: string | null; patches_at: string | null }>('SELECT patches_json, patches_at FROM machines WHERE id = ?', id);
+      let patches: MachinePatches | null = null;
+      try {
+        patches = r?.patches_json ? (JSON.parse(r.patches_json) as MachinePatches) : null;
+      } catch {
+        patches = null;
+      }
+      const data: MachinePatchesDto = { patches, patches_at: r?.patches_at ?? null };
       res.json({ data });
     }),
   );

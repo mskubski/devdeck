@@ -82,6 +82,38 @@ describe('Maschinen-Inventar (Server)', () => {
     expect(detail.body.data.applications).toBeUndefined(); // lange Liste nicht im Detail-Aufruf
   });
 
+  it('speichert den Patch-Stand bereinigt und liefert ihn getrennt', async () => {
+    const patches = {
+      collected_at: '2026-10-24T13:00:00.000Z', scanner: 'apt', total: 3, critical: 1, security: 2, reboot_required: true, last_installed_at: '2026-10-20',
+      items: [
+        { vendor: null, name: 'openssl', version: '3.0.14', available: '3.0.15', status: 'critical', kind: 'os', detail: 'stable-security', evil: 1 },
+        { vendor: 'X', name: 'vim', status: 'komisch', kind: 'zzz' },
+        { name: '' },
+      ],
+      installed: [{ id: 'KB1', description: 'Update', installed_on: '2026-10-14' }, { description: 'ohne Kennung' }],
+      notes: ['Paketliste alt', 42],
+      secrets: 'nicht speichern',
+    };
+    await srv.request('POST', '/api/agent/heartbeat', { token: machineToken, body: { agent_version: '0.12.0', patches } });
+    const res = await srv.request('GET', `/api/machines/${machineId}/patches`, { cookie });
+    expect(res.status).toBe(200);
+    const p = res.body.data.patches;
+    expect(p).toMatchObject({ scanner: 'apt', total: 3, critical: 1, security: 2, reboot_required: true, last_installed_at: '2026-10-20', notes: ['Paketliste alt'] });
+    expect(p.items).toHaveLength(2);
+    expect(p.items[0]).toMatchObject({ name: 'openssl', status: 'critical', kind: 'os' });
+    expect(p.items[0].evil).toBeUndefined();
+    expect(p.items[1]).toMatchObject({ status: 'update', kind: 'app' }); // unbekannte Werte werden normalisiert
+    expect(p.installed).toEqual([{ id: 'KB1', description: 'Update', installed_on: '2026-10-14' }]);
+    expect(p.secrets).toBeUndefined();
+    expect(res.body.data.patches_at).toBe('2026-10-24T13:00:00.000Z');
+    // ohne Patch-Daten im nächsten Heartbeat bleibt der Stand erhalten; Fremde sehen ihn nicht
+    await srv.request('POST', '/api/agent/heartbeat', { token: machineToken, body: { agent_version: '0.12.0' } });
+    expect((await srv.request('GET', `/api/machines/${machineId}/patches`, { cookie })).body.data.patches.scanner).toBe('apt');
+    await srv.request('POST', '/api/users', { cookie, body: { email: 'fremd5@devdeck.test', password: 'fremd-pass-123' } });
+    const foreign = await srv.login('fremd5@devdeck.test', 'fremd-pass-123');
+    expect((await srv.request('GET', `/api/machines/${machineId}/patches`, { cookie: foreign })).status).toBe(403);
+  });
+
   it('behält die Software-Liste, wenn ein Heartbeat keine mitbringt; begrenzt ihre Länge', async () => {
     const many = { collected_at: '2026-10-24T12:30:00.000Z', items: Array.from({ length: 2600 }, (_, i) => ({ name: `App ${i}`, source: 'dpkg' })) };
     await srv.request('POST', '/api/agent/heartbeat', { token: machineToken, body: { agent_version: '0.11.0', applications: many } });

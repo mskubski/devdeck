@@ -3,6 +3,9 @@
 ## Unreleased - 2026-10-23
 
 ### Added
+- **Tab „Patches“** auf der Maschinen-Detailseite (Agent 0.12.0, Migration v15): ausstehende Updates mit Status Kritisch/Sicherheit/Update verfügbar, Zusammenfassung (Anzahl, Neustart erforderlich, zuletzt installiert) und zuletzt installierte Updates.
+  Der Agent prüft beim Start und alle 6 Stunden: Windows über den Windows Update Agent und `winget`, Linux über `apt`/`dnf`/`checkupdates`, macOS über `softwareupdate` und Homebrew. Kein Hersteller-Scanner: gelistet wird nur, was ein Update braucht.
+  API `GET /api/machines/:id/patches`. Der Versionstest im Agent ist nicht mehr an eine feste Versionsnummer gebunden.
 - **Tab „Anwendungen“** auf der Maschinen-Detailseite (Agent 0.11.0, Migration v14): installierte Software mit Name, Version, Hersteller, Kennung und Quelle, mit Suche und Quellenfilter. Der Agent liest sie beim Start und stündlich:
   Windows aus den Uninstall-Schlüsseln der Registry (MSI, klassische und Benutzerinstallationen), Linux per dpkg/rpm/pacman sowie snap/flatpak, macOS per system_profiler und Homebrew. Serverseitig auf bekannte Felder, Längen und höchstens 2500 Einträge begrenzt;
   API `GET /api/machines/:id/applications` (eigener Aufruf, nicht im Detail).

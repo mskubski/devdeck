@@ -139,7 +139,7 @@ npm run build</pre>
         aktuell startet man den Agenten direkt per <span class="mono">node .../dist/index.js</span>.</p>
 
         <h3>Maschinen-Details</h3>
-        <p>Ein Klick auf den <strong>Namen</strong> einer Maschine öffnet ihre Detailseite (Tabs <em>Übersicht</em>, <em>Inventar</em> und <em>Anwendungen</em>; weitere folgen). Der Agent (ab 0.9.0) sammelt dafür
+        <p>Ein Klick auf den <strong>Namen</strong> einer Maschine öffnet ihre Detailseite (Tabs <em>Übersicht</em>, <em>Inventar</em>, <em>Anwendungen</em> und <em>Patches</em>; weitere folgen). Der Agent (ab 0.9.0) sammelt dafür
         beim Start und danach alle 15 Minuten ein <strong>Inventar</strong> – auf Windows, Linux und macOS, nur Metadaten, keine Inhalte oder Passwörter:
         <em>Laufwerke</em> (frei/gesamt), <em>Gerät</em> (Computername, Hersteller, Modell, Prozessor, Seriennummer, RAM, BIOS), <em>Betriebssystem</em> (Version, Build, Sprache),
         <em>Sicherheit</em> (Secure Boot, Firewall, Verschlüsselung, Virenschutz bzw. FileVault/SIP/Gatekeeper, TPM, ausstehender Neustart; grün = in Ordnung, gelb = Hinweis, rot = Problem, grau = nicht ermittelbar),
@@ -155,6 +155,14 @@ npm run build</pre>
         <em>Windows:</em> Programme aus den Uninstall-Schlüsseln der Registry (Quelle <em>MSI</em>, <em>Add or remove programs</em> bzw. <em>(user)</em> für Benutzerinstallationen); Updates und ausgeblendete Nicht-MSI-Einträge entfallen, Microsoft-Store-Apps sind nicht enthalten.
         <em>Linux:</em> Pakete des Paketmanagers (<code>dpkg</code>, sonst <code>rpm</code> oder <code>pacman</code>) sowie <code>snap</code> und <code>flatpak</code>, soweit vorhanden – Hersteller ist bei dpkg der Paketbetreuer. Das sind oft viele hundert Einträge, gespeichert werden höchstens 2500.
         <em>macOS:</em> Programme aus <code>system_profiler</code> (Quelle Apple, Mac App Store, Identifizierter Entwickler) und Homebrew-Pakete. Nicht über den Paketmanager installierte Programme (portable Apps, selbst kompiliert) kennt DevDeck nicht.</p>
+
+        <p>Der Tab <strong>Patches</strong> zeigt, <strong>welche Updates ausstehen</strong> (Agent ab 0.12.0, Prüfung beim Start und danach alle 6 Stunden; die erste kann einige Minuten dauern):
+        Zusammenfassung (Gesamtstatus, Anzahl ausstehender/kritischer/sicherheitsrelevanter Updates, Neustart erforderlich, zuletzt installiert), die Tabelle <em>Ausstehende Updates</em> (Hersteller, Name, installierte und verfügbare Version,
+        Art System/Programm, Status <span class="badge bad">Kritisch</span> · <span class="badge warn">Sicherheit</span> · <span class="badge accent">Update verfügbar</span>) und <em>Zuletzt installierte Updates</em>.
+        <em>Windows:</em> ausstehende Windows-Updates über den Windows Update Agent (Schweregrad Kritisch/Wichtig laut Microsoft) und veraltete Programme über <code>winget</code>; installierte Updates aus der Hotfix-Liste.
+        <em>Linux:</em> <code>apt list --upgradable</code> (Sicherheits-Suiten werden als „Sicherheit“ markiert), sonst <code>dnf</code> (mit Sicherheitsmeldungen) oder <code>checkupdates</code>; das Ergebnis ist so aktuell wie die Paketliste – der Tab nennt deren Alter (die Pakete selbst aktualisiert DevDeck nicht).
+        <em>macOS:</em> <code>softwareupdate -l</code> und <code>brew outdated</code>. <strong>Wichtig:</strong> Das ist kein Hersteller-Scanner mit Schwachstellen-Datenbank: Gelistet wird nur, was ein Update braucht; „aktuell“ heißt „dem System ist kein Update bekannt“.
+        Programme, die weder winget noch ein Paketmanager kennt, werden nicht bewertet.</p>
 
         <h3>Die drei Knöpfe pro Maschine</h3>
         <table><thead><tr><th>Knopf</th><th>Was passiert genau?</th><th>Voraussetzung</th></tr></thead><tbody>

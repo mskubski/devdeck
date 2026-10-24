@@ -3,7 +3,8 @@ import { ServerClient } from './client.js';
 import { log } from './logger.js';
 import { collectInventory } from './inventory.js';
 import { collectApplications } from './applications.js';
-import type { MachineApplication, MachineInventory } from '@devdeck/shared';
+import { collectPatches } from './patches.js';
+import type { MachineApplication, MachineInventory, MachinePatches } from '@devdeck/shared';
 
 /** Heartbeat-Loop: hält die Maschine online (Spezifikation: alle ~30 s). */
 export function startHeartbeat(
@@ -17,6 +18,9 @@ export function startHeartbeat(
     /** Installierte Software: Standard echt, stündlich neu. */
     collectApplications?: () => Promise<MachineApplication[]>;
     applicationsIntervalMs?: number;
+    /** Patch-Stand: Standard echt, alle 6 Stunden neu (die Prüfung fragt Update-Dienste im Netz ab). */
+    collectPatches?: () => Promise<MachinePatches>;
+    patchesIntervalMs?: number;
   } = {},
 ): { stop(): void } {
   const client = new ServerClient(config);
@@ -47,13 +51,26 @@ export function startHeartbeat(
     }
   };
 
+  const gatherPatches = options.collectPatches ?? collectPatches;
+  const patchesEveryMs = options.patchesIntervalMs ?? 6 * 60 * 60_000;
+  let pendingPatches: MachinePatches | null = null;
+  const refreshPatches = async (): Promise<void> => {
+    try {
+      pendingPatches = await gatherPatches();
+    } catch (err) {
+      log.warn(`Patch-Stand nicht ermittelbar: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
   const beat = async (): Promise<void> => {
     if (stopped) return;
     try {
       const workspaces = options.collectWorkspaces ? options.collectWorkspaces() : [];
       const sending = pending;
       const sendingApps = pendingApps;
-      await client.heartbeat(workspaces, sending ?? undefined, sendingApps ?? undefined);
+      const sendingPatches = pendingPatches;
+      await client.heartbeat(workspaces, sending ?? undefined, sendingApps ?? undefined, sendingPatches ?? undefined);
+      if (sendingPatches && pendingPatches === sendingPatches) pendingPatches = null;
       if (sending && pending === sending) pending = null;
       if (sendingApps && pendingApps === sendingApps) pendingApps = null;
     } catch (err) {
@@ -63,11 +80,13 @@ export function startHeartbeat(
   };
 
   void beat(); // sofort online melden; das Inventar folgt, sobald es gesammelt ist
-  void refreshInventory().then(() => refreshApplications()); // nacheinander: zwei PowerShell-Prozesse gleichzeitig belasten den Start unnötig
+  void refreshInventory().then(() => refreshApplications()).then(() => refreshPatches()); // nacheinander: zwei PowerShell-Prozesse gleichzeitig belasten den Start unnötig
   const timer = setInterval(() => void beat(), intervalMs);
   const inventoryTimer = setInterval(() => void refreshInventory(), inventoryEveryMs);
   const appsTimer = setInterval(() => void refreshApplications(), appsEveryMs);
   appsTimer.unref?.();
+  const patchesTimer = setInterval(() => void refreshPatches(), patchesEveryMs);
+  patchesTimer.unref?.();
   timer.unref?.();
   inventoryTimer.unref?.();
   return {
@@ -76,6 +95,7 @@ export function startHeartbeat(
       clearInterval(timer);
       clearInterval(inventoryTimer);
       clearInterval(appsTimer);
+      clearInterval(patchesTimer);
     },
   };
 }
