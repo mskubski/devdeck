@@ -30,10 +30,43 @@ export async function renderHelp(el) {
         <code>developer</code>) – admins dürfen Projekte anlegen und haben überall implizit Owner-Rechte.</p>
         <table><thead><tr><th>Projektrolle</th><th>Darf</th></tr></thead><tbody>
           <tr><td><span class="badge accent">viewer</span></td><td>Lesen (Tasks, Sessions, Secret-Metadaten)</td></tr>
-          <tr><td><span class="badge accent">developer</span></td><td>zusätzlich: Tasks/Sessions anlegen, Secrets <em>nutzen</em> (nicht einsehen)</td></tr>
-          <tr><td><span class="badge accent">maintainer</span></td><td>zusätzlich: Mitglieder verwalten, Secrets anlegen/ändern/einsehen</td></tr>
+          <tr><td><span class="badge accent">developer</span></td><td>zusätzlich: Sessions starten, Entscheidungen vorschlagen, Changelog-Einträge und Known Issues erfassen, Workspaces registrieren/bearbeiten/synchronisieren, Secrets <em>nutzen</em> (nicht einsehen)</td></tr>
+          <tr><td><span class="badge accent">maintainer</span></td><td>zusätzlich: Tasks anlegen/bearbeiten, Mitglieder verwalten, Secrets anlegen/ändern/einsehen, Entscheidungen akzeptieren/ablehnen/ablösen, Integrationen, Import und Deploy von Workspaces, Projekt bearbeiten</td></tr>
           <tr><td><span class="badge accent">owner</span></td><td>volle Projektkontrolle</td></tr>
         </tbody></table>`,
+    },
+    {
+      id: 'projekt-tabs',
+      icon: 'layers',
+      title: 'Die Tabs eines Projekts',
+      body: `
+        <p>Jedes Projekt hat dieselben Tabs. Sie bilden das „Gedächtnis“ des Projekts: Was ist geplant, was wurde entschieden, was ist kaputt, was ist passiert – und wo läuft die Arbeit. Vieles davon wird
+        automatisch in den <strong>Coding-Kontext</strong> übernommen (Dateien in <code>.devdeck/</code>), den Claude Code und andere Coding-Agents zu Beginn einer Sitzung lesen – so wissen sie ohne Nachfragen, woran sie sind.</p>
+        <table><thead><tr><th>Tab</th><th>Wofür?</th><th>Wer darf schreiben?</th></tr></thead><tbody>
+          <tr><td><strong>Übersicht</strong></td><td>Kennzahlen (offene Tasks, laufende Sessions, Workspaces, Secrets), Projektinfo (Kennung, Repository, Standard-Branch), die letzten Coding Sessions und unten die <em>Architektur-Karte</em>.</td><td>Projekt bearbeiten: maintainer</td></tr>
+          <tr><td><strong>Mitglieder</strong></td><td>Wer hat Zugriff und mit welcher Rolle (viewer, developer, maintainer, owner – siehe oben).</td><td>maintainer</td></tr>
+          <tr><td><strong>Tasks</strong></td><td>Die Aufgabenliste des Projekts mit Priorität 1–5 und Status <em>offen → in Arbeit → erledigt</em> (oder <em>verworfen</em>). Offene Tasks stehen im Coding-Kontext (<code>CURRENT_STATE.md</code>).</td><td>maintainer</td></tr>
+          <tr><td><strong>Entscheidungen</strong></td><td>Das Protokoll wichtiger Festlegungen – siehe unten.</td><td>Vorschlagen: developer · bewerten: maintainer</td></tr>
+          <tr><td><strong>Changelog</strong></td><td>Chronik der Änderungen am Projekt (Zusammenfassung, optional Version und Details). Einträge entstehen von Hand, per <code>devdeck changelog</code> oder beim Import einer vorhandenen <code>CHANGELOG.md</code>. Die letzten Einträge stehen im Coding-Kontext.</td><td>developer</td></tr>
+          <tr><td><strong>Known Issues</strong></td><td>Bekannte, noch nicht behobene Probleme mit Schwere (niedrig/mittel/hoch) und Status <em>offen</em>/<em>gelöst</em>. Offene Probleme stehen im Coding-Kontext, damit niemand dieselbe Falle zweimal entdeckt.</td><td>developer</td></tr>
+          <tr><td><strong>Verlauf</strong></td><td>Reine Zeitleiste über alles andere (Changelog, Entscheidungen, Issues angelegt/gelöst, Tasks angelegt/erledigt, Sessions) – nur Lesen, die letzten 200 Ereignisse.</td><td>– (automatisch)</td></tr>
+          <tr><td><strong>Sessions</strong></td><td>Coding Sessions inklusive Handover (siehe „Coding Sessions &amp; Handover“). Claude-Code-Sitzungen auf registrierten Workspaces erscheinen automatisch (nur Metadaten, kein Inhalt der Unterhaltung).</td><td>developer</td></tr>
+          <tr><td><strong>Secrets</strong></td><td>Zugangsdaten und Secret-Dateien, verschlüsselt im Vault, getrennt nach development/staging/production (siehe „Secrets &amp; DevDeck Vault“).</td><td>maintainer</td></tr>
+          <tr><td><strong>Workspaces</strong></td><td>Die Arbeitskopien des Projekts auf den Maschinen: Prüfen, Sync, Importieren, Provision, Deploy, Bearbeiten, Entfernen (siehe „Workspaces“).</td><td>developer (Import/Deploy/Entfernen: maintainer)</td></tr>
+          <tr><td><strong>Integrationen</strong></td><td>Konnektoren zu externen Diensten (derzeit GitHub). Das Zugangs-Token liegt als Secret im Vault und wird nur serverseitig benutzt; „Prüfen“ testet die Verbindung.</td><td>maintainer</td></tr>
+          <tr><td><strong>Sync-Log</strong></td><td>Verlauf aller Sync-, Provision- und Deploy-Aufträge mit Maschine, Pfad, Status und – bei Fehlern – der genauen Meldung.</td><td>– (automatisch)</td></tr>
+        </tbody></table>
+
+        <h3>Entscheidungen – wofür?</h3>
+        <p>Hier hält das Team <strong>wichtige Festlegungen mit Begründung</strong> fest (in der Softwareentwicklung „Architecture Decision Records“): etwa „Wir nutzen SQLite statt PostgreSQL“, „Deploy läuft über GitHub, nicht per Dateikopie“
+        oder „Nur die Maintainer dürfen Secrets sehen“. Der Nutzen: Nach Monaten – oder wenn ein neuer Mitarbeiter oder eine KI einsteigt – ist nachvollziehbar, <em>was</em> beschlossen wurde und <em>warum</em>, und welche Alternative verworfen wurde.
+        So wird nicht dieselbe Diskussion zweimal geführt oder eine bewusste Entscheidung versehentlich rückgängig gemacht.</p>
+        <p>Eine Entscheidung hat: <strong>Titel</strong> (die Festlegung in einem Satz), <strong>Begründung</strong> (warum), <strong>Kontext</strong> (Ausgangslage) und <strong>verworfene Alternative</strong>.
+        Ablauf: <span class="badge warn">vorgeschlagen</span> (jeder developer kann einen Vorschlag erfassen, auch per <code>devdeck decision add &lt;titel&gt;</code>) →
+        <span class="badge ok">akzeptiert</span> oder <span class="badge bad">abgelehnt</span> (ein maintainer bewertet; das Datum der Bewertung wird festgehalten) →
+        später ggf. <em>abgelöst</em>, wenn eine neuere Entscheidung sie ersetzt (die alte bleibt als Historie stehen und wird nicht gelöscht).
+        <strong>Akzeptierte</strong> Entscheidungen (die 15 neuesten) übernimmt DevDeck als Abschnitt „Getroffene Entscheidungen“ in den Coding-Kontext (<code>.devdeck/CONTEXT.md</code>) – Coding-Agents richten sich dann danach.
+        Entscheidungen erscheinen außerdem im <em>Verlauf</em>. Die Liste ist anfangs leer; „Keine Entscheidungen erfasst“ ist also normal, solange noch nichts festgehalten wurde.</p>`,
     },
     {
       id: 'tasks',
