@@ -139,13 +139,16 @@ npm run build</pre>
         aktuell startet man den Agenten direkt per <span class="mono">node .../dist/index.js</span>.</p>
 
         <h3>Maschinen-Details</h3>
-        <p>Ein Klick auf den <strong>Namen</strong> einer Maschine öffnet ihre Detailseite (Tab <em>Übersicht</em>; weitere Tabs folgen). Der Agent (ab 0.9.0) sammelt dafür
+        <p>Ein Klick auf den <strong>Namen</strong> einer Maschine öffnet ihre Detailseite (Tabs <em>Übersicht</em> und <em>Inventar</em>; weitere folgen). Der Agent (ab 0.9.0) sammelt dafür
         beim Start und danach alle 15 Minuten ein <strong>Inventar</strong> – auf Windows, Linux und macOS, nur Metadaten, keine Inhalte oder Passwörter:
         <em>Laufwerke</em> (frei/gesamt), <em>Gerät</em> (Computername, Hersteller, Modell, Prozessor, Seriennummer, RAM, BIOS), <em>Betriebssystem</em> (Version, Build, Sprache),
         <em>Sicherheit</em> (Secure Boot, Firewall, Verschlüsselung, Virenschutz bzw. FileVault/SIP/Gatekeeper, TPM, ausstehender Neustart; grün = in Ordnung, gelb = Hinweis, rot = Problem, grau = nicht ermittelbar),
         <em>Verwaltung</em> (Agent, IP-Adresse, Startzeit) und <em>Eigene Felder</em>. Was ein System nicht hergibt (z. B. ohne Administratorrechte), bleibt leer oder „Unbekannt“ – es wird nie geraten.
         <strong>Eigene Felder</strong> (Besitzer der Maschine oder Admin): beliebige Angaben als „Bezeichnung: Wert“, eine pro Zeile (z. B. Standort, Zuständiger, Kaufdatum) – bitte keine Passwörter, dafür gibt es den Vault.
-        Ist noch kein Inventar da, ist der Agent älter als 0.9.0: unter <em>Maschinen</em> „Agent updaten“.</p>
+        Der Tab <strong>Inventar</strong> zeigt die Hardware im Detail, je Abschnitt mit Zeitstempel: <em>Gerät</em>, <em>Sicherheit</em> (inkl. TPM-Hersteller/-Spezifikation, soweit ohne Administratorrechte lesbar),
+        <em>Prozessor</em> (Name, Hersteller, Kerne/Threads, Takt, Datenbreite, L2-Cache, Architektur), <em>BIOS</em>, <em>Speichermodule</em> (Hersteller, Kapazität, Teilenummer, Steckplatz, Bauform, Geschwindigkeit)
+        und <em>Netzwerkverbindungen</em> (Name, MAC, IPv4/IPv6, verbunden). Unter Linux brauchen die Speichermodule Root-Rechte (<code>dmidecode</code>) – ohne bleibt der Abschnitt leer; unter macOS mit Apple Silicon erscheint der gemeinsame Arbeitsspeicher als ein Eintrag.
+        Ist noch kein Inventar da, ist der Agent zu alt (Übersicht ab 0.9.0, Inventar-Details ab 0.10.0): unter <em>Maschinen</em> „Agent updaten“.</p>
 
         <h3>Die drei Knöpfe pro Maschine</h3>
         <table><thead><tr><th>Knopf</th><th>Was passiert genau?</th><th>Voraussetzung</th></tr></thead><tbody>

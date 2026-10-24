@@ -113,7 +113,8 @@ export interface MachineDto {
 }
 
 /** Hardware-/System-Inventar einer Maschine, vom Agenten gesammelt (keine Geheimnisse, nur Metadaten). */
-export type InventoryLevel = 'ok' | 'warn' | 'bad' | 'unknown';
+/** info = reine Angabe ohne Bewertung */
+export type InventoryLevel = 'ok' | 'warn' | 'bad' | 'info' | 'unknown';
 
 export interface MachineInventory {
   collected_at: string;
@@ -142,6 +143,41 @@ export interface MachineInventory {
   security: Array<{ label: string; value: string; level: InventoryLevel }>;
   network: { ips: string[] };
   runtime: { boot_time?: string | null; node?: string | null };
+  /** Detail-Inventar (ab Agent 0.10.0) */
+  cpu?: {
+    name?: string | null;
+    manufacturer?: string | null;
+    description?: string | null;
+    cores?: number | null;
+    threads?: number | null;
+    speed_ghz?: number | null;
+    data_width?: number | null;
+    l2_cache_kb?: number | null;
+    architecture?: string | null;
+  };
+  bios_info?: {
+    manufacturer?: string | null;
+    serial?: string | null;
+    smbios_version?: string | null;
+    version?: string | null;
+    release_date?: string | null;
+    software_id?: string | null;
+  };
+  memory_modules?: Array<{
+    manufacturer?: string | null;
+    capacity_gb: number;
+    part_number?: string | null;
+    locator?: string | null;
+    form_factor?: string | null;
+    speed_mhz?: number | null;
+  }>;
+  network_adapters?: Array<{
+    name: string;
+    mac?: string | null;
+    ipv4: string[];
+    ipv6: string[];
+    connected: boolean;
+  }>;
 }
 
 export interface MachineCustomField {

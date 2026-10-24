@@ -3,6 +3,8 @@
 ## Unreleased - 2026-10-23
 
 ### Added
+- **Tab „Inventar“** auf der Maschinen-Detailseite (Agent 0.10.0): Gerät, Sicherheit (inkl. TPM-Hersteller/-Spezifikation), Prozessor (Kerne, Takt, Cache, Architektur), BIOS, Speichermodule (Hersteller, Kapazität, Teilenummer, Steckplatz, Bauform, Geschwindigkeit)
+  und Netzwerkverbindungen (MAC, IPv4/IPv6, verbunden) – je Abschnitt mit Zeitstempel. Windows per CIM/PnP, Linux per lscpu/dmidecode (Root)/ip, macOS per sysctl/system_profiler/ifconfig; serverseitig wie das übrige Inventar auf bekannte Felder und Längen begrenzt.
 - **Maschinen-Details:** Klick auf den Namen unter Maschinen öffnet eine Detailseite (Tab „Übersicht“, weitere Tabs vorbereitet) mit Laufwerken, Gerät, Betriebssystem, Sicherheitsstatus, Verwaltung und **Eigenen Feldern**
   (Bezeichnung/Wert, Besitzer oder Admin). Der Agent (0.9.0, Migration v13) sammelt das Inventar auf Windows (PowerShell/CIM), Linux (/sys, os-release, df, systemctl) und macOS (system_profiler, sw_vers, fdesetup …)
   beim Start und alle 15 Minuten; nur Metadaten, serverseitig auf bekannte Felder und Längen begrenzt. API: `GET /api/machines/:id` (mit Inventar), `PUT /api/machines/:id/custom-fields`.
