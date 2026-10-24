@@ -5,6 +5,7 @@
 import './workspaceStatus.js';
 import './workspaceSync.js';
 import './workspaceProvision.js';
+import './workspaceDeploy.js';
 import './contextRefresh.js';
 import './envRefresh.js';
 import './dependenciesInstall.js';

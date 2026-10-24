@@ -203,6 +203,22 @@ npm run build</pre>
         prüfen → Dependencies installieren → autorisierte Secrets/<code>.env</code> projizieren → Context erzeugen →
         Readiness bewerten. Trifft Provision auf ein nicht-leeres, nicht-Git-Verzeichnis, bricht es mit einer
         Rückfrage ab, statt etwas zu überschreiben.</p>
+        <p><strong>Deploy</strong> (Maintainer, nur Linux-Maschinen, Agent ab 0.8.0): Bringt eine <em>produktiv laufende</em> Software auf den neuesten Stand.
+        Ablauf: Arbeitskopie muss sauber sein (sonst Abbruch, nichts verändert) → <code>fetch</code> + Fast-Forward auf den Branch des Workspaces (sonst Standard-Branch des Projekts)
+        → <code>deploy</code>-Block aus <code>.devdeck/workspace.yaml</code> lesen → optional Installationsbefehl (nur wenn es neuen Code gab) → die genannten systemd-<em>Benutzer</em>dienste
+        der Reihe nach neu starten → Gesundheitsprüfung (HTTP-Antwort 2xx einer Adresse auf localhost, sonst <code>systemctl --user is-active</code>). Wird ein Dienst nicht gesund oder scheitert ein Schritt,
+        geht der Workspace automatisch auf den alten Commit zurück und die Dienste starten mit dem alten Stand neu. Das Ergebnis (Commits vorher/nachher, jeder Schritt) steht im Dialog und im Tab <em>Sync-Log</em>.
+        Es werden nur Dienste neu gestartet, die im versionierten Manifest stehen – keine frei eingegebenen Befehle.
+        <pre>deploy:
+  timeout_seconds: 60          # so lange auf gesunde Dienste warten (5–600)
+  install: .venv/bin/pip install -r requirements.txt   # optional, ohne Shell-Zeichen
+  services:
+    - unit: helferle-api
+      health_url: http://localhost:5001/v1/health      # nur localhost
+    - unit: helferle-gui
+      health_url: http://localhost:5000/login
+    - unit: helferle           # ohne health_url: is-active</pre>
+        Projekte, die über GitHub/GitLab direkt auf Vercel laufen, brauchen kein Deploy hier – dort deployt der Push.</p>
         <p><strong>Importieren</strong> (Maintainer): Der Agent liest im Workspace <code>CHANGELOG.md</code>,
         <code>ROADMAP.md</code>/<code>TODO.md</code> (Checkboxen <code>- [ ]</code>/<code>- [x]</code>, optional <code>(P1)</code>–<code>(P5)</code>)
         sowie <code>.env</code> und <code>credentials.md</code> und zeigt zuerst eine <strong>Vorschau</strong> (Secret-Namen, nie Werte).

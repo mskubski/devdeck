@@ -196,6 +196,7 @@ export async function renderWorkspaces(el, project) {
           <button class="btn ghost sm" data-sync="${w.id}">Sync</button>
           ${roleAtLeast(project.role, 'maintainer') ? `<button class="btn ghost sm" data-import="${w.id}">Importieren</button>` : ''}
           <button class="btn ghost sm" data-provision="${w.id}">Provision</button>
+          ${roleAtLeast(project.role, 'maintainer') ? `<button class="btn ghost sm" data-deploy="${w.id}" data-path="${esc(w.local_path)}" title="Neuesten Stand holen und die Dienste dieses Workspaces neu starten">Deploy</button>` : ''}
           <button class="btn ghost sm" data-edit="${w.id}">Bearbeiten</button>
           ${roleAtLeast(project.role, 'maintainer') ? `<button class="btn ghost sm" data-delete="${w.id}" data-path="${esc(w.local_path)}">Entfernen</button>` : ''}` : ''}
       </td>
@@ -286,6 +287,39 @@ export async function renderWorkspaces(el, project) {
   }
   for (const btn of $$('[data-import]', el)) {
     btn.addEventListener('click', () => runImportFlow(btn.dataset.import, () => renderWorkspaces(el, project)));
+  }
+  for (const btn of $$('[data-deploy]', el)) {
+    btn.addEventListener('click', async () => {
+      const ok = await confirmModal({
+        title: 'Deploy',
+        message: `Holt den neuesten Stand von „${btn.dataset.path}“ (nur Fast-Forward) und startet die im Manifest (.devdeck/workspace.yaml, Block deploy) genannten Dienste neu. Sind sie danach nicht gesund, geht es automatisch auf den alten Stand zurück. Die Dienste sind kurz nicht erreichbar.`,
+        confirmLabel: 'Deploy starten',
+        danger: false,
+      });
+      if (!ok) return;
+      btn.disabled = true;
+      try {
+        const { command_id } = await post(`/api/workspaces/${btn.dataset.deploy}/deploy`, { confirm: true });
+        toast('Deploy läuft … (siehe auch Tab „Sync-Log“)', 'info');
+        let result = null;
+        for (let i = 0; i < 150; i += 1) {
+          await sleep(2000);
+          const c = await get(`/api/workspaces/${btn.dataset.deploy}/commands/${command_id}`);
+          if (c.status === 'done') { result = c.result; break; }
+          if (c.status === 'failed' || c.status === 'expired') throw new Error(c.error || 'Deploy fehlgeschlagen');
+        }
+        if (!result) throw new Error('Deploy dauert ungewöhnlich lange – Ergebnis siehe Tab „Sync-Log“');
+        const steps = (result.steps || []).map((s) => `<li>${esc(s.step)}: ${esc(s.status)}${s.detail ? ` – ${esc(s.detail)}` : ''}</li>`).join('');
+        openModal(`
+          <h2>Deploy erfolgreich</h2>
+          <p class="text-sm">${result.up_to_date ? 'Kein neuer Code – Dienste neu gestartet.' : `<span class="mono">${esc(result.from)}</span> → <span class="mono">${esc(result.to)}</span>`}</p>
+          <ul class="text-sm">${steps}</ul>
+          <div class="modal-actions"><button class="btn" id="btn-close-deploy" type="button">Schließen</button></div>`, (root) => {
+          root.querySelector('#btn-close-deploy').addEventListener('click', closeModal);
+        });
+        renderWorkspaces(el, project);
+      } catch (err) { toast(err.message, 'error'); btn.disabled = false; }
+    });
   }
   for (const btn of $$('[data-provision]', el)) {
     btn.addEventListener('click', async () => {

@@ -2,7 +2,7 @@ import { get } from '../../lib/api.js';
 import { $, esc, badge, fmtDate } from '../../lib/ui.js';
 import { icon } from '../../lib/icons.js';
 
-const ACTION_LABEL = { 'workspace.sync': 'Sync', 'workspace.provision': 'Provision' };
+const ACTION_LABEL = { 'workspace.sync': 'Sync', 'workspace.provision': 'Provision', 'workspace.deploy': 'Deploy' };
 const STATUS_LABEL = { queued: 'wartet', running: 'läuft', done: 'erledigt', failed: 'fehlgeschlagen', expired: 'abgelaufen' };
 
 function details(entry) {

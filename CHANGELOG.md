@@ -3,6 +3,9 @@
 ## Unreleased - 2026-10-23
 
 ### Added
+- **Deploy pro Workspace** (Agent 0.8.0, Aktion `workspace.deploy`, Knopf „Deploy“ unter Projekt → Workspaces, Maintainer): holt per Fast-Forward den Stand des Branches, startet die im Manifest
+  (`.devdeck/workspace.yaml`, Block `deploy`) genannten systemd-Benutzerdienste neu und prüft sie (HTTP 2xx auf localhost bzw. `is-active`); bei Fehlern automatische Rücknahme auf den alten Commit.
+  Optionaler Install-Befehl, Ergebnis mit allen Schritten im Dialog und im Sync-Log, Audit `workspace.deploy.request`. Nur Linux; Dienste/Befehle stammen ausschließlich aus dem versionierten Manifest.
 - `deploy/install-agent-service.sh [--replace]`: installiert nur den Agenten als systemd-Benutzerdienst (für Maschinen ohne DevDeck-Server); beendet auf Wunsch von Hand gestartete Agent-Prozesse.
 - Agent-Update wird verifiziert: nach dem Build startet der neue Code probeweise (`index.js status`, meldet Version/Node); bei Fehlern Abbruch VOR dem Neustart mit Begründung. Der Agent meldet im
   Heartbeat Commit, Node-Version und Startdatei (Agent 0.7.0, Migration v12); die Maschinen-Liste zeigt sie und warnt „Update nicht angekommen“, wenn die laufende Version älter ist als die gebaute.

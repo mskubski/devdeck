@@ -244,7 +244,7 @@ export function syncLogForProject(db: Database, projectId: string, limit = 100):
      FROM agent_commands c
      LEFT JOIN machines m ON m.id = c.machine_id
      LEFT JOIN users u ON u.id = c.requested_by
-     WHERE c.action IN ('workspace.sync', 'workspace.provision')
+     WHERE c.action IN ('workspace.sync', 'workspace.provision', 'workspace.deploy')
        AND json_extract(c.payload_json, '$.workspace_id') IN
            (SELECT id FROM workspaces WHERE project_id = ?)
      ORDER BY c.created_at DESC
