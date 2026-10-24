@@ -161,10 +161,66 @@ function inventoryTab(el, m, inv) {
     </div>`;
 }
 
-/** Weitere Tabs (Einstellungen, Anwendungen, Patches, …) kommen hier später dazu. */
+const APPS_SHOWN = 500;
+
+/** Tab „Anwendungen“: installierte Software mit Suche und Quellenfilter; die Liste wird erst beim Öffnen geladen. */
+async function applicationsTab(el, m) {
+  el.innerHTML = '<div class="skeleton" style="width:60%"></div>';
+  let data;
+  try {
+    data = await get(`/api/machines/${m.id}/applications`);
+  } catch (err) {
+    el.innerHTML = `<div class="card"><p class="error">${esc(err.message)}</p></div>`;
+    return;
+  }
+  const apps = data.applications ?? [];
+  if (!apps.length) {
+    el.innerHTML = `<div class="alert info"><span>Für diese Maschine liegt noch keine Software-Liste vor. Der Agent (ab Version 0.11.0) meldet sie kurz nach dem Start und danach stündlich${m.agent_outdated ? ' – bitte unter „Maschinen“ den Agent aktualisieren' : ''}.</span></div>`;
+    return;
+  }
+  const sources = [...new Set(apps.map((a) => a.source))].sort();
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-head">
+        <h2>Anwendungen <span class="muted text-sm" id="apps-count"></span></h2>
+        <span class="muted text-sm">Aktualisiert: ${esc(fmtDate(data.applications_at))}</span>
+      </div>
+      <div class="row" style="gap:var(--space-3);margin-bottom:var(--space-3);flex-wrap:wrap">
+        <input id="apps-search" type="search" placeholder="Suchen (Name, Hersteller, Version …)" style="flex:1;min-width:220px" />
+        ${sources.length > 1 ? `<select id="apps-source"><option value="">Alle Quellen</option>${sources.map((x) => `<option value="${esc(x)}">${esc(x)}</option>`).join('')}</select>` : ''}
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Name</th><th>Version</th><th>Hersteller</th><th>Kennung</th><th>Quelle</th></tr></thead>
+        <tbody id="apps-body"></tbody>
+      </table></div>
+      <p class="muted text-sm" id="apps-more" style="margin-top:var(--space-3)"></p>
+    </div>`;
+  let showAll = false;
+  const draw = () => {
+    const q = $('#apps-search', el).value.trim().toLowerCase();
+    const src = $('#apps-source', el)?.value ?? '';
+    const hits = apps.filter((a) => (!src || a.source === src)
+      && (!q || [a.name, a.version, a.publisher, a.identifier, a.source].some((v) => String(v ?? '').toLowerCase().includes(q))));
+    const shown = showAll ? hits : hits.slice(0, APPS_SHOWN);
+    $('#apps-count', el).textContent = hits.length === apps.length ? `(${apps.length})` : `(${hits.length} von ${apps.length})`;
+    $('#apps-body', el).innerHTML = shown.map((a) => `
+      <tr><td>${esc(a.name)}</td><td class="mono text-sm">${esc(a.version || '–')}</td><td class="muted text-sm">${esc(a.publisher || '–')}</td>
+        <td class="mono text-sm muted">${esc(a.identifier || '–')}</td><td class="muted text-sm">${esc(a.source)}</td></tr>`).join('')
+      || '<tr><td colspan="5"><div class="empty-state">Keine Treffer.</div></td></tr>';
+    const more = $('#apps-more', el);
+    more.innerHTML = hits.length > shown.length ? `${shown.length} von ${hits.length} angezeigt – <a class="link" href="#" id="apps-all">alle anzeigen</a>` : '';
+    $('#apps-all', el)?.addEventListener('click', (e) => { e.preventDefault(); showAll = true; draw(); });
+  };
+  $('#apps-search', el).addEventListener('input', () => { showAll = false; draw(); });
+  $('#apps-source', el)?.addEventListener('change', () => { showAll = false; draw(); });
+  draw();
+}
+
+/** Weitere Tabs (Einstellungen, Patches, …) kommen hier später dazu. */
 const TABS = [
   { key: 'main', label: 'Übersicht', render: mainTab },
   { key: 'inventory', label: 'Inventar', render: inventoryTab },
+  { key: 'applications', label: 'Anwendungen', render: applicationsTab },
 ];
 
 export async function renderMachineDetail(el, idAndQuery, setBreadcrumb) {
