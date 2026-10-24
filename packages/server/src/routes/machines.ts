@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
-import { AppError, compareVersions, isAgentOutdated, supportsSelfUpdate, type MachineApplication, type MachineApplicationsDto, type MachineCustomField, type MachineDetailDto, type MachineDto, type MachineInventory, type MachinePatches, type MachinePatchesDto, type ProjectRole } from '@devdeck/shared';
+import { AppError, compareVersions, isAgentOutdated, supportsSelfUpdate, type MachineApplication, type MachineApplicationsDto, type MachineCustomField, type MachineDetailDto, type MachineDto, type MachineInventory, type MachineLogsDto, type MachinePatches, type MachinePatchesDto, type ProjectRole } from '@devdeck/shared';
 import {
   asyncHandler,
   clientIp,
@@ -16,6 +16,7 @@ import { generateToken, hashToken } from '../auth/tokens.js';
 import { audit } from '../services/audit.js';
 import { enqueueCommand } from '../services/provisioning.js';
 import { sanitizeCustomFields } from '../services/inventory.js';
+import { LOG_RETENTION_DAYS } from '../services/machineLogs.js';
 
 /** Update lief „erfolgreich“, der Agent meldet aber noch eine ältere Version als die gebaute → Hinweis für die UI. */
 function updateWarning(db: Database, row: MachineRecord): string | null {
@@ -186,6 +187,42 @@ export function machineRoutes(ctx: AppContext): Router {
         applications = [];
       }
       const data: MachineApplicationsDto = { applications, applications_at: r?.applications_at ?? null };
+      res.json({ data });
+    }),
+  );
+
+  // Fehlerprotokolle: neueste zuerst, filterbar nach Protokoll, Ebene und Text
+  router.get(
+    '/:id/logs',
+    asyncHandler(async (req, res) => {
+      const id = param(req, 'id')!;
+      loadAccessible(req.user!.id, req.user!.system_role, id);
+      const source = typeof req.query.source === 'string' && req.query.source ? req.query.source : null;
+      const level = req.query.level === 'critical' || req.query.level === 'error' ? req.query.level : null;
+      const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : '';
+      const limit = Math.min(Math.max(Number(req.query.limit) || 200, 1), 500);
+      const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      const entries = db.all<MachineLogsDto['entries'][number]>(
+        `SELECT id, occurred_at AS time, source, provider, event_id, level, message FROM machine_logs
+         WHERE machine_id = ? AND (? IS NULL OR source = ?) AND (? IS NULL OR level = ?)
+           AND (? = '' OR message LIKE ? ESCAPE '\\' OR COALESCE(provider, '') LIKE ? ESCAPE '\\' OR COALESCE(event_id, '') LIKE ? ESCAPE '\\')
+         ORDER BY occurred_at DESC, id DESC LIMIT ?`,
+        id, source, source, level, level, q, like, like, like, limit,
+      );
+      const sources = db.all<{ source: string; count: number }>(
+        'SELECT source, COUNT(*) AS count FROM machine_logs WHERE machine_id = ? GROUP BY source ORDER BY count DESC, source',
+        id,
+      );
+      const meta = db.get<{ logs_at: string | null; logs_notes_json: string | null }>('SELECT logs_at, logs_notes_json FROM machines WHERE id = ?', id);
+      let notes: string[] = [];
+      try {
+        notes = meta?.logs_notes_json ? (JSON.parse(meta.logs_notes_json) as string[]) : [];
+      } catch {
+        notes = [];
+      }
+      const data: MachineLogsDto = {
+        entries, sources, total: sources.reduce((n, s) => n + s.count, 0), logs_at: meta?.logs_at ?? null, notes, retention_days: LOG_RETENTION_DAYS,
+      };
       res.json({ data });
     }),
   );

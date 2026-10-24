@@ -4,7 +4,8 @@ import { log } from './logger.js';
 import { collectInventory } from './inventory.js';
 import { collectApplications } from './applications.js';
 import { collectPatches } from './patches.js';
-import type { MachineApplication, MachineInventory, MachinePatches } from '@devdeck/shared';
+import { collectLogs } from './logs.js';
+import type { MachineApplication, MachineInventory, MachineLogEntry, MachinePatches } from '@devdeck/shared';
 
 /** Heartbeat-Loop: hält die Maschine online (Spezifikation: alle ~30 s). */
 export function startHeartbeat(
@@ -21,6 +22,9 @@ export function startHeartbeat(
     /** Patch-Stand: Standard echt, alle 6 Stunden neu (die Prüfung fragt Update-Dienste im Netz ab). */
     collectPatches?: () => Promise<MachinePatches>;
     patchesIntervalMs?: number;
+    /** Fehlerprotokolle seit `since`; Standard echt, alle 15 Minuten (beim ersten Mal die letzten 7 Tage). */
+    collectLogs?: (since: Date) => Promise<{ entries: MachineLogEntry[]; notes: string[] }>;
+    logsIntervalMs?: number;
   } = {},
 ): { stop(): void } {
   const client = new ServerClient(config);
@@ -62,6 +66,22 @@ export function startHeartbeat(
     }
   };
 
+  const gatherLogs = options.collectLogs ?? collectLogs;
+  const logsEveryMs = options.logsIntervalMs ?? 15 * 60_000;
+  let pendingLogs: { collected_at: string; entries: MachineLogEntry[]; notes: string[] } | null = null;
+  let logsSince = new Date(Date.now() - 7 * 86_400_000);
+  const refreshLogs = async (): Promise<void> => {
+    try {
+      const startedAt = new Date();
+      const r = await gatherLogs(logsSince);
+      // Was noch nicht übertragen wurde, bleibt erhalten (der Server ignoriert Doppelte)
+      pendingLogs = { collected_at: startedAt.toISOString(), entries: [...(pendingLogs?.entries ?? []), ...r.entries].slice(-600), notes: r.notes };
+      logsSince = new Date(startedAt.getTime() - 60_000); // eine Minute Überlappung gegen Lücken
+    } catch (err) {
+      log.warn(`Logs nicht lesbar: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
   const beat = async (): Promise<void> => {
     if (stopped) return;
     try {
@@ -69,7 +89,9 @@ export function startHeartbeat(
       const sending = pending;
       const sendingApps = pendingApps;
       const sendingPatches = pendingPatches;
-      await client.heartbeat(workspaces, sending ?? undefined, sendingApps ?? undefined, sendingPatches ?? undefined);
+      const sendingLogs = pendingLogs;
+      await client.heartbeat(workspaces, sending ?? undefined, sendingApps ?? undefined, sendingPatches ?? undefined, sendingLogs ?? undefined);
+      if (sendingLogs && pendingLogs === sendingLogs) pendingLogs = null;
       if (sendingPatches && pendingPatches === sendingPatches) pendingPatches = null;
       if (sending && pending === sending) pending = null;
       if (sendingApps && pendingApps === sendingApps) pendingApps = null;
@@ -80,13 +102,15 @@ export function startHeartbeat(
   };
 
   void beat(); // sofort online melden; das Inventar folgt, sobald es gesammelt ist
-  void refreshInventory().then(() => refreshApplications()).then(() => refreshPatches()); // nacheinander: zwei PowerShell-Prozesse gleichzeitig belasten den Start unnötig
+  void refreshInventory().then(() => refreshApplications()).then(() => refreshLogs()).then(() => refreshPatches()); // nacheinander: zwei PowerShell-Prozesse gleichzeitig belasten den Start unnötig
   const timer = setInterval(() => void beat(), intervalMs);
   const inventoryTimer = setInterval(() => void refreshInventory(), inventoryEveryMs);
   const appsTimer = setInterval(() => void refreshApplications(), appsEveryMs);
   appsTimer.unref?.();
   const patchesTimer = setInterval(() => void refreshPatches(), patchesEveryMs);
   patchesTimer.unref?.();
+  const logsTimer = setInterval(() => void refreshLogs(), logsEveryMs);
+  logsTimer.unref?.();
   timer.unref?.();
   inventoryTimer.unref?.();
   return {
@@ -96,6 +120,7 @@ export function startHeartbeat(
       clearInterval(inventoryTimer);
       clearInterval(appsTimer);
       clearInterval(patchesTimer);
+      clearInterval(logsTimer);
     },
   };
 }

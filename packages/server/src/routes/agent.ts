@@ -17,6 +17,7 @@ import { projectSecretsFor, secretVersionsFor } from '../vault/projection.js';
 import { importProjectData, type ImportSecret } from '../services/projectImport.js';
 import { sanitizeFacts } from '../services/architecture/facts.js';
 import { sanitizeApplications, sanitizeInventory, sanitizePatches } from '../services/inventory.js';
+import { pruneMachineLogs, sanitizeLogReport, storeMachineLogs } from '../services/machineLogs.js';
 import { getProjectMembership } from '../auth/middleware.js';
 
 /** Agent-Protokoll (pollbasiert, PLAN §11). */
@@ -144,6 +145,13 @@ export function agentRoutes(ctx: AppContext): Router {
       const patches = sanitizePatches(body.patches);
       if (patches) {
         db.run('UPDATE machines SET patches_json = ?, patches_at = ? WHERE id = ?', JSON.stringify(patches), patches.collected_at, machine.id);
+      }
+
+      const logReport = sanitizeLogReport(body.logs);
+      if (logReport) {
+        storeMachineLogs(db, machine.id, logReport.entries);
+        pruneMachineLogs(db, { machineId: machine.id });
+        db.run('UPDATE machines SET logs_at = ?, logs_notes_json = ? WHERE id = ?', logReport.collected_at, JSON.stringify(logReport.notes), machine.id);
       }
 
       let registered = 0;

@@ -1,4 +1,4 @@
-import { AppError, type AgentCommandPayload, type MachineApplication, type MachineInventory, type MachinePatches } from '@devdeck/shared';
+import { AppError, type AgentCommandPayload, type MachineApplication, type MachineInventory, type MachineLogEntry, type MachinePatches } from '@devdeck/shared';
 import type { AgentConfig } from './config.js';
 import { getRunningHead } from './runtimeInfo.js';
 
@@ -97,6 +97,7 @@ export class ServerClient {
     inventory?: MachineInventory,
     applications?: { collected_at: string; items: MachineApplication[] },
     patches?: MachinePatches,
+    logs?: { collected_at: string; entries: MachineLogEntry[]; notes: string[] },
   ): Promise<void> {
     const res = await this.request('POST', '/api/agent/heartbeat', {
       body: {
@@ -107,6 +108,7 @@ export class ServerClient {
         ...(inventory ? { inventory } : {}),
         ...(applications ? { applications } : {}),
         ...(patches ? { patches } : {}),
+        ...(logs ? { logs } : {}),
         // Diagnose: aus welchem Code/Ordner läuft dieser Agent? (hilft, wenn ein Update „nicht ankommt“)
         agent_commit: getRunningHead(),
         agent_node: process.version,

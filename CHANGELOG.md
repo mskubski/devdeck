@@ -3,6 +3,9 @@
 ## Unreleased - 2026-10-23
 
 ### Added
+- **Tab „Logs“** auf der Maschinen-Detailseite (Agent 0.13.0, Migration v16): Fehlerprotokolle (nur Kritisch/Fehler) mit Zeit, Log (Herkunft), Quelle, ID, Ebene und Meldung, mit Suche sowie Filter nach Log und Ebene.
+  Der Agent liest alle 15 Minuten nur Neues: Windows Ereignisanzeige (System, Application), Linux systemd-Journal (System/Kernel) und dmesg, macOS Systemprotokoll (`log show`) und Absturzberichte.
+  **Aufbewahrung 30 Tage** (Löschung beim Eintreffen neuer Logs und alle 6 Stunden) plus Obergrenze 5000 Einträge je Maschine; Doppelte werden ignoriert. API `GET /api/machines/:id/logs`.
 - **Tab „Patches“** auf der Maschinen-Detailseite (Agent 0.12.0, Migration v15): ausstehende Updates mit Status Kritisch/Sicherheit/Update verfügbar, Zusammenfassung (Anzahl, Neustart erforderlich, zuletzt installiert) und zuletzt installierte Updates.
   Der Agent prüft beim Start und alle 6 Stunden: Windows über den Windows Update Agent und `winget`, Linux über `apt`/`dnf`/`checkupdates`, macOS über `softwareupdate` und Homebrew. Kein Hersteller-Scanner: gelistet wird nur, was ein Update braucht.
   API `GET /api/machines/:id/patches`. Der Versionstest im Agent ist nicht mehr an eine feste Versionsnummer gebunden.

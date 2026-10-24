@@ -261,12 +261,81 @@ async function patchesTab(el, m) {
     </div>`;
 }
 
+const LOG_LEVEL = { critical: ['Kritisch', 'bad'], error: ['Fehler', 'warn'] };
+const MSG_SHOWN = 260;
+
+/** Tab „Logs“: Fehlerprotokolle (Kritisch/Fehler) aus den System-Logs der Maschine, filterbar; lädt erst beim Öffnen. */
+async function logsTab(el, m) {
+  el.innerHTML = '<div class="skeleton" style="width:60%"></div>';
+  const state2 = { source: '', level: '', q: '' };
+  const load = async () => {
+    const qs = new URLSearchParams({ limit: '200' });
+    if (state2.source) qs.set('source', state2.source);
+    if (state2.level) qs.set('level', state2.level);
+    if (state2.q) qs.set('q', state2.q);
+    return get(`/api/machines/${m.id}/logs?${qs}`);
+  };
+  let data;
+  try {
+    data = await load();
+  } catch (err) {
+    el.innerHTML = `<div class="card"><p class="error">${esc(err.message)}</p></div>`;
+    return;
+  }
+  if (!data.logs_at) {
+    el.innerHTML = `<div class="alert info"><span>Für diese Maschine liegen noch keine Logs vor. Der Agent (ab Version 0.13.0) liest sie kurz nach dem Start und danach alle 15 Minuten${m.agent_outdated ? ' – bitte unter „Maschinen“ den Agent aktualisieren' : ''}.</span></div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="stack">
+      <div class="card"><div class="card-head"><h2>Fehlerprotokolle</h2><span class="muted text-sm">Zuletzt gelesen: ${esc(fmtDate(data.logs_at))}</span></div>
+        <p class="muted text-sm" style="margin:0 0 var(--space-3)">Nur Einträge der Stufen Kritisch und Fehler aus den System-Logs dieser Maschine. Einträge werden ${data.retention_days} Tage aufbewahrt und danach automatisch gelöscht.</p>
+        <div class="row" id="log-sources" style="gap:var(--space-2);margin-bottom:var(--space-3)">${data.sources.length
+          ? data.sources.map((s) => `<span class="badge">${esc(s.source)}: ${s.count}</span>`).join('')
+          : '<span class="muted text-sm">Keine Fehler gespeichert – das ist ein gutes Zeichen.</span>'}</div>
+        ${(data.notes ?? []).map((n) => `<p class="muted text-sm">${esc(n)}</p>`).join('')}
+        <div class="row" style="gap:var(--space-3);margin-bottom:var(--space-3);flex-wrap:wrap">
+          <input id="log-q" type="search" placeholder="Suchen (Meldung, Quelle, ID …)" style="flex:1;min-width:220px" value="${esc(state2.q)}" />
+          <select id="log-source"><option value="">Alle Logs</option>${data.sources.map((s) => `<option value="${esc(s.source)}">${esc(s.source)}</option>`).join('')}</select>
+          <select id="log-level"><option value="">Kritisch und Fehler</option><option value="critical">Nur kritisch</option><option value="error">Nur Fehler</option></select>
+        </div>
+        <div id="log-table"></div>
+        <p class="muted text-sm" id="log-count" style="margin-top:var(--space-3)"></p>
+      </div>
+    </div>`;
+  const draw = (d) => {
+    $('#log-table', el).innerHTML = d.entries.length ? table(['Zeit', 'Log', 'Quelle', 'ID', 'Ebene', 'Meldung'], d.entries.map((e) => [
+      fmtDate(e.time), e.source, e.provider, e.event_id,
+      html(badge(LOG_LEVEL[e.level]?.[0] ?? e.level, LOG_LEVEL[e.level]?.[1] ?? '')),
+      html(`<span class="text-sm" title="${esc(e.message)}">${esc(e.message.length > MSG_SHOWN ? `${e.message.slice(0, MSG_SHOWN)}…` : e.message)}</span>`),
+    ])) : '<p class="muted text-sm">Keine passenden Einträge.</p>';
+    $('#log-count', el).textContent = `${d.entries.length} Einträge angezeigt (neueste zuerst), ${d.total} gespeichert.`;
+  };
+  draw(data);
+  $('#log-source', el).value = state2.source;
+  $('#log-level', el).value = state2.level;
+  let timer = null;
+  const refresh = () => {
+    state2.q = $('#log-q', el).value.trim();
+    state2.source = $('#log-source', el).value;
+    state2.level = $('#log-level', el).value;
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      try { draw(await load()); } catch (err) { toast(err.message, 'error'); }
+    }, 250);
+  };
+  $('#log-q', el).addEventListener('input', refresh);
+  $('#log-source', el).addEventListener('change', refresh);
+  $('#log-level', el).addEventListener('change', refresh);
+}
+
 /** Weitere Tabs (Einstellungen, Action-Log, …) kommen hier später dazu. */
 const TABS = [
   { key: 'main', label: 'Übersicht', render: mainTab },
   { key: 'inventory', label: 'Inventar', render: inventoryTab },
   { key: 'applications', label: 'Anwendungen', render: applicationsTab },
   { key: 'patches', label: 'Patches', render: patchesTab },
+  { key: 'logs', label: 'Logs', render: logsTab },
 ];
 
 export async function renderMachineDetail(el, idAndQuery, setBreadcrumb) {

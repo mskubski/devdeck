@@ -234,6 +234,31 @@ export interface MachinePatchesDto {
   patches_at: string | null;
 }
 
+/** Fehlerprotokoll-Eintrag einer Maschine (nur Kritisch/Fehler). */
+export type MachineLogLevel = 'critical' | 'error';
+
+export interface MachineLogEntry {
+  /** ISO-Zeitpunkt (UTC) */
+  time: string;
+  /** Aus welchem Protokoll/welcher Datei, z. B. „System (Ereignisanzeige)“, „journal (Kernel)“ */
+  source: string;
+  /** Quelle innerhalb des Protokolls (Anbieter, Dienst, Prozess) */
+  provider: string | null;
+  event_id: string | null;
+  level: MachineLogLevel;
+  message: string;
+}
+
+export interface MachineLogsDto {
+  entries: Array<MachineLogEntry & { id: number }>;
+  /** Anzahl je Protokoll (alle gespeicherten Einträge, unabhängig vom Filter) */
+  sources: Array<{ source: string; count: number }>;
+  total: number;
+  logs_at: string | null;
+  notes: string[];
+  retention_days: number;
+}
+
 export interface MachineCustomField {
   label: string;
   value: string;
