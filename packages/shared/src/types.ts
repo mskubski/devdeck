@@ -194,6 +194,46 @@ export interface MachineApplicationsDto {
   applications_at: string | null;
 }
 
+/** Patch-Stand: nur was ein Update braucht wird gelistet (kritisch > Sicherheit > sonstige). */
+export type PatchStatus = 'critical' | 'security' | 'update';
+
+export interface MachinePatchItem {
+  vendor: string | null;
+  name: string;
+  /** installierte Version, soweit bekannt */
+  version: string | null;
+  /** verfügbare Version bzw. Update-Kennung (z. B. KB-Nummer) */
+  available: string | null;
+  status: PatchStatus;
+  kind: 'os' | 'app';
+  detail: string | null;
+}
+
+export interface MachineInstalledUpdate {
+  id: string;
+  description: string | null;
+  installed_on: string | null;
+}
+
+export interface MachinePatches {
+  collected_at: string;
+  scanner: string;
+  total: number;
+  critical: number;
+  /** kritisch + sicherheitsrelevant */
+  security: number;
+  reboot_required: boolean | null;
+  last_installed_at: string | null;
+  items: MachinePatchItem[];
+  installed: MachineInstalledUpdate[];
+  notes: string[];
+}
+
+export interface MachinePatchesDto {
+  patches: MachinePatches | null;
+  patches_at: string | null;
+}
+
 export interface MachineCustomField {
   label: string;
   value: string;

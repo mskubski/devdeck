@@ -18,7 +18,7 @@ export const AGENT_ACTIONS = [
 ] as const;
 
 /** Aktuelle Agent-Version; ältere Agenten kennen neuere Aktionen nicht und gelten als veraltet. */
-export const CURRENT_AGENT_VERSION = '0.11.0';
+export const CURRENT_AGENT_VERSION = '0.12.0';
 
 function versionParts(v: string): number[] {
   return v.split('.').map((p) => Number.parseInt(p, 10) || 0);
@@ -110,6 +110,8 @@ export interface HeartbeatRequest {
   inventory?: import('./types.js').MachineInventory;
   /** Installierte Software (ab Agent 0.11.0, beim Start und danach stündlich) */
   applications?: { collected_at: string; items: import('./types.js').MachineApplication[] };
+  /** Patch-Stand (ab Agent 0.12.0, beim Start und danach alle 6 Stunden) */
+  patches?: import('./types.js').MachinePatches;
   workspaces?: Array<{
     workspace_id?: string;
     project?: string;

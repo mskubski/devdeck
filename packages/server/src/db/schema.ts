@@ -409,6 +409,11 @@ const MIGRATIONS: string[] = [
   ALTER TABLE machines ADD COLUMN applications_json TEXT;
   ALTER TABLE machines ADD COLUMN applications_at TEXT;
   `,
+  // v15: Patch-Stand je Maschine
+  `
+  ALTER TABLE machines ADD COLUMN patches_json TEXT;
+  ALTER TABLE machines ADD COLUMN patches_at TEXT;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

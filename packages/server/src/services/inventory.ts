@@ -1,4 +1,4 @@
-import type { InventoryLevel, MachineApplication, MachineCustomField, MachineInventory } from '@devdeck/shared';
+import type { InventoryLevel, MachineApplication, MachineCustomField, MachineInventory, MachinePatches, PatchStatus } from '@devdeck/shared';
 
 const str = (v: unknown, max = 200): string | null => (typeof v === 'string' && v.trim() !== '' ? v.trim().slice(0, max) : null);
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v < 1e9 ? Math.round(v * 100) / 100 : null);
@@ -106,6 +106,39 @@ export function sanitizeApplications(raw: unknown): MachineApplication[] | null 
     });
   }
   return result;
+}
+
+const PATCH_STATUS: PatchStatus[] = ['critical', 'security', 'update'];
+
+/** Patch-Stand nur in der bekannten Form übernehmen: feste Felder, begrenzte Längen und Anzahlen. */
+export function sanitizePatches(raw: unknown): MachinePatches | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const r = raw as Record<string, any>;
+  const items = (Array.isArray(r.items) ? r.items : []).slice(0, 500).flatMap((i: any) => {
+    const name = str(i?.name, 200);
+    if (!name) return [];
+    return [{
+      vendor: str(i.vendor, 80), name, version: str(i.version, 80), available: str(i.available, 120),
+      status: PATCH_STATUS.includes(i.status) ? (i.status as PatchStatus) : 'update', kind: i.kind === 'os' ? ('os' as const) : ('app' as const),
+      detail: str(i.detail, 200),
+    }];
+  });
+  const count = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v < 1e6 ? Math.floor(v) : fallback);
+  return {
+    collected_at: str(r.collected_at, 40) ?? new Date().toISOString(),
+    scanner: str(r.scanner, 100) ?? 'unbekannt',
+    total: count(r.total, items.length),
+    critical: count(r.critical, items.filter((i) => i.status === 'critical').length),
+    security: count(r.security, items.filter((i) => i.status !== 'update').length),
+    reboot_required: typeof r.reboot_required === 'boolean' ? r.reboot_required : null,
+    last_installed_at: str(r.last_installed_at, 40),
+    items,
+    installed: (Array.isArray(r.installed) ? r.installed : []).slice(0, 30).flatMap((u: any) => {
+      const id = str(u?.id, 100);
+      return id ? [{ id, description: str(u.description, 200), installed_on: str(u.installed_on, 40) }] : [];
+    }),
+    notes: (Array.isArray(r.notes) ? r.notes : []).map((n: unknown) => str(n, 300)).filter((n: string | null): n is string => n !== null).slice(0, 10),
+  };
 }
 
 /** Freie Felder (Label/Wert) prüfen und normalisieren. */

@@ -216,11 +216,57 @@ async function applicationsTab(el, m) {
   draw();
 }
 
-/** Weitere Tabs (Einstellungen, Patches, …) kommen hier später dazu. */
+const PATCH_LABEL = { critical: 'Kritisch', security: 'Sicherheit', update: 'Update verfügbar' };
+const PATCH_KIND = { critical: 'bad', security: 'warn', update: 'accent' };
+
+/** Tab „Patches“: ausstehende Updates (Betriebssystem und Programme) und zuletzt installierte Updates; lädt erst beim Öffnen. */
+async function patchesTab(el, m) {
+  el.innerHTML = '<div class="skeleton" style="width:60%"></div>';
+  let data;
+  try {
+    data = await get(`/api/machines/${m.id}/patches`);
+  } catch (err) {
+    el.innerHTML = `<div class="card"><p class="error">${esc(err.message)}</p></div>`;
+    return;
+  }
+  const p = data.patches;
+  if (!p) {
+    el.innerHTML = `<div class="alert info"><span>Für diese Maschine liegt noch kein Patch-Stand vor. Der Agent (ab Version 0.12.0) prüft ihn kurz nach dem Start und danach alle 6 Stunden${m.agent_outdated ? ' – bitte unter „Maschinen“ den Agent aktualisieren' : ''}. Die erste Prüfung kann einige Minuten dauern.</span></div>`;
+    return;
+  }
+  const level = p.critical > 0 ? 'bad' : p.security > 0 ? 'warn' : 'ok';
+  const items = p.items ?? [];
+  el.innerHTML = `
+    <div class="stack">
+      <div class="card"><div class="card-head"><h2>Zusammenfassung</h2><span class="muted text-sm">Aktualisiert: ${esc(fmtDate(data.patches_at || p.collected_at))}</span></div>
+        ${rows([
+          ['Gesamtstatus', html(p.total === 0 ? badge('Aktuell', 'ok') : badge(p.critical ? 'Kritische Updates ausstehend' : p.security ? 'Sicherheitsupdates ausstehend' : 'Updates ausstehend', level))],
+          ['Ausstehende Updates', String(p.total)],
+          ['davon kritisch', String(p.critical)],
+          ['davon sicherheitsrelevant (inkl. kritisch)', String(p.security)],
+          ['Neustart erforderlich', p.reboot_required === null ? null : html(p.reboot_required ? badge('Ja', 'warn') : badge('Nein', 'ok'))],
+          ['Zuletzt installiert', p.last_installed_at],
+          ['Prüfverfahren', p.scanner],
+        ])}
+        ${(p.notes ?? []).map((n) => `<p class="muted text-sm" style="margin-top:var(--space-2)">${esc(n)}</p>`).join('')}
+      </div>
+      <div class="card"><div class="card-head"><h2>Ausstehende Updates ${p.total ? `<span class="muted text-sm">(${p.total}${p.total > items.length ? `, ${items.length} angezeigt` : ''})</span>` : ''}</h2></div>
+        ${items.length ? table(['Hersteller', 'Name', 'Installiert', 'Verfügbar', 'Art', 'Patch-Status'],
+          items.map((i) => [i.vendor, i.name, i.version, i.available, i.kind === 'os' ? 'System' : 'Programm', html(badge(PATCH_LABEL[i.status] || i.status, PATCH_KIND[i.status] || ''))]))
+          : '<p class="muted text-sm">Keine ausstehenden Updates gefunden.</p>'}
+        <p class="muted text-sm" style="margin-top:var(--space-3)">Gelistet wird nur, was ein Update braucht. Was hier nicht steht, ist nach Kenntnis des Systems aktuell – DevDeck führt keine Schwachstellen-Datenbank wie ein Hersteller-Scanner.</p>
+      </div>
+      ${(p.installed ?? []).length ? `<div class="card"><div class="card-head"><h2>Zuletzt installierte Updates</h2></div>
+        ${table(['Kennung', 'Beschreibung', 'Installiert am'], p.installed.map((u) => [u.id, u.description, u.installed_on]))}</div>` : ''}
+    </div>`;
+}
+
+/** Weitere Tabs (Einstellungen, Action-Log, …) kommen hier später dazu. */
 const TABS = [
   { key: 'main', label: 'Übersicht', render: mainTab },
   { key: 'inventory', label: 'Inventar', render: inventoryTab },
   { key: 'applications', label: 'Anwendungen', render: applicationsTab },
+  { key: 'patches', label: 'Patches', render: patchesTab },
 ];
 
 export async function renderMachineDetail(el, idAndQuery, setBreadcrumb) {
