@@ -136,9 +136,141 @@ async function linux(inv: MachineInventory): Promise<void> {
   inv.security.push(yesNo('TPM', fs.existsSync('/sys/class/tpm/tpm0'), true, 'Vorhanden', 'Nicht erkannt'));
   const reboot = fs.existsSync('/var/run/reboot-required');
   inv.security.push(reboot ? sec('Neustart ausstehend', 'Ja (Updates)', 'warn') : sec('Neustart ausstehend', 'Nein', 'ok'));
+  await linuxDetails(inv);
+}
+
+/** `lscpu`-Ausgabe → CPU-Details. */
+export function parseLscpu(text: string): NonNullable<MachineInventory['cpu']> {
+  const kv: Record<string, string> = {};
+  for (const line of text.split('\n')) {
+    const i = line.indexOf(':');
+    if (i > 0) kv[line.slice(0, i).trim()] = line.slice(i + 1).trim();
+  }
+  const sockets = Number(kv['Socket(s)']) || 1;
+  const perSocket = Number(kv['Core(s) per socket']);
+  const maxMhz = Number(kv['CPU max MHz']) || Number(kv['CPU MHz']) || 0;
+  const l2 = /([\d.]+)\s*(KiB|MiB)/i.exec(kv['L2 cache'] ?? '');
+  return {
+    name: clean(kv['Model name']), manufacturer: clean(kv['Vendor ID']), description: null,
+    cores: perSocket ? perSocket * sockets : null, threads: Number(kv['CPU(s)']) || null,
+    speed_ghz: maxMhz ? Math.round(maxMhz / 100) / 10 : null,
+    data_width: /64-bit/.test(kv['CPU op-mode(s)'] ?? '') ? 64 : /32-bit/.test(kv['CPU op-mode(s)'] ?? '') ? 32 : null,
+    l2_cache_kb: l2 ? Math.round(Number(l2[1]) * (l2[2]!.toLowerCase() === 'mib' ? 1024 : 1)) : null,
+    architecture: clean(kv.Architecture),
+  };
+}
+
+/** `dmidecode -t memory`-Ausgabe → Speichermodule (nur belegte Steckplätze). */
+export function parseDmidecodeMemory(text: string): NonNullable<MachineInventory['memory_modules']> {
+  const modules: NonNullable<MachineInventory['memory_modules']> = [];
+  for (const block of text.split(/\n\s*\n/)) {
+    if (!/^Memory Device/m.test(block)) continue;
+    const f = (k: string): string | null => clean(new RegExp(`^\\s*${k}:\\s*(.+)$`, 'm').exec(block)?.[1] ?? null);
+    const size = /^\s*Size:\s*(\d+)\s*(MB|GB)/m.exec(block);
+    if (!size) continue; // „No Module Installed“
+    const speed = /^\s*(?:Configured Memory Speed|Speed):\s*(\d+)/m.exec(block);
+    modules.push({
+      manufacturer: f('Manufacturer'), capacity_gb: size[2] === 'GB' ? Number(size[1]) : Math.round((Number(size[1]) / 1024) * 100) / 100,
+      part_number: f('Part Number'), locator: f('Locator'), form_factor: f('Form Factor'), speed_mhz: speed ? Number(speed[1]) : null,
+    });
+  }
+  return modules.slice(0, 64);
+}
+
+/** `ip -j addr`-Ausgabe → Netzwerkverbindungen (ohne Loopback und virtuelle Schnittstellen). */
+export function parseIpJson(json: string): NonNullable<MachineInventory['network_adapters']> {
+  try {
+    const list = JSON.parse(json) as Array<{ ifname: string; address?: string; operstate?: string; link_type?: string; addr_info?: Array<{ family: string; local: string }> }>;
+    return list
+      .filter((i) => i.link_type !== 'loopback' && !/^(lo|docker|veth|br-|virbr|tun|tap)/.test(i.ifname))
+      .map((i) => ({
+        name: i.ifname, mac: clean(i.address),
+        ipv4: (i.addr_info ?? []).filter((a) => a.family === 'inet').map((a) => a.local),
+        ipv6: (i.addr_info ?? []).filter((a) => a.family === 'inet6').map((a) => a.local),
+        connected: i.operstate === 'UP',
+      })).slice(0, 20);
+  } catch {
+    return [];
+  }
+}
+
+async function linuxDetails(inv: MachineInventory): Promise<void> {
+  const lscpu = await out('lscpu', [], 8_000);
+  if (lscpu) inv.cpu = parseLscpu(lscpu);
+  const dmi = (n: string): string | null => clean(readFile(`/sys/class/dmi/id/${n}`));
+  const biosVersion = dmi('bios_version');
+  if (biosVersion) {
+    inv.bios_info = { manufacturer: dmi('bios_vendor'), serial: dmi('product_serial'), smbios_version: null, version: biosVersion, release_date: dmi('bios_date'), software_id: null };
+  }
+  // Speichermodule brauchen Root (dmidecode); ohne Rechte bleibt die Liste leer
+  const mem = await out('dmidecode', ['-t', 'memory'], 8_000);
+  if (mem) inv.memory_modules = parseDmidecodeMemory(mem);
+  inv.network_adapters = parseIpJson(await out('ip', ['-j', 'addr'], 8_000));
+  const tpmVersion = readFile('/sys/class/tpm/tpm0/tpm_version_major');
+  if (tpmVersion) inv.security.push(sec('TPM-Spezifikation', `${tpmVersion}.0`, 'info'));
 }
 
 // ───────────────────────────── macOS ─────────────────────────────
+
+/** `ifconfig`-Ausgabe → Netzwerkverbindungen (nur enX-Schnittstellen mit MAC-Adresse). */
+export function parseIfconfig(text: string): NonNullable<MachineInventory['network_adapters']> {
+  const result: NonNullable<MachineInventory['network_adapters']> = [];
+  for (const block of text.split(/\n(?=\S)/)) {
+    const name = /^([a-z0-9]+):/.exec(block)?.[1];
+    const mac = /\sether\s+([0-9a-f:]{17})/i.exec(block)?.[1];
+    if (!name || !mac || !/^en\d+$/.test(name)) continue;
+    result.push({
+      name, mac,
+      ipv4: [...block.matchAll(/\sinet\s+([\d.]+)/g)].map((m) => m[1]!),
+      ipv6: [...block.matchAll(/\sinet6\s+([0-9a-f:]+)/gi)].map((m) => m[1]!),
+      connected: /status:\s*active/.test(block),
+    });
+  }
+  return result.slice(0, 20);
+}
+
+async function macDetails(inv: MachineInventory): Promise<void> {
+  const brand = await out('sysctl', ['-n', 'machdep.cpu.brand_string'], 5_000);
+  const cores = Number(await out('sysctl', ['-n', 'hw.physicalcpu'], 5_000)) || null;
+  const threads = Number(await out('sysctl', ['-n', 'hw.logicalcpu'], 5_000)) || null;
+  const hz = Number(await out('sysctl', ['-n', 'hw.cpufrequency_max'], 5_000)) || 0; // fehlt auf Apple Silicon
+  const l2 = Number(await out('sysctl', ['-n', 'hw.l2cachesize'], 5_000)) || 0;
+  inv.cpu = {
+    name: clean(brand) ?? inv.device.processor ?? null, manufacturer: /Apple/i.test(brand || inv.device.processor || '') ? 'Apple' : clean(await out('sysctl', ['-n', 'machdep.cpu.vendor'], 5_000)),
+    description: null, cores, threads, speed_ghz: hz ? Math.round(hz / 1e8) / 10 : null, data_width: 64,
+    l2_cache_kb: l2 ? Math.round(l2 / 1024) : null, architecture: os.arch(),
+  };
+  const hwJson = await out('system_profiler', ['SPHardwareDataType', '-json'], 30_000);
+  try {
+    const hw = (JSON.parse(hwJson) as { SPHardwareDataType?: Array<Record<string, string>> }).SPHardwareDataType?.[0];
+    inv.bios_info = { manufacturer: 'Apple', serial: clean(hw?.serial_number), smbios_version: null, version: clean(hw?.boot_rom_version), release_date: null, software_id: clean(hw?.machine_model) };
+  } catch {
+    /* leer lassen */
+  }
+  const memJson = await out('system_profiler', ['SPMemoryDataType', '-json'], 30_000);
+  try {
+    const m = (JSON.parse(memJson) as { SPMemoryDataType?: Array<Record<string, any>> }).SPMemoryDataType ?? [];
+    const modules: NonNullable<MachineInventory['memory_modules']> = [];
+    for (const entry of m) {
+      const items = Array.isArray(entry._items) ? entry._items : [];
+      for (const it of items) {
+        const size = /([\d.]+)\s*GB/i.exec(String(it.dimm_size ?? ''));
+        if (!size) continue;
+        const speed = /(\d+)/.exec(String(it.dimm_speed ?? ''));
+        modules.push({ manufacturer: clean(it.dimm_manufacturer), capacity_gb: Number(size[1]), part_number: clean(it.dimm_part_number), locator: clean(it._name), form_factor: clean(it.dimm_type), speed_mhz: speed ? Number(speed[1]) : null });
+      }
+      // Apple Silicon: ein gemeinsamer Arbeitsspeicher statt Steckplätze
+      if (!items.length && entry.SPMemoryDataType) {
+        const size = /([\d.]+)\s*GB/i.exec(String(entry.SPMemoryDataType));
+        if (size) modules.push({ manufacturer: clean(entry.dimm_manufacturer) ?? 'Apple', capacity_gb: Number(size[1]), part_number: null, locator: 'Unified Memory', form_factor: clean(entry.dimm_type), speed_mhz: null });
+      }
+    }
+    inv.memory_modules = modules.slice(0, 64);
+  } catch {
+    /* leer lassen */
+  }
+  inv.network_adapters = parseIfconfig(await out('ifconfig', [], 8_000));
+}
 
 async function mac(inv: MachineInventory): Promise<void> {
   const sp = await out('system_profiler', ['SPHardwareDataType', '-json'], 30_000);
@@ -180,6 +312,7 @@ async function mac(inv: MachineInventory): Promise<void> {
   inv.security.push(sip ? yesNo('Systemintegritätsschutz (SIP)', /enabled/i.test(sip), true, 'Aktiviert', 'Deaktiviert') : sec('Systemintegritätsschutz (SIP)', 'Unbekannt', 'unknown'));
   const gk = await out('spctl', ['--status'], 8_000);
   inv.security.push(gk ? yesNo('Gatekeeper', /enabled/i.test(gk), true, 'Aktiviert', 'Deaktiviert') : sec('Gatekeeper', 'Unbekannt', 'unknown'));
+  await macDetails(inv);
 }
 
 // ───────────────────────────── Windows ─────────────────────────────
@@ -205,7 +338,17 @@ $tpm = Try-Get { [bool](@(Get-PnpDevice -Class SecurityDevices | Where-Object { 
 $uac = Try-Get { (Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System').EnableLUA }
 $wuSvc = Try-Get { (Get-Service wuauserv).StartType.ToString() }
 $pending = Test-Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\WindowsUpdate\\Auto Update\\RebootRequired'
+$mem = @(Get-CimInstance Win32_PhysicalMemory | ForEach-Object { @{ manufacturer = $_.Manufacturer; capacity = [double]$_.Capacity; part = $_.PartNumber; locator = $_.DeviceLocator; form = [int]$_.FormFactor; speed = [int]$_.Speed } })
+$net = @(Try-Get { Get-NetAdapter -Physical | ForEach-Object { $ips = @(Get-NetIPAddress -InterfaceIndex $_.ifIndex); @{ name = $_.InterfaceDescription; mac = $_.MacAddress; up = ($_.Status -eq 'Up'); v4 = @($ips | Where-Object { $_.AddressFamily -eq 'IPv4' } | ForEach-Object { $_.IPAddress }); v6 = @($ips | Where-Object { $_.AddressFamily -eq 'IPv6' } | ForEach-Object { $_.IPAddress }) } } })
+$tpmDev = Try-Get { Get-PnpDevice -Class SecurityDevices | Where-Object { $_.FriendlyName -match 'Trusted Platform Module' } | Select-Object -First 1 }
+$tpmIds = if ($tpmDev) { Try-Get { (Get-PnpDeviceProperty -InstanceId $tpmDev.InstanceId -KeyName 'DEVPKEY_Device_HardwareIds').Data -join ',' } } else { $null }
+$extra = @{
+  cpuInfo = @{ name = $cpu.Name; manufacturer = $cpu.Manufacturer; description = $cpu.Description; cores = [int]$cpu.NumberOfCores; threads = [int]$cpu.NumberOfLogicalProcessors; mhz = [int]$cpu.MaxClockSpeed; width = [int]$cpu.DataWidth; l2 = [int]$cpu.L2CacheSize; arch = [int]$cpu.Architecture }
+  biosInfo = @{ manufacturer = $bios.Manufacturer; serial = $bios.SerialNumber; smbios = $bios.SMBIOSBIOSVersion; version = $bios.Version; date = $bios.ReleaseDate.ToString('yyyy-MM-dd'); softwareId = $bios.SoftwareElementID }
+  memory = $mem; nics = $net; tpmName = $tpmDev.FriendlyName; tpmIds = $tpmIds
+}
 @{
+  extra = $extra
   manufacturer = $cs.Manufacturer; model = $cs.Model; version = $csp.Version; serial = $bios.SerialNumber
   processor = $cpu.Name
   ram = [double]$cs.TotalPhysicalMemory
@@ -225,7 +368,17 @@ interface WinRaw {
   secureBoot?: boolean | null; firewall?: boolean[] | boolean | null; encryption?: number | null; av?: string[] | string | null;
   mpAv?: { enabled: boolean; realtime: boolean; sigAge: number; spyEnabled: boolean; spyAge: number } | null;
   tpm?: boolean | null; uac?: number | null; wuService?: string | null; rebootPending?: boolean;
+  extra?: {
+    cpuInfo?: { name?: string; manufacturer?: string; description?: string; cores?: number; threads?: number; mhz?: number; width?: number; l2?: number; arch?: number };
+    biosInfo?: { manufacturer?: string; serial?: string; smbios?: string; version?: string; date?: string; softwareId?: string };
+    memory?: Array<{ manufacturer?: string; capacity: number; part?: string; locator?: string; form?: number; speed?: number }> | { manufacturer?: string; capacity: number; part?: string; locator?: string; form?: number; speed?: number };
+    nics?: Array<{ name: string; mac?: string; up?: boolean; v4?: string[] | string; v6?: string[] | string }> | { name: string; mac?: string; up?: boolean; v4?: string[] | string; v6?: string[] | string };
+    tpmName?: string | null; tpmIds?: string | null;
+  };
 }
+
+const WIN_ARCH: Record<number, string> = { 0: 'x86', 5: 'ARM', 9: 'x64', 12: 'ARM64' };
+const WIN_FORM: Record<number, string> = { 8: 'DIMM', 12: 'SODIMM', 13: 'SRIMM', 14: 'SMD', 15: 'SSMP', 16: 'QFP', 17: 'TQFP', 18: 'SOIC', 19: 'LCC', 20: 'PLCC', 21: 'BGA' };
 
 /** PowerShell-JSON → Inventar (getrennt, damit es ohne Windows testbar ist). */
 export function mapWindows(raw: WinRaw, inv: MachineInventory): void {
@@ -262,6 +415,37 @@ export function mapWindows(raw: WinRaw, inv: MachineInventory): void {
   inv.security.push(raw.tpm == null ? sec('TPM', 'Unbekannt', 'unknown') : yesNo('TPM', raw.tpm, true, 'Vorhanden', 'Nicht vorhanden'));
   if (raw.wuService) inv.security.push(sec('Windows-Update-Dienst', raw.wuService === 'Disabled' ? 'Deaktiviert' : 'Aktiviert', raw.wuService === 'Disabled' ? 'bad' : 'ok'));
   inv.security.push(raw.rebootPending ? sec('Neustart ausstehend', 'Ja (Updates)', 'warn') : sec('Neustart ausstehend', 'Nein', 'ok'));
+
+  const x = raw.extra;
+  if (x) {
+    const c = x.cpuInfo;
+    if (c) {
+      inv.cpu = {
+        name: clean(c.name?.replace(/\s+/g, ' ')), manufacturer: clean(c.manufacturer), description: clean(c.description),
+        cores: c.cores || null, threads: c.threads || null, speed_ghz: c.mhz ? Math.round(c.mhz / 100) / 10 : null,
+        data_width: c.width || null, l2_cache_kb: c.l2 || null, architecture: c.arch !== undefined ? (WIN_ARCH[c.arch] ?? String(c.arch)) : null,
+      };
+    }
+    const b = x.biosInfo;
+    if (b) {
+      inv.bios_info = {
+        manufacturer: clean(b.manufacturer), serial: clean(b.serial), smbios_version: clean(b.smbios), version: clean(b.version),
+        release_date: clean(b.date), software_id: clean(b.softwareId),
+      };
+    }
+    inv.memory_modules = arr(x.memory).map((m) => ({
+      manufacturer: clean(m.manufacturer), capacity_gb: gb(m.capacity, 2), part_number: clean(m.part), locator: clean(m.locator),
+      form_factor: m.form ? (WIN_FORM[m.form] ?? String(m.form)) : null, speed_mhz: m.speed || null,
+    })).slice(0, 64);
+    inv.network_adapters = arr(x.nics).map((n) => ({
+      name: n.name, mac: clean(n.mac?.replace(/-/g, ':')), ipv4: arr(n.v4), ipv6: arr(n.v6), connected: Boolean(n.up),
+    })).slice(0, 20);
+    // TPM-Details ohne Adminrechte: Hersteller-Kürzel aus der Hardware-ID (ACPI\VEN_IFX), Spezifikation aus dem Gerätenamen
+    const vendor = /VEN_([A-Z0-9]{3,4})/.exec(x.tpmIds ?? '')?.[1];
+    if (vendor) inv.security.push(sec('TPM-Hersteller', vendor, 'info'));
+    const spec = /(\d+\.\d+)\s*$/.exec(x.tpmName ?? '')?.[1];
+    if (spec) inv.security.push(sec('TPM-Spezifikation', spec, 'info'));
+  }
 }
 
 async function windows(inv: MachineInventory): Promise<void> {

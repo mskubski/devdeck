@@ -30,6 +30,10 @@ describe('Maschinen-Inventar (Server)', () => {
     network: { ips: ['192.168.1.5'] },
     runtime: { boot_time: '2026-10-22T18:02:51.000Z', node: 'v22' },
     secrets: { token: 'darf nicht gespeichert werden' },
+    cpu: { name: 'i9', cores: 8, threads: 16, speed_ghz: 3.5, architecture: 'x64', evil: 1 },
+    bios_info: { manufacturer: 'HP', release_date: '2025-09-01' },
+    memory_modules: [{ manufacturer: 'Samsung', capacity_gb: 16, locator: 'DIMM1', speed_mhz: 3200 }, { manufacturer: 'ohne Größe' }],
+    network_adapters: [{ name: 'eth0', mac: 'aa:bb', ipv4: ['10.0.0.2'], ipv6: [], connected: true }, { mac: 'ohne Name' }],
   };
 
   it('speichert das Inventar aus dem Heartbeat bereinigt und liefert es im Detail', async () => {
@@ -48,6 +52,16 @@ describe('Maschinen-Inventar (Server)', () => {
     expect(inv.security.map((s: { level: string }) => s.level)).toEqual(['ok', 'unknown']);
     expect(res.body.data.inventory_at).toBeTruthy();
     expect(res.body.data.custom_fields).toEqual([]);
+  });
+
+  it('übernimmt Detail-Inventar (CPU, BIOS, Speicher, Netzwerk) bereinigt', async () => {
+    await srv.request('POST', '/api/agent/heartbeat', { token: machineToken, body: { agent_version: '0.10.0', inventory } });
+    const inv = (await srv.request('GET', `/api/machines/${machineId}`, { cookie })).body.data.inventory;
+    expect(inv.cpu).toMatchObject({ name: 'i9', cores: 8, threads: 16, speed_ghz: 3.5 });
+    expect(inv.cpu.evil).toBeUndefined();
+    expect(inv.bios_info).toMatchObject({ manufacturer: 'HP', release_date: '2025-09-01' });
+    expect(inv.memory_modules).toHaveLength(1);
+    expect(inv.network_adapters).toEqual([{ name: 'eth0', mac: 'aa:bb', ipv4: ['10.0.0.2'], ipv6: [], connected: true }]);
   });
 
   it('behält das letzte Inventar, wenn ein Heartbeat keines mitbringt', async () => {

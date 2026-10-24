@@ -14,6 +14,19 @@ function rows(pairs) {
   return `<dl class="kv">${items.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v?.__html ?? esc(v)}</dd>`).join('')}</dl>`;
 }
 
+/** Sicherheitsliste: farbiger Punkt je Bewertung; „info“ ohne Bewertung, „unknown“ grau. */
+function securityList(items) {
+  if (!(items ?? []).length) return '<p class="muted text-sm">Keine Angaben.</p>';
+  const value = (s) => (s.level === 'unknown' ? `<span class="muted">${esc(s.value)}</span>`
+    : s.level === 'info' ? esc(s.value) : `<span class="lvl ${esc(s.level)}">●</span> ${esc(s.value)}`);
+  return `<dl class="kv">${items.map((s) => `<dt>${esc(s.label)}</dt><dd>${value(s)}</dd>`).join('')}</dl>`;
+}
+
+function table(head, bodyRows) {
+  if (!bodyRows.length) return '<p class="muted text-sm">Keine Angaben.</p>';
+  return `<div class="table-wrap"><table><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${bodyRows.map((r) => `<tr>${r.map((c) => `<td>${c?.__html ?? esc(c ?? '–')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+
 function diskBar(d) {
   const used = Math.max(0, d.total_gb - d.free_gb);
   const pct = d.total_gb > 0 ? Math.round((used / d.total_gb) * 100) : 0;
@@ -33,9 +46,7 @@ function mainTab(el, m, inv, reload) {
     ? `<div class="alert info"><span>Für diese Maschine liegt noch kein Inventar vor. Der Agent (ab Version 0.9.0) meldet es kurz nach dem Start und danach alle 15 Minuten.${m.agent_status === 'online' && m.agent_outdated ? ' Bitte den Agent aktualisieren.' : ''}</span></div>`
     : '';
 
-  const security = (inv?.security ?? []).length
-    ? `<dl class="kv">${inv.security.map((s) => `<dt>${esc(s.label)}</dt><dd>${s.level === 'unknown' ? `<span class="muted">${esc(s.value)}</span>` : `<span class="lvl ${esc(s.level)}">●</span> ${esc(s.value)}`}</dd>`).join('')}</dl>`
-    : '<p class="muted text-sm">Keine Angaben.</p>';
+  const security = securityList(inv?.security);
 
   const fields = m.custom_fields ?? [];
   el.innerHTML = `
@@ -109,8 +120,52 @@ function mainTab(el, m, inv, reload) {
   });
 }
 
-/** Weitere Tabs (Einstellungen, Anwendungen, Patches, Inventar, …) kommen hier später dazu. */
-const TABS = [{ key: 'main', label: 'Übersicht', render: mainTab }];
+/** Tab „Inventar“: Hardware- und Systemdetails, je Abschnitt mit Zeitstempel der letzten Erfassung. */
+function inventoryTab(el, m, inv) {
+  if (!inv) {
+    el.innerHTML = '<div class="alert info"><span>Für diese Maschine liegt noch kein Inventar vor. Der Agent (ab Version 0.10.0) meldet es kurz nach dem Start und danach alle 15 Minuten.</span></div>';
+    return;
+  }
+  const updated = `<span class="muted text-sm">Aktualisiert: ${esc(fmtDate(m.inventory_at || inv.collected_at))}</span>`;
+  const section = (title, body) => `<div class="card"><div class="card-head"><h2>${esc(title)}</h2>${updated}</div>${body}</div>`;
+  const d = inv.device ?? {};
+  const c = inv.cpu;
+  const b = inv.bios_info;
+  const olderAgent = !inv.cpu && !inv.bios_info && !(inv.memory_modules ?? []).length && !(inv.network_adapters ?? []).length;
+  el.innerHTML = `
+    ${olderAgent ? '<div class="alert info"><span>Prozessor-, BIOS-, Speicher- und Netzwerkdetails liefert der Agent ab Version 0.10.0 – bitte unter „Maschinen“ den Agent aktualisieren.</span></div>' : ''}
+    <div class="stack">
+      ${section('Gerät', rows([
+        ['Computername', inv.hostname], ['Hersteller', d.manufacturer], ['Modell', d.model], ['Version', d.version],
+        ['Prozessor', d.processor], ['Seriennummer', d.serial], ['Arbeitsspeicher (RAM)', d.ram_gb ? `${d.ram_gb} GB` : null], ['BIOS', d.bios],
+      ]))}
+      ${section('Sicherheit', securityList(inv.security))}
+      ${section('Prozessor (CPU)', c ? rows([
+        ['Name', c.name], ['Hersteller', c.manufacturer], ['Beschreibung', c.description],
+        ['Kerne', c.cores ? (c.threads && c.threads !== c.cores ? `${c.cores} (${c.threads} Threads)` : String(c.cores)) : null],
+        ['Taktrate', c.speed_ghz ? `${c.speed_ghz} GHz` : null], ['Datenbreite', c.data_width ? `${c.data_width} Bit` : null],
+        ['L2-Cache', c.l2_cache_kb ? (c.l2_cache_kb >= 1024 ? `${(c.l2_cache_kb / 1024).toFixed(c.l2_cache_kb % 1024 ? 1 : 0)} MB` : `${c.l2_cache_kb} KB`) : null],
+        ['Architektur', c.architecture],
+      ]) : '<p class="muted text-sm">Keine Angaben.</p>')}
+      ${section('BIOS', b ? rows([
+        ['Hersteller', b.manufacturer], ['Seriennummer', b.serial], ['SMBIOS-Version', b.smbios_version], ['Version', b.version],
+        ['Veröffentlicht', b.release_date], ['Software-Kennung', b.software_id],
+      ]) : '<p class="muted text-sm">Keine Angaben.</p>')}
+      ${section('Speichermodule', (inv.memory_modules ?? []).length
+        ? table(['Hersteller', 'Kapazität', 'Teilenummer', 'Steckplatz', 'Bauform', 'Geschwindigkeit'],
+          inv.memory_modules.map((r) => [r.manufacturer, `${r.capacity_gb} GB`, r.part_number, r.locator, r.form_factor, r.speed_mhz ? `${r.speed_mhz} MHz` : null]))
+        : '<p class="muted text-sm">Keine Angaben – unter Linux braucht das Auslesen der Module Root-Rechte (dmidecode).</p>')}
+      ${section('Netzwerkverbindungen', table(['Name', 'MAC-Adresse', 'IPv4-Adresse', 'IPv6-Adresse', 'Verbunden'],
+        (inv.network_adapters ?? []).map((n) => [n.name, n.mac, n.ipv4.join(', ') || null, n.ipv6.join(', ') || null,
+          html(n.connected ? badge('Ja', 'ok') : badge('Nein', 'bad'))])))}
+    </div>`;
+}
+
+/** Weitere Tabs (Einstellungen, Anwendungen, Patches, …) kommen hier später dazu. */
+const TABS = [
+  { key: 'main', label: 'Übersicht', render: mainTab },
+  { key: 'inventory', label: 'Inventar', render: inventoryTab },
+];
 
 export async function renderMachineDetail(el, idAndQuery, setBreadcrumb) {
   const [id, qs] = idAndQuery.split('?');
