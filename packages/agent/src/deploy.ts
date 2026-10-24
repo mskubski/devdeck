@@ -55,6 +55,10 @@ async function runCmd(cmd: string, args: string[], cwd: string, timeout = 60_000
   }
 }
 
+/** Die ersten Dateinamen für Fehlermeldungen (die vollständige Liste steht nur in den Details). */
+export const fileList = (files: string[], max = 5): string =>
+  files.slice(0, max).join(', ') + (files.length > max ? ` … (+${files.length - max})` : '');
+
 const tail = (s: string, n = 300): string => s.trim().split('\n').slice(-4).join(' | ').slice(-n);
 
 export interface DeployOutcome {
@@ -105,7 +109,7 @@ export async function runDeploy(
 
   const state = await gitStatus(root);
   if (state.dirty) {
-    throw new AppError('GIT_DIRTY', `STOP: ${state.files.length} lokale, nicht committete Änderung(en) – Deploy abgebrochen, nichts verändert.`, {
+    throw new AppError('GIT_DIRTY', `STOP: ${state.files.length} lokale, nicht committete Änderung(en): ${fileList(state.files)} – Deploy abgebrochen, nichts verändert.`, {
       files: state.files.slice(0, 20),
     });
   }

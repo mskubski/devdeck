@@ -133,7 +133,7 @@ describe('runDeploy', () => {
   it('bricht bei lokalen Änderungen ab, ohne etwas zu verändern', async () => {
     push('app.py', 'v2\n');
     fs.writeFileSync(path.join(work, 'app.py'), 'lokal\n');
-    await expect(runDeploy(work, 'main', deps())).rejects.toMatchObject({ code: 'GIT_DIRTY' });
+    await expect(runDeploy(work, 'main', deps())).rejects.toMatchObject({ code: 'GIT_DIRTY', message: expect.stringContaining('app.py') });
     expect(calls).toEqual([]);
     expect(read('app.py')).toBe('lokal\n');
   });

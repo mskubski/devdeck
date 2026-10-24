@@ -9,6 +9,7 @@ import { buildReadiness } from '../readiness.js';
 import { installDependencies, lockfileHash } from '../dependencies.js';
 import { writeContextFiles } from '../contextFiles.js';
 import { collectFacts } from '../facts.js';
+import { fileList } from '../deploy.js';
 
 /**
  * workspace.sync – SICHERER Workspace-Sync (Spezifikation §10):
@@ -31,7 +32,7 @@ registerAction('workspace.sync', async (ctx) => {
   if (gitState.dirty) {
     throw new AppError(
       'GIT_DIRTY',
-      `STOP: ${gitState.files.length} lokale, nicht committete Änderung(en). ` +
+      `STOP: ${gitState.files.length} lokale, nicht committete Änderung(en): ${fileList(gitState.files)}. ` +
         'Es wurde nichts verändert – bitte committen oder stashen und erneut syncen.',
       { files: gitState.files.slice(0, 50) },
     );
