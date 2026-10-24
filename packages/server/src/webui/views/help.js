@@ -138,6 +138,27 @@ npm run build</pre>
         <span class="mono">devdeck-agent</span>-Kommando sind Teil der noch ausstehenden DevDeck-CLI-Phase –
         aktuell startet man den Agenten direkt per <span class="mono">node .../dist/index.js</span>.</p>
 
+        <h3>Die drei Knöpfe pro Maschine</h3>
+        <table><thead><tr><th>Knopf</th><th>Was passiert genau?</th><th>Voraussetzung</th></tr></thead><tbody>
+          <tr><td><strong>Agent updaten</strong></td>
+            <td>Beauftragt den Agenten, sich selbst zu aktualisieren: <code>git fetch</code> von <code>origin/main</code> (nur Fast-Forward, bei Bedarf Wechsel auf <code>main</code>),
+              bei Bedarf Abhängigkeiten installieren (<code>npm ci</code>) und Build, dann ein Probelauf des neuen Codes und zuletzt der Neustart des Agenten. Scheitert Build oder Probelauf (oder liegen lokale Änderungen vor),
+              wird alles zurückgerollt und der alte Agent läuft weiter. Der Agent ist während des Neustarts kurz offline. Andere Maschinen und der Server bleiben unberührt –
+              den Server aktualisierst du unter <em>System</em>.</td>
+            <td>Maschine online, Agent mit Selbst-Update (sonst erscheint „Update-Anleitung“ für die einmalige manuelle Aktualisierung)</td></tr>
+          <tr><td><strong>Root ändern</strong></td>
+            <td>Ändert den <em>Workspace-Root</em> der Maschine, also das Verzeichnis, unter dem der Agent arbeiten darf. Der neue absolute Pfad wird auf der Maschine gespeichert
+              (fehlendes Verzeichnis wird angelegt) und gilt sofort, ohne Neustart. Bestehende Dateien und Workspaces werden <em>nicht</em> verschoben oder gelöscht;
+              Workspaces außerhalb des neuen Roots lassen sich allerdings nicht mehr synchronisieren/provisionieren, bis ihr Pfad angepasst wird.</td>
+            <td>Maschine online, Agent mit Selbst-Update</td></tr>
+          <tr><td><strong>Widerrufen</strong></td>
+            <td>Entzieht der Maschine <em>sofort und dauerhaft</em> den Zugriff auf DevDeck: Das Agent-Token wird ungültig, wartende und laufende Aufträge werden abgebrochen,
+              die zugehörigen Workspaces stehen auf „offline“. Die Maschine bleibt mit Status „revoked“ in der Liste (Nachvollziehbarkeit, Audit-Eintrag). Es wird <em>nichts gelöscht</em> –
+              weder Daten auf dem Rechner noch Workspaces oder Projekte in DevDeck. Rückgängig geht nicht: Zum erneuten Verbinden einen neuen Enrollment-Token erzeugen und den Agenten
+              neu registrieren (<code>enroll</code>). Der Knopf erscheint für Besitzer der Maschine und Admins und verlangt eine Bestätigung.</td>
+            <td>Maschine nicht bereits widerrufen</td></tr>
+        </tbody></table>
+
         <p>Der DevDeck Agent führt danach ausschließlich diese fest definierten Aktionen aus – es gibt
         <strong>keine generische Remote-Shell</strong>:</p>
         <ul>
