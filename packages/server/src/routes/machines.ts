@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
-import { AppError, agentSupportsAction, compareVersions, isAgentOutdated, supportsSelfUpdate, type MachineApplication, type MachineApplicationsDto, type MachineAutostart, type MachineCustomField, type MachineDetailDto, type MachineDto, type MachineInventory, type MachineLogsDto, type MachinePatches, type MachinePatchesDto, type ProjectRole } from '@devdeck/shared';
+import { AppError, MAX_PATCH_INSTALL_IDS, PATCH_ID_PATTERN, agentSupportsAction, compareVersions, isAgentOutdated, supportsSelfUpdate, type MachineApplication, type MachineApplicationsDto, type MachineAutostart, type MachineCustomField, type MachineDetailDto, type MachineDto, type MachineInventory, type MachineLogsDto, type MachinePatchInstallOutcome, type MachineSecurityAlert, type MachinePatches, type MachinePatchesDto, type ProjectRole } from '@devdeck/shared';
 import {
   asyncHandler,
   clientIp,
@@ -61,6 +61,7 @@ function toMachineDto(row: MachineRecord, db: Database): MachineDto {
     created_at: row.created_at,
     autostart: parseAutostart(row.autostart_json),
     agent_can_autostart: agentSupportsAction(row.agent_version, 'agent.autostart'),
+    agent_can_install_patches: agentSupportsAction(row.agent_version, 'patches.install'),
   };
 }
 
@@ -234,6 +235,29 @@ export function machineRoutes(ctx: AppContext): Router {
       const data: MachineLogsDto = {
         entries, sources, total: sources.reduce((n, s) => n + s.count, 0), logs_at: meta?.logs_at ?? null, notes, retention_days: LOG_RETENTION_DAYS,
       };
+      res.json({ data });
+    }),
+  );
+
+  // Maschinen mit ausstehenden sicherheitsrelevanten Updates (für die Anzeige in der Kopfleiste); nur Maschinen, auf die der Benutzer Zugriff hat
+  router.get(
+    '/security-summary',
+    asyncHandler(async (req, res) => {
+      const user = req.user!;
+      const scope = user.system_role === 'admin'
+        ? ''
+        : `AND (owner_user_id = ? OR id IN (SELECT machine_id FROM workspaces WHERE project_id IN (SELECT project_id FROM project_members WHERE user_id = ?)))`;
+      const rows = db.all<{ id: string; name: string; security: number; critical: number | null; reboot: number | null }>(
+        `SELECT id, name, json_extract(patches_json, '$.security') AS security, json_extract(patches_json, '$.critical') AS critical,
+                json_extract(patches_json, '$.reboot_required') AS reboot
+         FROM machines
+         WHERE revoked_at IS NULL AND patches_json IS NOT NULL AND json_extract(patches_json, '$.security') > 0 ${scope}
+         ORDER BY critical DESC, security DESC, name`,
+        ...(user.system_role === 'admin' ? [] : [user.id, user.id]),
+      );
+      const data: MachineSecurityAlert[] = rows.map((r) => ({
+        id: r.id, name: r.name, security: r.security, critical: r.critical ?? 0, reboot_required: r.reboot === null ? null : Boolean(r.reboot),
+      }));
       res.json({ data });
     }),
   );
@@ -439,6 +463,47 @@ export function machineRoutes(ctx: AppContext): Router {
     }),
   );
 
+  // Ausgewählte Updates installieren (Betriebssystem und Programme). Ein Neustart wird nie ausgelöst, nur gemeldet.
+  router.post(
+    '/:id/patches/install',
+    asyncHandler(async (req, res) => {
+      const user = req.user!;
+      const id = param(req, 'id')!;
+      const row = db.get<MachineRecord>(`SELECT ${MACHINE_COLUMNS} FROM machines WHERE id = ?`, id);
+      if (!row) throw new AppError('NOT_FOUND', 'Maschine nicht gefunden');
+      if (row.owner_user_id !== user.id && user.system_role !== 'admin') {
+        throw new AppError('FORBIDDEN', 'Nur Besitzer oder admin darf Updates installieren');
+      }
+      const ids: unknown = req.body?.ids;
+      if (!Array.isArray(ids) || ids.length === 0 || ids.length > MAX_PATCH_INSTALL_IDS
+        || !ids.every((i) => typeof i === 'string' && PATCH_ID_PATTERN.test(i))) {
+        throw new AppError('VALIDATION', `ids: 1 bis ${MAX_PATCH_INSTALL_IDS} gültige Update-Kennungen erwartet`);
+      }
+      if (row.revoked_at) throw new AppError('AGENT_OFFLINE', 'Maschine ist widerrufen');
+      if (row.agent_status !== 'online') throw new AppError('AGENT_OFFLINE', 'Maschine ist nicht online');
+      if (!agentSupportsAction(row.agent_version, 'patches.install')) {
+        throw new AppError('VALIDATION', 'Dieser Agent kann noch keine Updates installieren – bitte zuerst den Agent aktualisieren.');
+      }
+      const busy = db.get(`SELECT 1 AS x FROM agent_commands WHERE machine_id = ? AND action = 'patches.install' AND status IN ('queued', 'running')`, id);
+      if (busy) throw new AppError('CONFLICT', 'Auf dieser Maschine läuft bereits eine Update-Installation');
+      const unique = [...new Set(ids as string[])];
+      const commandId = enqueueCommand(db, { machineId: id, action: 'patches.install', payload: { ids: unique }, requestedBy: user.id, ttlSeconds: 600 });
+      audit(db, {
+        actor_type: 'user',
+        actor_id: user.id,
+        actor_label: user.email,
+        action: 'machine.patches.install',
+        machine_id: id,
+        target_type: 'machine',
+        target_id: id,
+        result: 'success',
+        detail: { command_id: commandId, count: unique.length, ids: unique.slice(0, 20) },
+        ip: clientIp(req),
+      });
+      res.status(202).json({ data: { command_id: commandId } });
+    }),
+  );
+
   // Status eines Befehls (für UI-Rückmeldung)
   router.get(
     '/:id/commands/:commandId',
@@ -450,13 +515,28 @@ export function machineRoutes(ctx: AppContext): Router {
       if (row.owner_user_id !== user.id && user.system_role !== 'admin') {
         throw new AppError('FORBIDDEN', 'Kein Zugriff auf diese Maschine');
       }
-      const cmd = db.get<{ id: string; status: string; error: string | null; result_json: string | null }>(
-        'SELECT id, status, error, result_json FROM agent_commands WHERE id = ? AND machine_id = ?',
+      const cmd = db.get<{ id: string; action: string; status: string; error: string | null; result_json: string | null }>(
+        'SELECT id, action, status, error, result_json FROM agent_commands WHERE id = ? AND machine_id = ?',
         param(req, 'commandId')!,
         id,
       );
       if (!cmd) throw new AppError('NOT_FOUND', 'Befehl nicht gefunden');
-      res.json({ data: { id: cmd.id, status: cmd.status, error: cmd.error } });
+      let outcome: MachinePatchInstallOutcome | null = null;
+      if (cmd.action === 'patches.install' && cmd.status === 'done' && cmd.result_json) {
+        try {
+          const raw = JSON.parse(cmd.result_json) as { results?: unknown; reboot_required?: unknown };
+          outcome = {
+            results: (Array.isArray(raw.results) ? raw.results : []).slice(0, MAX_PATCH_INSTALL_IDS).map((r: any) => ({
+              id: String(r?.id ?? '').slice(0, 120), name: typeof r?.name === 'string' ? r.name.slice(0, 200) : null,
+              ok: r?.ok === true, message: String(r?.message ?? '').slice(0, 300),
+            })),
+            reboot_required: typeof raw.reboot_required === 'boolean' ? raw.reboot_required : null,
+          };
+        } catch {
+          outcome = null;
+        }
+      }
+      res.json({ data: { id: cmd.id, status: cmd.status, error: cmd.error, ...(outcome ? { outcome } : {}) } });
     }),
   );
 

@@ -123,6 +123,8 @@ export interface MachineDto {
   autostart: MachineAutostart | null;
   /** Agent kennt `agent.autostart` (≥ 0.14.0) */
   agent_can_autostart: boolean;
+  /** Agent kann Updates installieren (`patches.install`, ≥ 0.15.0) */
+  agent_can_install_patches: boolean;
 }
 
 /** Autostart-Zustand des Agents auf der Maschine. */
@@ -229,6 +231,8 @@ export interface MachinePatchItem {
   status: PatchStatus;
   kind: 'os' | 'app';
   detail: string | null;
+  /** Kennung, mit der der Agent das Update installiert (Windows: Update-ID bzw. winget-ID, Linux: Paketname, macOS: Label bzw. Formelname); ab Agent 0.15.0 */
+  id?: string | null;
 }
 
 export interface MachineInstalledUpdate {
@@ -249,6 +253,30 @@ export interface MachinePatches {
   items: MachinePatchItem[];
   installed: MachineInstalledUpdate[];
   notes: string[];
+}
+
+/** Ergebnis der Installation eines einzelnen Updates. */
+export interface MachinePatchInstallResult {
+  id: string;
+  name: string | null;
+  ok: boolean;
+  message: string;
+}
+
+/** Ausgang eines Installationsauftrags (Antwort auf den Befehlsstatus). */
+export interface MachinePatchInstallOutcome {
+  results: MachinePatchInstallResult[];
+  /** Neustart nötig (wird nie automatisch ausgeführt) */
+  reboot_required: boolean | null;
+}
+
+/** Maschine mit ausstehenden sicherheitsrelevanten Updates (für die Anzeige in der Kopfleiste). */
+export interface MachineSecurityAlert {
+  id: string;
+  name: string;
+  security: number;
+  critical: number;
+  reboot_required: boolean | null;
 }
 
 export interface MachinePatchesDto {

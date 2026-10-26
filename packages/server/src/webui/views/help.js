@@ -229,6 +229,18 @@ npm run build</pre>
         <strong>Aufbewahrung:</strong> Einträge werden <strong>30 Tage</strong> gespeichert und danach automatisch gelöscht (beim Eintreffen neuer Logs und alle 6 Stunden); zusätzlich gilt eine Obergrenze von 5000 Einträgen je Maschine (die ältesten fallen zuerst weg), damit die Datenbank nicht überläuft.
         Meldungen werden auf 600 Zeichen gekürzt. Logs können versehentlich sensible Angaben enthalten (Pfade, Benutzernamen) – sie sind nur für Berechtigte der Maschine sichtbar.</p>
 
+        <h3>Updates installieren (Tab „Patches“) und Sicherheitshinweis</h3>
+        <p>Im Tab <em>Patches</em> lassen sich ausstehende Updates direkt installieren: je Zeile mit dem Download-Symbol <strong>einzeln</strong> oder per Häkchen <strong>mehrere auf einmal</strong> („Alle auswählen“, „Sicherheitsupdates“, dann „… installieren“).
+        Vor dem Start fragt DevDeck nach; die Installation läuft auf der Maschine, der Fortschritt wird angezeigt, danach steht je Update „Installiert“ oder „Fehlgeschlagen“ mit der Meldung des Systems da.
+        <strong>Ein nötiger Neustart wird nie ausgeführt</strong> – er wird nur als Hinweis angezeigt („Neustart erforderlich – manuell am Computer durchführen“).
+        Voraussetzungen: Besitzer/Admin der Maschine, Maschine online, Agent ab 0.15.0. Der Agent installiert ausschließlich Updates, die eine frische Prüfung als ausstehend meldet, und führt nie eigene Befehle aus.
+        <strong>Windows:</strong> Windows-Updates über den Windows Update Agent – dafür muss der Agent mit <em>Administratorrechten</em> laufen; Programm-Updates über <code>winget</code>.
+        <strong>Linux:</strong> <code>apt</code> bzw. <code>dnf</code> (Arch/pacman nicht, Teil-Updates sind dort nicht empfohlen); der Agent braucht Root-Rechte oder eine <code>sudo</code>-Regel ohne Passwort (<code>NOPASSWD</code>) für den Paketmanager.
+        <strong>macOS:</strong> <code>softwareupdate</code> (sudo ohne Passwort nötig) und Homebrew.
+        Wo etwas fehlt, steht der Grund in der Meldung beim jeweiligen Update.</p>
+        <p><strong>Sicherheitshinweis in der Kopfleiste:</strong> Gibt es auf einer Maschine, auf die du Zugriff hast, ausstehende <em>sicherheitsrelevante</em> Updates (kritisch oder Sicherheit), erscheint ganz oben ein Schild-Symbol mit der Anzahl der betroffenen Maschinen
+        (rot, wenn kritische dabei sind). Ein Klick listet die Maschinen; ein Eintrag öffnet direkt deren Tab <em>Patches</em>. Die Anzeige verschwindet, sobald die Updates installiert sind.</p>
+
         <h3>Schalter „Autostart“ pro Maschine</h3>
         <p>Der Schalter <strong>Autostart</strong> (in der Maschinenliste und unter <em>Übersicht → Verwaltung</em>) legt fest, ob der Agent auf der Maschine beim Hochfahren bzw. Anmelden von selbst startet. Einschalten nimmt den Agenten in den Autostart auf,
         Ausschalten entfernt den Eintrag wieder – der gerade laufende Agent wird dabei weder gestoppt noch doppelt gestartet. Umgesetzt wird es je System ohne Administratorrechte:

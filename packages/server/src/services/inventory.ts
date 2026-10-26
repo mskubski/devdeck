@@ -120,7 +120,7 @@ export function sanitizePatches(raw: unknown): MachinePatches | null {
     return [{
       vendor: str(i.vendor, 80), name, version: str(i.version, 80), available: str(i.available, 120),
       status: PATCH_STATUS.includes(i.status) ? (i.status as PatchStatus) : 'update', kind: i.kind === 'os' ? ('os' as const) : ('app' as const),
-      detail: str(i.detail, 200),
+      detail: str(i.detail, 200), id: str(i.id, 120),
     }];
   });
   const count = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v < 1e6 ? Math.floor(v) : fallback);

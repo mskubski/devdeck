@@ -3,6 +3,9 @@
 ## Unreleased - 2026-10-23
 
 ### Added
+- **Updates installieren** im Tab „Patches“ (Agent 0.15.0): einzeln oder mehrere auf einmal, für Windows (Windows Update Agent, winget), Linux (apt, dnf) und macOS (softwareupdate, Homebrew). Zulässig ist nur, was eine frische Prüfung als ausstehend meldet (Allowlist-Aktion `patches.install`, strenge Kennungsprüfung, keine Shell);
+  ein nötiger Neustart wird nie ausgeführt, nur angezeigt. Ergebnis je Update, sofort aktualisierter Patch-Stand. Voraussetzungen: Windows-Agent mit Administratorrechten, Linux/macOS Root oder sudo ohne Passwort. API `POST /api/machines/:id/patches/install`, Audit-Eintrag.
+- **Sicherheitshinweis in der Kopfleiste**: Schild-Symbol mit Anzahl der Maschinen mit ausstehenden sicherheitsrelevanten Updates (rot bei kritischen), Klick listet sie und führt zum Tab „Patches“. API `GET /api/machines/security-summary`.
 - **Schalter „Autostart“ je Maschine** (Maschinenliste und Detailseite, Agent 0.14.0, Migration v17): nimmt den Agent in den Autostart auf bzw. wieder heraus – Windows: Run-Eintrag des Benutzers (ohne Fenster), Linux: systemd-Benutzerdienst, macOS: LaunchAgent; ohne Administratorrechte, der laufende Agent wird nicht gestoppt oder doppelt gestartet.
   Neue Agent-Aktion `agent.autostart`, Zustand kommt per Heartbeat (stündlich) bzw. sofort nach dem Umschalten; API `POST /api/machines/:id/autostart {enabled}` (Besitzer/Admin, Audit-Eintrag).
 - **GitHub-Issue-Abgleich** (Integrationen → GitHub-Konnektor → „Issue-Abgleich einschalten“, Migration v18): Tasks und Known Issues werden in beide Richtungen mit den GitHub Issues synchronisiert – lokale Änderungen nach wenigen Sekunden,

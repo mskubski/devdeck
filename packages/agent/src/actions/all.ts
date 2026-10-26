@@ -15,4 +15,5 @@ import './codingAgentStart.js';
 import './agentConfigure.js';
 import './agentUpdate.js';
 import './agentAutostart.js';
+import './patchesInstall.js';
 import './projectImport.js';

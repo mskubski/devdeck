@@ -25,10 +25,10 @@ const clean = (v: unknown): string | null => {
 };
 
 const item = (
-  vendor: unknown, name: unknown, version: unknown, available: unknown, status: PatchStatus, kind: 'os' | 'app', detail?: unknown,
+  vendor: unknown, name: unknown, version: unknown, available: unknown, status: PatchStatus, kind: 'os' | 'app', detail?: unknown, id?: unknown,
 ): MachinePatchItem | null => {
   const n = clean(name);
-  return n ? { vendor: clean(vendor), name: n, version: clean(version), available: clean(available), status, kind, detail: clean(detail) } : null;
+  return n ? { vendor: clean(vendor), name: n, version: clean(version), available: clean(available), status, kind, detail: clean(detail), id: clean(id) } : null;
 };
 const present = (i: MachinePatchItem | null): i is MachinePatchItem => i !== null;
 
@@ -49,7 +49,7 @@ try {
   $session = New-Object -ComObject Microsoft.Update.Session
   $found = $session.CreateUpdateSearcher().Search("IsInstalled=0 and IsHidden=0 and Type='Software'")
   $result.updates = @($found.Updates | ForEach-Object {
-    @{ title = [string]$_.Title; kb = @($_.KBArticleIDs); severity = [string]$_.MsrcSeverity; categories = @($_.Categories | ForEach-Object { $_.Name }) }
+    @{ id = [string]$_.Identity.UpdateID; title = [string]$_.Title; kb = @($_.KBArticleIDs); severity = [string]$_.MsrcSeverity; categories = @($_.Categories | ForEach-Object { $_.Name }) }
   })
 } catch { $result.searchError = $_.Exception.Message }
 $result.hotfixes = @(Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 30 | ForEach-Object {
@@ -60,7 +60,7 @@ ConvertTo-Json -InputObject $result -Compress -Depth 5
 `;
 
 interface WinUpdates {
-  updates?: Array<{ title?: string; kb?: string[] | string; severity?: string; categories?: string[] | string }> | { title?: string; kb?: string[] | string; severity?: string; categories?: string[] | string };
+  updates?: Array<{ id?: string; title?: string; kb?: string[] | string; severity?: string; categories?: string[] | string }> | { id?: string; title?: string; kb?: string[] | string; severity?: string; categories?: string[] | string };
   hotfixes?: Array<{ id?: string; description?: string; installedOn?: string | null }> | { id?: string; description?: string; installedOn?: string | null };
   rebootRequired?: boolean;
   searchError?: string | null;
@@ -74,7 +74,7 @@ export function mapWindowsUpdates(raw: WinUpdates): { items: MachinePatchItem[];
     const cats = arr(u.categories).join(', ');
     const status: PatchStatus = sev === 'critical' ? 'critical' : sev === 'important' || /security updates|sicherheitsupdates/i.test(cats) ? 'security' : 'update';
     const kb = arr(u.kb).map((k) => `KB${k}`).join(', ');
-    return item('Microsoft', u.title, null, kb || null, status, 'os', cats || null);
+    return item('Microsoft', u.title, null, kb || null, status, 'os', cats || null, u.id);
   }).filter(present);
   const installed = arr(raw.hotfixes).flatMap((h) => (h.id ? [{ id: h.id, description: clean(h.description), installed_on: clean(h.installedOn) }] : []));
   return { items, installed, reboot: Boolean(raw.rebootRequired), error: clean(raw.searchError) };
@@ -94,7 +94,7 @@ export function parseWingetUpgrade(text: string): MachinePatchItem[] {
     if (!line.trim()) break; // Tabellenende
     const id = cut(line, 1);
     if (!id || /\s/.test(id)) continue; // Fußzeile („n Aktualisierungen verfügbar“)
-    result.push(item(id.split('.')[0], cut(line, 0), cut(line, 2), cut(line, 3), 'update', 'app', id)!);
+    result.push(item(id.split('.')[0], cut(line, 0), cut(line, 2), cut(line, 3), 'update', 'app', id, id)!);
   }
   return result.filter(present);
 }
@@ -121,7 +121,7 @@ export function parseApt(text: string): MachinePatchItem[] {
   return text.split('\n').flatMap((line) => {
     const m = /^([^/\s]+)\/(\S+) (\S+) \S+ \[upgradable from: ([^\]]+)\]/.exec(line.trim());
     if (!m) return [];
-    return [item(null, m[1], m[4], m[3], /security/i.test(m[2]!) ? 'security' : 'update', 'os', m[2])].filter(present);
+    return [item(null, m[1], m[4], m[3], /security/i.test(m[2]!) ? 'security' : 'update', 'os', m[2], m[1])].filter(present);
   });
 }
 
@@ -133,7 +133,7 @@ export function parseDnfCheckUpdate(text: string, security: Map<string, PatchSta
     const parts = line.trim().split(/\s+/);
     if (parts.length < 3 || !/\d/.test(parts[1]!)) continue;
     const name = parts[0]!.replace(/\.[^.]+$/, '');
-    result.push(...[item(null, name, null, parts[1], security.get(name) ?? 'update', 'os', parts[2])].filter(present));
+    result.push(...[item(null, name, null, parts[1], security.get(name) ?? 'update', 'os', parts[2], name)].filter(present));
   }
   return result;
 }
@@ -154,7 +154,7 @@ export function parseDnfSecurity(text: string): Map<string, PatchStatus> {
 export function parseCheckupdates(text: string): MachinePatchItem[] {
   return text.split('\n').flatMap((line) => {
     const m = /^(\S+) (\S+) -> (\S+)/.exec(line.trim());
-    return m ? [item(null, m[1], m[2], m[3], 'update', 'os')].filter(present) : [];
+    return m ? [item(null, m[1], m[2], m[3], 'update', 'os', null, m[1])].filter(present) : [];
   });
 }
 
@@ -217,7 +217,7 @@ export function parseSoftwareUpdate(text: string): MachinePatchItem[] {
     const version = /Version:\s*([^,\s]+)/.exec(details)?.[1] ?? null;
     const security = /sicherheit|security/i.test(`${title} ${label}`);
     const restart = /Action:\s*restart/i.test(details);
-    result.push(item('Apple', title, null, version, security ? 'security' : 'update', 'os', restart ? `${label} (Neustart nötig)` : label)!);
+    result.push(item('Apple', title, null, version, security ? 'security' : 'update', 'os', restart ? `${label} (Neustart nötig)` : label, label)!);
   }
   return result.filter(present);
 }
@@ -226,7 +226,7 @@ export function parseSoftwareUpdate(text: string): MachinePatchItem[] {
 export function parseBrewOutdated(text: string): MachinePatchItem[] {
   return text.split('\n').flatMap((line) => {
     const m = /^(\S+) \(([^)]+)\) [<!=]+ (\S+)/.exec(line.trim());
-    return m ? [item(null, m[1], m[2], m[3], 'update', 'app', 'Homebrew')].filter(present) : [];
+    return m ? [item(null, m[1], m[2], m[3], 'update', 'app', 'Homebrew', m[1])].filter(present) : [];
   });
 }
 

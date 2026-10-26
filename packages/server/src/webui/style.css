@@ -486,3 +486,15 @@ svg.an-edges .an-label:hover rect { fill: #f1f5f9; }
 .disk-fill { display: block; height: 100%; background: var(--accent); }
 .disk-fill.warn { background: var(--warn); }
 .disk-fill.bad { background: var(--danger); }
+
+/* Kopfleiste: Hinweis auf sicherheitsrelevante Updates */
+.sec-alert { position: relative; margin-right: var(--space-3); }
+.sec-alert-btn { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 0; border-radius: 999px; font: inherit; font-size: var(--fs-xs); font-weight: 600; cursor: pointer; }
+.sec-alert-btn.warn { background: var(--warn-soft); color: var(--warn); }
+.sec-alert-btn.bad { background: var(--danger-soft); color: var(--danger); }
+.sec-alert-pop { position: absolute; right: 0; top: calc(100% + 8px); min-width: 280px; max-width: 90vw; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: 0 8px 24px rgba(0, 0, 0, .25); padding: var(--space-2); z-index: 50; }
+.sec-alert-row { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: var(--radius-sm, 6px); color: inherit; text-decoration: none; }
+.sec-alert-row:hover { background: var(--accent-soft); }
+.sec-alert-name { font-weight: 600; }
+@media (max-width: 720px) { .sec-alert-btn span { display: none; } }
+input.pick { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
