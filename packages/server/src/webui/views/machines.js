@@ -3,6 +3,7 @@ import { $, $$, esc, badge, fmtDate, timeAgo, toast, formModal, confirmModal, op
 import { state } from '../lib/api.js';
 import { roleAtLeast } from '../lib/roles.js';
 import { icon } from '../lib/icons.js';
+import { autostartSwitch, bindAutostart } from '../lib/autostart.js';
 
 async function loadMachines() {
   if (state.user.system_role === 'admin') {
@@ -31,6 +32,7 @@ export async function renderMachines(el) {
       <td>${badge(m.agent_status, m.agent_status)}</td>
       <td class="muted text-sm">${m.last_seen_at ? timeAgo(m.last_seen_at) : 'nie'}</td>
       <td class="actions">
+        ${m.agent_status !== 'revoked' ? autostartSwitch(m, state.user.system_role === 'admin' || m.owner_user_id === state.user.id) : ''}
         ${m.agent_status === 'online' && !m.agent_can_self_update ? `<button class="btn ghost sm" data-howto="1">Update-Anleitung</button>` : ''}
         ${m.agent_status === 'online' && m.agent_can_self_update ? `<button class="btn ghost sm" data-update="${m.id}" data-name="${esc(m.name)}">Agent updaten</button>` : ''}
         ${m.agent_status === 'online' && m.agent_can_self_update ? `<button class="btn ghost sm" data-root="${m.id}" data-name="${esc(m.name)}" data-current="${esc(m.workspace_root || '')}">Root ändern</button>` : ''}
@@ -55,6 +57,8 @@ export async function renderMachines(el) {
         </table>
       </div>
     </div>`;
+
+  bindAutostart(el, () => renderMachines(el));
 
   $('#btn-new-token', el)?.addEventListener('click', async () => {
     const projectOptions = state.memberships

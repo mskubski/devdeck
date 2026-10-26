@@ -14,4 +14,5 @@ import './terminalOpen.js';
 import './codingAgentStart.js';
 import './agentConfigure.js';
 import './agentUpdate.js';
+import './agentAutostart.js';
 import './projectImport.js';

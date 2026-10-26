@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
-import { AppError, compareVersions, isAgentOutdated, supportsSelfUpdate, type MachineApplication, type MachineApplicationsDto, type MachineCustomField, type MachineDetailDto, type MachineDto, type MachineInventory, type MachineLogsDto, type MachinePatches, type MachinePatchesDto, type ProjectRole } from '@devdeck/shared';
+import { AppError, agentSupportsAction, compareVersions, isAgentOutdated, supportsSelfUpdate, type MachineApplication, type MachineApplicationsDto, type MachineAutostart, type MachineCustomField, type MachineDetailDto, type MachineDto, type MachineInventory, type MachineLogsDto, type MachinePatches, type MachinePatchesDto, type ProjectRole } from '@devdeck/shared';
 import {
   asyncHandler,
   clientIp,
@@ -59,11 +59,22 @@ function toMachineDto(row: MachineRecord, db: Database): MachineDto {
     last_seen_at: row.last_seen_at,
     revoked_at: row.revoked_at,
     created_at: row.created_at,
+    autostart: parseAutostart(row.autostart_json),
+    agent_can_autostart: agentSupportsAction(row.agent_version, 'agent.autostart'),
   };
 }
 
+function parseAutostart(json: string | null | undefined): MachineAutostart | null {
+  if (!json) return null;
+  try {
+    return JSON.parse(json) as MachineAutostart;
+  } catch {
+    return null;
+  }
+}
+
 const MACHINE_COLUMNS = `id, owner_user_id, name, platform, agent_version, workspace_root, agent_commit, agent_node, agent_entry, agent_status,
-                         last_seen_at, token_hash, revoked_at, created_at`;
+                         last_seen_at, token_hash, revoked_at, created_at, autostart_json`;
 
 /** Machine Registry: Enrollment-Tokens, Übersicht, Widerruf (Spezifikation §15). */
 export function machineRoutes(ctx: AppContext): Router {
@@ -376,6 +387,47 @@ export function machineRoutes(ctx: AppContext): Router {
         actor_id: user.id,
         actor_label: user.email,
         action: 'machine.agent_update.request',
+        machine_id: id,
+        target_type: 'machine',
+        target_id: id,
+        result: 'success',
+        detail: { command_id: commandId },
+        ip: clientIp(req),
+      });
+      res.status(202).json({ data: { command_id: commandId } });
+    }),
+  );
+
+  // Autostart des Agents auf der Maschine ein-/ausschalten (Windows: Run-Schlüssel, Linux: systemd-Benutzerdienst, macOS: LaunchAgent)
+  router.post(
+    '/:id/autostart',
+    asyncHandler(async (req, res) => {
+      const user = req.user!;
+      const id = param(req, 'id')!;
+      const row = db.get<MachineRecord>(`SELECT ${MACHINE_COLUMNS} FROM machines WHERE id = ?`, id);
+      if (!row) throw new AppError('NOT_FOUND', 'Maschine nicht gefunden');
+      if (row.owner_user_id !== user.id && user.system_role !== 'admin') {
+        throw new AppError('FORBIDDEN', 'Nur Besitzer oder admin darf den Autostart ändern');
+      }
+      if (typeof req.body?.enabled !== 'boolean') throw new AppError('VALIDATION', 'enabled (true/false) fehlt');
+      const enabled = req.body.enabled as boolean;
+      if (row.revoked_at) throw new AppError('AGENT_OFFLINE', 'Maschine ist widerrufen');
+      if (row.agent_status !== 'online') throw new AppError('AGENT_OFFLINE', 'Maschine ist nicht online');
+      if (!agentSupportsAction(row.agent_version, 'agent.autostart')) {
+        throw new AppError('VALIDATION', 'Dieser Agent kennt den Autostart noch nicht – bitte zuerst den Agent aktualisieren.');
+      }
+      const commandId = enqueueCommand(db, {
+        machineId: id,
+        action: 'agent.autostart',
+        payload: { enabled },
+        requestedBy: user.id,
+        ttlSeconds: 300,
+      });
+      audit(db, {
+        actor_type: 'user',
+        actor_id: user.id,
+        actor_label: user.email,
+        action: enabled ? 'machine.autostart.enable' : 'machine.autostart.disable',
         machine_id: id,
         target_type: 'machine',
         target_id: id,

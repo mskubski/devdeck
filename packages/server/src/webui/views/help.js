@@ -206,6 +206,13 @@ npm run build</pre>
         <strong>Aufbewahrung:</strong> Einträge werden <strong>30 Tage</strong> gespeichert und danach automatisch gelöscht (beim Eintreffen neuer Logs und alle 6 Stunden); zusätzlich gilt eine Obergrenze von 5000 Einträgen je Maschine (die ältesten fallen zuerst weg), damit die Datenbank nicht überläuft.
         Meldungen werden auf 600 Zeichen gekürzt. Logs können versehentlich sensible Angaben enthalten (Pfade, Benutzernamen) – sie sind nur für Berechtigte der Maschine sichtbar.</p>
 
+        <h3>Schalter „Autostart“ pro Maschine</h3>
+        <p>Der Schalter <strong>Autostart</strong> (in der Maschinenliste und unter <em>Übersicht → Verwaltung</em>) legt fest, ob der Agent auf der Maschine beim Hochfahren bzw. Anmelden von selbst startet. Einschalten nimmt den Agenten in den Autostart auf,
+        Ausschalten entfernt den Eintrag wieder – der gerade laufende Agent wird dabei weder gestoppt noch doppelt gestartet. Umgesetzt wird es je System ohne Administratorrechte:
+        <strong>Windows</strong> Run-Eintrag des Benutzers (Start ohne sichtbares Fenster beim Anmelden), <strong>Linux</strong> systemd-Benutzerdienst <code>devdeck-agent.service</code> (soll er auch ohne Anmeldung starten, einmalig <code>sudo loginctl enable-linger $USER</code>;
+        DevDeck weist darauf hin), <strong>macOS</strong> LaunchAgent <code>de.devdeck.agent</code> (greift beim nächsten Anmelden). Der Schalter ist nur für Besitzer/Admin bedienbar, die Maschine muss online sein und den Agent ab 0.14.0 haben
+        (sonst vorher „Agent updaten“). Ein „?“ hinter „Autostart“ heißt: Der Zustand wurde noch nicht gemeldet.</p>
+
         <h3>Die drei Knöpfe pro Maschine</h3>
         <table><thead><tr><th>Knopf</th><th>Was passiert genau?</th><th>Voraussetzung</th></tr></thead><tbody>
           <tr><td><strong>Agent updaten</strong></td>

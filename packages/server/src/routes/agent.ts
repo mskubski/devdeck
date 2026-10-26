@@ -16,7 +16,7 @@ import { buildProjectContext } from '../services/contextBuilder.js';
 import { projectSecretsFor, secretVersionsFor } from '../vault/projection.js';
 import { importProjectData, type ImportSecret } from '../services/projectImport.js';
 import { sanitizeFacts } from '../services/architecture/facts.js';
-import { sanitizeApplications, sanitizeInventory, sanitizePatches } from '../services/inventory.js';
+import { sanitizeApplications, sanitizeAutostart, sanitizeInventory, sanitizePatches } from '../services/inventory.js';
 import { pruneMachineLogs, sanitizeLogReport, storeMachineLogs } from '../services/machineLogs.js';
 import { getProjectMembership } from '../auth/middleware.js';
 
@@ -147,6 +147,9 @@ export function agentRoutes(ctx: AppContext): Router {
         db.run('UPDATE machines SET patches_json = ?, patches_at = ? WHERE id = ?', JSON.stringify(patches), patches.collected_at, machine.id);
       }
 
+      const autostart = sanitizeAutostart(body.autostart);
+      if (autostart) db.run('UPDATE machines SET autostart_json = ? WHERE id = ?', JSON.stringify(autostart), machine.id);
+
       const logReport = sanitizeLogReport(body.logs);
       if (logReport) {
         storeMachineLogs(db, machine.id, logReport.entries);
@@ -249,6 +252,11 @@ export function agentRoutes(ctx: AppContext): Router {
         data: req.body?.data ?? undefined,
         error: req.body?.error ?? undefined,
       });
+      if (status === 'done' && outcome.first) {
+        const cmd = db.get<{ action: string }>('SELECT action FROM agent_commands WHERE id = ?', commandId);
+        const state = cmd?.action === 'agent.autostart' ? sanitizeAutostart(req.body?.data) : null;
+        if (state) db.run('UPDATE machines SET autostart_json = ? WHERE id = ?', JSON.stringify(state), machine.id);
+      }
       res.json({ data: { ok: true, first_report: outcome.first } });
     }),
   );

@@ -433,6 +433,10 @@ const MIGRATIONS: string[] = [
   ALTER TABLE machines ADD COLUMN logs_at TEXT;
   ALTER TABLE machines ADD COLUMN logs_notes_json TEXT;
   `,
+  // v18: Autostart-Zustand des Agents je Maschine
+  `
+  ALTER TABLE machines ADD COLUMN autostart_json TEXT;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

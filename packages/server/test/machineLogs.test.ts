@@ -25,7 +25,7 @@ describe('Maschinen-Logs (Server)', () => {
   const entry = (over: Record<string, unknown> = {}) => ({
     time: ago(60_000), source: 'System (Ereignisanzeige)', provider: 'disk', event_id: '7', level: 'error', message: 'Defekter Block', ...over,
   });
-  const beat = (logs: unknown) => srv.request('POST', '/api/agent/heartbeat', { token: machineToken, body: { agent_version: '0.13.0', logs } });
+  const beat = (logs: unknown) => srv.request('POST', '/api/agent/heartbeat', { token: machineToken, body: { agent_version: '0.14.0', logs } });
   const read = async (qs = '') => (await srv.request('GET', `/api/machines/${machineId}/logs${qs}`, { cookie })).body.data;
 
   it('speichert Einträge bereinigt, ignoriert Doppelte und liefert Quellen-Zähler', async () => {
@@ -71,7 +71,7 @@ describe('Maschinen-Logs (Server)', () => {
 
   it('behält Logs bei Heartbeats ohne Logs; ein leerer Bericht setzt nur „zuletzt gelesen“', async () => {
     await beat({ collected_at: ago(5000), entries: [entry()] });
-    await srv.request('POST', '/api/agent/heartbeat', { token: machineToken, body: { agent_version: '0.13.0' } });
+    await srv.request('POST', '/api/agent/heartbeat', { token: machineToken, body: { agent_version: '0.14.0' } });
     expect((await read()).total).toBe(1);
     await beat({ collected_at: ago(1000), entries: [], notes: ['Nur eigene Journal-Einträge sichtbar'] });
     const d = await read();
