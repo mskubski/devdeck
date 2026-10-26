@@ -40,6 +40,7 @@
   und schlägt ihn als Pfad vor. Gleicher Pfad auf verschiedenen Maschinen ist erlaubt.
 
 ### Changed
+- Doku: Hilfe („Die Tabs eines Projekts“, inkl. Erklärung der Entscheidungen), README (Project tabs) und Anleitung beschreiben alle Projekt-Tabs; Rollentabelle der Hilfe an die tatsächlichen Rechte angepasst (Tasks: maintainer).
 - Doku: README (Abschnitt „Deploying a project that runs on a machine“), Hilfe-Seite (Fehlersuche beim Deploy) und ROADMAP zum Workspace-Deploy ergänzt.
 - Hilfe: Abschnitt „Maschinen & Agent“ erklärt jetzt genau, was „Agent updaten“, „Root ändern“ und „Widerrufen“ tun („Widerrufen“ löscht nichts, es sperrt nur den Agenten dauerhaft – daher unverändert benannt).
 - Architektur-Karte steht auf der Projekt-Übersicht jetzt unten; Kennzahlen, Projektinfo und letzte Sessions bleiben oben.

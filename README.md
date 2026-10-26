@@ -127,6 +127,25 @@ With a GitHub connector (token in the vault, "Issues: read and write"), **Integr
 DevDeck only manages the labels `P1`–`P5`, `in-progress`, `known-issue` and `severity-low|medium|high` (plus title, body, open/closed); other labels, comments and assignees are left alone. If both sides changed the same item, GitHub wins.
 Off by default; turning it on asks for confirmation and creates at most 50 issues per run.
 
+### Project tabs
+
+Every project has the same tabs; together they are the project's memory and are partly fed into the generated coding context (`.devdeck/CONTEXT.md`, `CURRENT_STATE.md`, `CHANGELOG_RECENT.md`) that coding agents read at the start of a session.
+
+| Tab | Purpose | Write access |
+|---|---|---|
+| Overview | Key figures, project info, latest coding sessions and the architecture map | project edit: maintainer |
+| Members | Who has access, with which role (viewer, developer, maintainer, owner) | maintainer |
+| Tasks | Task list with priority 1–5 and status open → in progress → done (or cancelled); open tasks go into the coding context | maintainer |
+| Decisions | Log of important decisions with rationale, context and rejected alternative (architecture decision records): *proposed* → *accepted*/*rejected* → optionally *superseded*; the 15 newest accepted ones go into the coding context | propose: developer, rate: maintainer |
+| Changelog | Chronicle of changes (summary, optional version/details); manual, `devdeck changelog` or imported from `CHANGELOG.md` | developer |
+| Known Issues | Known unresolved problems with severity and open/resolved status; open ones go into the coding context | developer |
+| History | Read-only timeline across changelog, decisions, issues, tasks and sessions (latest 200 events) | – |
+| Sessions | Coding sessions with handovers; Claude Code sessions on registered workspaces appear automatically (metadata only) | developer |
+| Secrets | Encrypted vault entries per environment (development/staging/production) | maintainer |
+| Workspaces | Working copies on machines: check, sync, import, provision, deploy | developer (import/deploy/remove: maintainer) |
+| Integrations | Connectors to external services (GitHub first); the token lives in the vault | maintainer |
+| Sync log | History of sync, provision and deploy jobs with errors | – |
+
 ### Deploying a project that runs on a machine
 
 For software that runs productively on a registered Linux machine (e.g. a Python service as systemd *user* units), **Projects → Workspaces → Deploy** (maintainers, agent ≥ 0.8.0) does what you would otherwise do by hand:
