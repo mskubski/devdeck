@@ -10,7 +10,7 @@ export function autostartSwitch(m, canEdit = true) {
   if (!canEdit) { disabled = 'disabled'; hint = 'Nur Besitzer oder Admin dürfen den Autostart ändern'; }
   else if (m.agent_status !== 'online') { disabled = 'disabled'; hint = 'Maschine ist offline – Autostart lässt sich nur bei laufendem Agent ändern'; }
   else if (!m.agent_can_autostart) { disabled = 'disabled'; hint = 'Agent aktualisieren (ab Version 0.14.0 möglich)'; }
-  return `<label class="inline-check" title="${esc(hint)}"><input type="checkbox" data-autostart="${esc(m.id)}" data-name="${esc(m.name)}" ${enabled ? 'checked' : ''} ${disabled}> Autostart${known ? '' : ' ?'}</label>`;
+  return `<label class="toggle" title="${esc(hint)}"><input type="checkbox" role="switch" data-autostart="${esc(m.id)}" data-name="${esc(m.name)}" ${enabled ? 'checked' : ''} ${disabled}><span class="track"></span>Autostart${known ? '' : ' ?'}</label>`;
 }
 
 /** Schalter im Element aktivieren; nach der Rückmeldung des Agents wird `reload` aufgerufen. */

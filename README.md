@@ -141,7 +141,7 @@ Every project has the same tabs; together they are the project's memory and are 
 
 ### Agent autostart
 
-The **Autostart** checkbox next to every machine (and on its detail page) adds the agent to or removes it from the machine's autostart, without admin rights: Windows per-user Run entry (hidden window), Linux systemd user unit `devdeck-agent.service` (for start without login: `sudo loginctl enable-linger $USER`), macOS LaunchAgent `de.devdeck.agent` (takes effect at next login). The running agent is never stopped or started twice. Needs agent 0.14.0; owner/admin only; audited.
+The **Autostart** toggle next to every machine (and on its detail page) adds the agent to or removes it from the machine's autostart, without admin rights: Windows per-user Run entry (hidden window), Linux systemd user unit `devdeck-agent.service` (for start without login: `sudo loginctl enable-linger $USER`), macOS LaunchAgent `de.devdeck.agent` (takes effect at next login). The running agent is never stopped or started twice. Needs agent 0.14.0; owner/admin only; audited.
 
 ### Deploying a project that runs on a machine
 
