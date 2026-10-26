@@ -12,7 +12,7 @@ export async function renderTasks(el, project) {
   const rows = tasks.map((t) => `
     <tr>
       <td>
-        <strong>${esc(t.title)}</strong>
+        <strong>${esc(t.title)}</strong>${t.github_issue ? ` <a class="link text-sm" href="${esc(t.github_issue.url)}" target="_blank" rel="noopener noreferrer" title="GitHub Issue öffnen">#${esc(t.github_issue.number)}</a>` : ''}
         ${t.description ? `<br><span class="muted text-sm">${esc(t.description)}</span>` : ''}
       </td>
       <td>${badge(STATUS_LABEL[t.status] ?? t.status, t.status)}</td>

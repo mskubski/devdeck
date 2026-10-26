@@ -16,6 +16,7 @@ import type { UserRecord } from './auth/middleware.js';
 import { runAutoUpdateTick } from './services/autoUpdate.js';
 import { runScheduledBackup } from './services/backups.js';
 import { pruneMachineLogs } from './services/machineLogs.js';
+import { runAllIssueSyncs } from './services/issueSync.js';
 import { VaultService } from './vault/vault.js';
 
 export interface RunningServer {
@@ -140,6 +141,9 @@ export async function startServer(
   setTimeout(pruneLogs, 60_000).unref();
   const logTimer = setInterval(pruneLogs, 6 * 3_600_000);
   logTimer.unref();
+  // GitHub-Issue-Abgleich (nur für Projekte mit aktiviertem Abgleich): alle 5 Minuten; lokale Änderungen stoßen ihn zusätzlich sofort an
+  const issueSyncTimer = setInterval(() => void runAllIssueSyncs(ctx), 5 * 60_000);
+  issueSyncTimer.unref();
   // Backup-Scheduler: stündlich prüfen, ob das Intervall (Default 24 h) verstrichen ist
   const backupTimer = setInterval(() => {
     try {
@@ -171,6 +175,7 @@ export async function startServer(
       clearInterval(sweeper);
       clearInterval(backupTimer);
       clearInterval(logTimer);
+      clearInterval(issueSyncTimer);
       clearInterval(updateTimer);
       await new Promise<void>((resolve) => server.close(() => resolve()));
       ctx.vault?.close();

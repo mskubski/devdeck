@@ -168,6 +168,12 @@ wird (nicht zwingend auf dem Server selbst). Pro Maschine braucht es einmalig:
    saubere Arbeitskopie auf der VM. Vercel-Projekte (Deploy per Git-Push) brauchen das nicht.
    Bricht das Deploy mit „lokale Änderungen“ ab, nennt die Meldung die Dateien (auch im Sync-Log): auf der Maschine committen oder entfernen.
 
+### Tasks und Known Issues mit GitHub Issues abgleichen
+
+Unter **Projekt → Integrationen** beim GitHub-Konnektor **„Issue-Abgleich einschalten“** (Maintainer; das Token im Vault braucht Schreibrecht auf „Issues“). Danach werden Tasks und Known Issues in beide Richtungen
+mit den GitHub Issues synchronisiert: lokale Änderungen sofort, Änderungen auf GitHub alle 5 Minuten (oder per „Jetzt abgleichen“). Tasks = Issues ohne Label `bug`/`known-issue`, Known Issues = Issues mit `bug` oder `known-issue`;
+DevDeck verwaltet nur die Labels `P1`–`P5` (Priorität), `in-progress`, `known-issue` und `severity-low|medium|high`. Bei Änderungen auf beiden Seiten gewinnt GitHub. Details in der Hilfe unter „Tasks & GitHub Issues“.
+
 ## 7b. Bestehende Projektdaten importieren und Coding-Regeln
 
 - **Importieren:** Projekt → **Workspaces** → **Importieren** (Maintainer). Der Agent liest im Workspace `CHANGELOG.md`,

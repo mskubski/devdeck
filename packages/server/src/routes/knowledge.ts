@@ -6,6 +6,7 @@ import type { AppContext } from '../context.js';
 import { asyncHandler, clientIp, optionalString, param, requireString } from '../http.js';
 import { requireProjectRole, requireUser } from '../auth/middleware.js';
 import { audit } from '../services/audit.js';
+import { attachIssueRefs, scheduleIssueSync } from '../services/issueSync.js';
 
 const DECISION_STATUS = ['proposed', 'accepted', 'superseded', 'rejected'];
 const SEVERITY = ['low', 'medium', 'high'];
@@ -25,6 +26,15 @@ export function knowledgeRoutes(ctx: AppContext): Router {
   const { db } = ctx;
   const router = Router();
   router.use(requireUser(db));
+  // Known-Issue-Änderungen stoßen den GitHub-Abgleich an (nur wirksam, wenn er für das Projekt aktiv ist)
+  router.use((req, res, next) => {
+    if (req.method !== 'GET' && req.path.includes('/known-issues')) {
+      res.on('finish', () => {
+        if (res.statusCode < 400 && req.project) scheduleIssueSync(ctx, req.project.id);
+      });
+    }
+    next();
+  });
 
   const log = (
     req: Parameters<typeof clientIp>[0],
@@ -165,10 +175,15 @@ export function knowledgeRoutes(ctx: AppContext): Router {
     requireProjectRole(db, 'viewer'),
     asyncHandler(async (req, res) => {
       res.json({
-        data: db.all<KnownIssueDto>(
-          `SELECT * FROM known_issues WHERE project_id = ?
-           ORDER BY (status = 'open') DESC, CASE severity WHEN 'high' THEN 3 WHEN 'medium' THEN 2 ELSE 1 END DESC, created_at DESC`,
+        data: attachIssueRefs(
+          db,
           req.project!.id,
+          'known_issue',
+          db.all<KnownIssueDto>(
+            `SELECT * FROM known_issues WHERE project_id = ?
+             ORDER BY (status = 'open') DESC, CASE severity WHEN 'high' THEN 3 WHEN 'medium' THEN 2 ELSE 1 END DESC, created_at DESC`,
+            req.project!.id,
+          ),
         ),
       });
     }),
