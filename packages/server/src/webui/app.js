@@ -1,5 +1,5 @@
 /* DevDeck Web UI – Einstiegspunkt: Auth, Routing, Shell (Entscheidung A8: Vanilla JS, ES-Module). */
-import { api, state } from './lib/api.js';
+import { api, get, state } from './lib/api.js';
 import { $, esc, toast } from './lib/ui.js';
 import { icon } from './lib/icons.js';
 import { renderProjects } from './views/projects.js';
@@ -62,6 +62,47 @@ function renderNav() {
     </a>`).join('');
 }
 
+/** Kopfleiste: Maschinen mit ausstehenden sicherheitsrelevanten Updates (Klick öffnet die Liste, Eintrag führt zum Tab „Patches“). */
+async function refreshSecurityAlert() {
+  const box = $('#sec-alert');
+  if (!box || !state.user) return;
+  let list = [];
+  try {
+    list = await get('/api/machines/security-summary');
+  } catch {
+    return; // Anzeige ist nur ein Hinweis – Fehler nicht melden
+  }
+  if (!list.length) {
+    box.classList.add('hidden');
+    box.innerHTML = '';
+    return;
+  }
+  const critical = list.some((m) => m.critical > 0);
+  const total = list.reduce((n, m) => n + m.security, 0);
+  box.classList.remove('hidden');
+  box.innerHTML = `
+    <button type="button" class="sec-alert-btn ${critical ? 'bad' : 'warn'}" id="sec-alert-btn" aria-expanded="false"
+      title="${total} sicherheitsrelevante Updates auf ${list.length} ${list.length === 1 ? 'Maschine' : 'Maschinen'} ausstehend">
+      ${icon('shield-alert', { size: 18 })}<span>${list.length} ${list.length === 1 ? 'Maschine' : 'Maschinen'}: Sicherheitsupdates</span>
+    </button>
+    <div class="sec-alert-pop hidden" id="sec-alert-pop">
+      ${list.map((m) => `<a class="sec-alert-row" href="#/machines/${esc(m.id)}?tab=patches">
+        <span class="sec-alert-name">${esc(m.name)}</span>
+        <span class="muted text-sm">${m.critical ? `${m.critical} kritisch · ` : ''}${m.security} sicherheitsrelevant${m.reboot_required ? ' · Neustart nötig' : ''}</span>
+      </a>`).join('')}
+    </div>`;
+  const pop = $('#sec-alert-pop');
+  $('#sec-alert-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    pop.classList.toggle('hidden');
+    $('#sec-alert-btn').setAttribute('aria-expanded', String(!pop.classList.contains('hidden')));
+  });
+  pop.addEventListener('click', () => pop.classList.add('hidden'));
+}
+document.addEventListener('click', () => $('#sec-alert-pop')?.classList.add('hidden'));
+document.addEventListener('devdeck:patches-changed', () => void refreshSecurityAlert());
+setInterval(() => void refreshSecurityAlert(), 2 * 60_000);
+
 function setBreadcrumb(current, parent, parentHref = '#/projects') {
   $('#breadcrumb').innerHTML = parent
     ? `<a class="link muted-crumb" href="${parentHref}">${esc(parent)}</a><span class="sep">/</span>${esc(current)}`
@@ -91,6 +132,7 @@ async function boot() {
     state.memberships = me.memberships;
     showApp();
     renderNav();
+    void refreshSecurityAlert();
     route();
   } catch {
     showLogin();

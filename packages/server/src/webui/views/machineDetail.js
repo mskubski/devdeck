@@ -1,6 +1,7 @@
-import { get, put, state } from '../lib/api.js';
+import { get, post, put, state } from '../lib/api.js';
 import { autostartSwitch, bindAutostart } from '../lib/autostart.js';
-import { $, $$, esc, badge, fmtDate, timeAgo, toast, formModal, closeModal, setModalError } from '../lib/ui.js';
+import { $, $$, esc, badge, fmtDate, timeAgo, toast, formModal, confirmModal, closeModal, setModalError } from '../lib/ui.js';
+import { icon } from '../lib/icons.js';
 
 const PLATFORM = { win32: 'Windows', linux: 'Linux', darwin: 'macOS' };
 
@@ -223,7 +224,10 @@ async function applicationsTab(el, m) {
 const PATCH_LABEL = { critical: 'Kritisch', security: 'Sicherheit', update: 'Update verfügbar' };
 const PATCH_KIND = { critical: 'bad', security: 'warn', update: 'accent' };
 
-/** Tab „Patches“: ausstehende Updates (Betriebssystem und Programme) und zuletzt installierte Updates; lädt erst beim Öffnen. */
+/** Letztes Installationsergebnis je Maschine (bleibt beim Wechsel zwischen Tabs sichtbar, bis die Seite neu geladen wird). */
+const lastInstall = new Map();
+
+/** Tab „Patches“: ausstehende Updates (Betriebssystem und Programme) inkl. Installation, zuletzt installierte Updates; lädt erst beim Öffnen. */
 async function patchesTab(el, m) {
   el.innerHTML = '<div class="skeleton" style="width:60%"></div>';
   let data;
@@ -240,29 +244,112 @@ async function patchesTab(el, m) {
   }
   const level = p.critical > 0 ? 'bad' : p.security > 0 ? 'warn' : 'ok';
   const items = p.items ?? [];
+  const isOwner = m.owner_user_id === state.user.id || state.user.system_role === 'admin';
+  const installable = items.filter((i) => i.id);
+  let installHint = '';
+  if (!isOwner) installHint = 'Nur Besitzer oder Admin der Maschine dürfen Updates installieren.';
+  else if (m.agent_status !== 'online') installHint = 'Die Maschine ist offline – Updates lassen sich nur bei laufendem Agent installieren.';
+  else if (!m.agent_can_install_patches) installHint = 'Zum Installieren von Updates muss der Agent mindestens Version 0.15.0 haben – bitte unter „Maschinen“ aktualisieren.';
+  else if (items.length && !installable.length) installHint = 'Dieser Patch-Stand enthält noch keine Installations-Kennungen – er wird mit der nächsten Prüfung (spätestens nach 6 Stunden) aktualisiert.';
+  const canInstall = !installHint && installable.length > 0;
+  const outcome = lastInstall.get(m.id);
+
+  const rowCells = (i) => {
+    const base = [i.vendor, i.name, i.version, i.available, i.kind === 'os' ? 'System' : 'Programm', html(badge(PATCH_LABEL[i.status] || i.status, PATCH_KIND[i.status] || ''))];
+    if (!canInstall) return base;
+    const pick = i.id ? html(`<input type="checkbox" class="pick" data-id="${esc(i.id)}" data-sec="${i.status !== 'update' ? 1 : 0}" aria-label="${esc(i.name)} auswählen">`) : '';
+    const one = i.id ? html(`<button class="btn ghost sm icon-only" data-one="${esc(i.id)}" title="Dieses Update installieren" aria-label="${esc(i.name)} installieren">${icon('download', { size: 16 })}</button>`) : '';
+    return [pick, ...base, one];
+  };
+  const head = ['Hersteller', 'Name', 'Installiert', 'Verfügbar', 'Art', 'Patch-Status'];
+
   el.innerHTML = `
     <div class="stack">
+      ${p.reboot_required ? `<div class="alert warn"><span>${icon('info', { size: 16 })} <strong>Neustart erforderlich.</strong> Nach den Updates muss die Maschine neu gestartet werden. DevDeck startet sie <em>nicht</em> selbst neu – bitte den Neustart manuell am Computer durchführen.</span></div>` : ''}
+      <div id="patch-progress"></div>
+      ${outcome ? `<div class="card"><div class="card-head"><h2>Ergebnis der letzten Installation</h2><span class="muted text-sm">${esc(fmtDate(outcome.at))}</span></div>
+        ${table(['Update', 'Ergebnis', 'Meldung'], outcome.results.map((r) => [r.name || r.id, html(badge(r.ok ? 'Installiert' : 'Fehlgeschlagen', r.ok ? 'ok' : 'bad')), r.message]))}
+        ${outcome.reboot_required ? '<p class="text-sm" style="margin-top:var(--space-3)"><strong>Neustart erforderlich</strong> – bitte manuell am Computer durchführen.</p>' : ''}</div>` : ''}
       <div class="card"><div class="card-head"><h2>Zusammenfassung</h2><span class="muted text-sm">Aktualisiert: ${esc(fmtDate(data.patches_at || p.collected_at))}</span></div>
         ${rows([
           ['Gesamtstatus', html(p.total === 0 ? badge('Aktuell', 'ok') : badge(p.critical ? 'Kritische Updates ausstehend' : p.security ? 'Sicherheitsupdates ausstehend' : 'Updates ausstehend', level))],
           ['Ausstehende Updates', String(p.total)],
           ['davon kritisch', String(p.critical)],
           ['davon sicherheitsrelevant (inkl. kritisch)', String(p.security)],
-          ['Neustart erforderlich', p.reboot_required === null ? null : html(p.reboot_required ? badge('Ja', 'warn') : badge('Nein', 'ok'))],
+          ['Neustart erforderlich', p.reboot_required === null ? null : html(p.reboot_required ? badge('Ja – manuell durchführen', 'warn') : badge('Nein', 'ok'))],
           ['Zuletzt installiert', p.last_installed_at],
           ['Prüfverfahren', p.scanner],
         ])}
         ${(p.notes ?? []).map((n) => `<p class="muted text-sm" style="margin-top:var(--space-2)">${esc(n)}</p>`).join('')}
       </div>
-      <div class="card"><div class="card-head"><h2>Ausstehende Updates ${p.total ? `<span class="muted text-sm">(${p.total}${p.total > items.length ? `, ${items.length} angezeigt` : ''})</span>` : ''}</h2></div>
-        ${items.length ? table(['Hersteller', 'Name', 'Installiert', 'Verfügbar', 'Art', 'Patch-Status'],
-          items.map((i) => [i.vendor, i.name, i.version, i.available, i.kind === 'os' ? 'System' : 'Programm', html(badge(PATCH_LABEL[i.status] || i.status, PATCH_KIND[i.status] || ''))]))
-          : '<p class="muted text-sm">Keine ausstehenden Updates gefunden.</p>'}
-        <p class="muted text-sm" style="margin-top:var(--space-3)">Gelistet wird nur, was ein Update braucht. Was hier nicht steht, ist nach Kenntnis des Systems aktuell – DevDeck führt keine Schwachstellen-Datenbank wie ein Hersteller-Scanner.</p>
+      <div class="card"><div class="card-head"><h2>Ausstehende Updates ${p.total ? `<span class="muted text-sm">(${p.total}${p.total > items.length ? `, ${items.length} angezeigt` : ''})</span>` : ''}</h2>
+          ${canInstall ? `<div class="row" style="gap:var(--space-2);flex-wrap:wrap">
+            <button class="btn ghost sm" id="patch-all" type="button">Alle auswählen</button>
+            ${items.some((i) => i.id && i.status !== 'update') ? '<button class="btn ghost sm" id="patch-sec" type="button">' + icon('shield-alert', { size: 16 }) + '<span>Sicherheitsupdates</span></button>' : ''}
+            <button class="btn sm" id="patch-install" type="button" disabled>${icon('download', { size: 16 })}<span>Ausgewählte installieren</span></button>
+          </div>` : ''}
+        </div>
+        ${installHint ? `<p class="muted text-sm" style="margin:0 0 var(--space-3)">${esc(installHint)}</p>` : ''}
+        ${items.length ? table(canInstall ? ['', ...head, ''] : head, items.map(rowCells)) : '<p class="muted text-sm">Keine ausstehenden Updates gefunden.</p>'}
+        <p class="muted text-sm" style="margin-top:var(--space-3)">Gelistet wird nur, was ein Update braucht. Was hier nicht steht, ist nach Kenntnis des Systems aktuell – DevDeck führt keine Schwachstellen-Datenbank wie ein Hersteller-Scanner.${canInstall ? ' Beim Installieren wird ein nötiger Neustart nie automatisch ausgeführt, sondern nur angezeigt.' : ''}</p>
       </div>
       ${(p.installed ?? []).length ? `<div class="card"><div class="card-head"><h2>Zuletzt installierte Updates</h2></div>
         ${table(['Kennung', 'Beschreibung', 'Installiert am'], p.installed.map((u) => [u.id, u.description, u.installed_on]))}</div>` : ''}
     </div>`;
+
+  if (!canInstall) return;
+  const picks = () => $$('.pick', el);
+  const selected = () => picks().filter((c) => c.checked).map((c) => c.dataset.id);
+  const sync = () => {
+    const n = selected().length;
+    const btn = $('#patch-install', el);
+    btn.disabled = n === 0;
+    btn.querySelector('span').textContent = n ? `${n} installieren` : 'Ausgewählte installieren';
+  };
+  for (const c of picks()) c.addEventListener('change', sync);
+  $('#patch-all', el).addEventListener('click', () => {
+    const all = picks().every((c) => c.checked);
+    for (const c of picks()) c.checked = !all;
+    sync();
+  });
+  $('#patch-sec', el)?.addEventListener('click', () => {
+    for (const c of picks()) c.checked = c.dataset.sec === '1';
+    sync();
+  });
+
+  const run = async (ids) => {
+    const ok = await confirmModal({
+      title: ids.length === 1 ? 'Update installieren' : `${ids.length} Updates installieren`,
+      message: `Auf „${m.name}“ ${ids.length === 1 ? 'wird 1 Update' : `werden ${ids.length} Updates`} installiert. Das kann mehrere Minuten dauern. Ein nötiger Neustart wird nicht automatisch ausgeführt, sondern nur angezeigt – den führst du anschließend manuell am Computer durch.`,
+      confirmLabel: 'Installieren',
+      danger: false,
+    });
+    if (!ok) return;
+    const box = $('#patch-progress', el);
+    for (const b of $$('button', el)) if (b.id !== 'logout') b.disabled = true;
+    box.innerHTML = `<div class="alert info"><span>${icon('hourglass', { size: 16 })} Installation läuft … Das kann je nach Updates mehrere Minuten dauern. Du kannst diese Seite offen lassen.</span></div>`;
+    try {
+      const { command_id } = await post(`/api/machines/${m.id}/patches/install`, { ids });
+      for (let i = 0; i < 450; i += 1) {
+        await new Promise((r) => setTimeout(r, 4000));
+        const cmd = await get(`/api/machines/${m.id}/commands/${command_id}`);
+        if (cmd.status === 'done') {
+          lastInstall.set(m.id, { ...cmd.outcome, at: new Date().toISOString() });
+          const failed = (cmd.outcome?.results ?? []).filter((r) => !r.ok).length;
+          toast(failed ? `Installation abgeschlossen, ${failed} fehlgeschlagen` : 'Updates installiert', failed ? 'error' : 'success');
+          document.dispatchEvent(new CustomEvent('devdeck:patches-changed'));
+          return patchesTab(el, m);
+        }
+        if (cmd.status === 'failed' || cmd.status === 'expired') throw new Error(cmd.error || 'Installation fehlgeschlagen');
+      }
+      throw new Error('Der Agent hat noch nicht geantwortet – siehe Agent-Log');
+    } catch (err) {
+      toast(err.message, 'error');
+      return patchesTab(el, m);
+    }
+  };
+  $('#patch-install', el).addEventListener('click', () => run(selected()));
+  for (const b of $$('[data-one]', el)) b.addEventListener('click', () => run([b.dataset.one]));
 }
 
 const LOG_LEVEL = { critical: ['Kritisch', 'bad'], error: ['Fehler', 'warn'] };

@@ -256,6 +256,9 @@ export function agentRoutes(ctx: AppContext): Router {
         const cmd = db.get<{ action: string }>('SELECT action FROM agent_commands WHERE id = ?', commandId);
         const state = cmd?.action === 'agent.autostart' ? sanitizeAutostart(req.body?.data) : null;
         if (state) db.run('UPDATE machines SET autostart_json = ? WHERE id = ?', JSON.stringify(state), machine.id);
+        // Nach einer Installation steht der frische Patch-Stand im Ergebnis: sofort übernehmen
+        const fresh = cmd?.action === 'patches.install' ? sanitizePatches(req.body?.data?.patches) : null;
+        if (fresh) db.run('UPDATE machines SET patches_json = ?, patches_at = ? WHERE id = ?', JSON.stringify(fresh), fresh.collected_at, machine.id);
       }
       res.json({ data: { ok: true, first_report: outcome.first } });
     }),

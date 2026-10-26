@@ -15,11 +15,12 @@ export const AGENT_ACTIONS = [
   'agent.configure',
   'agent.update',
   'agent.autostart',
+  'patches.install',
   'project.import',
 ] as const;
 
 /** Aktuelle Agent-Version; ältere Agenten kennen neuere Aktionen nicht und gelten als veraltet. */
-export const CURRENT_AGENT_VERSION = '0.14.0';
+export const CURRENT_AGENT_VERSION = '0.15.0';
 
 function versionParts(v: string): number[] {
   return v.split('.').map((p) => Number.parseInt(p, 10) || 0);
@@ -48,6 +49,7 @@ export const MIN_AGENT_VERSION_FOR_ACTION: Partial<Record<string, string>> = {
   'project.import': '0.4.0',
   'workspace.deploy': '0.8.0',
   'agent.autostart': '0.14.0',
+  'patches.install': '0.15.0',
 };
 
 export function agentSupportsAction(version: string | null | undefined, action: string): boolean {
@@ -61,6 +63,10 @@ export function supportsSelfUpdate(version: string | null | undefined): boolean 
   if (!version) return false;
   return compareVersions(version, MIN_SELF_UPDATE_VERSION) >= 0;
 }
+
+/** Höchstzahl Updates je Installationsauftrag und erlaubtes Format einer Update-Kennung (kein Bindestrich am Anfang → keine Optionen). */
+export const MAX_PATCH_INSTALL_IDS = 100;
+export const PATCH_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._:+@~/=()-]{0,119}$/;
 
 export type AgentAction = (typeof AGENT_ACTIONS)[number];
 
