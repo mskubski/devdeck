@@ -14,11 +14,12 @@ export const AGENT_ACTIONS = [
   'coding_agent.start',
   'agent.configure',
   'agent.update',
+  'agent.autostart',
   'project.import',
 ] as const;
 
 /** Aktuelle Agent-Version; ältere Agenten kennen neuere Aktionen nicht und gelten als veraltet. */
-export const CURRENT_AGENT_VERSION = '0.13.0';
+export const CURRENT_AGENT_VERSION = '0.14.0';
 
 function versionParts(v: string): number[] {
   return v.split('.').map((p) => Number.parseInt(p, 10) || 0);
@@ -46,6 +47,7 @@ export const MIN_SELF_UPDATE_VERSION = '0.2.0';
 export const MIN_AGENT_VERSION_FOR_ACTION: Partial<Record<string, string>> = {
   'project.import': '0.4.0',
   'workspace.deploy': '0.8.0',
+  'agent.autostart': '0.14.0',
 };
 
 export function agentSupportsAction(version: string | null | undefined, action: string): boolean {
@@ -114,6 +116,8 @@ export interface HeartbeatRequest {
   patches?: import('./types.js').MachinePatches;
   /** Fehlerprotokolle seit der letzten Meldung (ab Agent 0.13.0, alle 15 Minuten) */
   logs?: { collected_at: string; entries: import('./types.js').MachineLogEntry[]; notes: string[] };
+  /** Autostart-Zustand des Agents (ab Agent 0.14.0, beim Start und danach stündlich) */
+  autostart?: import('./types.js').MachineAutostart;
   workspaces?: Array<{
     workspace_id?: string;
     project?: string;

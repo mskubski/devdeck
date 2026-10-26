@@ -1,4 +1,5 @@
 import { get, put, state } from '../lib/api.js';
+import { autostartSwitch, bindAutostart } from '../lib/autostart.js';
 import { $, $$, esc, badge, fmtDate, timeAgo, toast, formModal, closeModal, setModalError } from '../lib/ui.js';
 
 const PLATFORM = { win32: 'Windows', linux: 'Linux', darwin: 'macOS' };
@@ -85,6 +86,7 @@ function mainTab(el, m, inv, reload) {
           ['Registriert', dt(m.created_at)],
           ['Agent-Version', html(`${esc(m.agent_version || '–')}${m.agent_outdated ? ' ' + badge('veraltet', 'warn') : ''}`)],
           ['Agent-Stand', [m.agent_commit, m.agent_node].filter(Boolean).join(' · ') || null],
+          ['Autostart', html(autostartSwitch(m, state.user.system_role === 'admin' || m.owner_user_id === state.user.id) + (m.autostart?.method ? ` <span class="muted text-sm">${esc(m.autostart.method)}</span>` : '') + (m.autostart?.detail ? `<br><span class="muted text-sm">${esc(m.autostart.detail)}</span>` : ''))],
           ['Workspace-Root', html(m.workspace_root ? `<span class="mono">${esc(m.workspace_root)}</span>` : '–')],
           ['Lokale IP-Adresse', (inv?.network?.ips ?? []).join(', ') || null],
           ['Startzeit', dt(inv?.runtime?.boot_time)],
@@ -95,6 +97,8 @@ function mainTab(el, m, inv, reload) {
         ${fields.length ? rows(fields.map((f) => [f.label, f.value || '–'])) : `<p class="muted text-sm">Noch keine eigenen Felder.${canEdit ? ' Mit „Bearbeiten“ lassen sich beliebige Angaben ergänzen (z. B. Standort, Zuständiger, Kaufdatum).' : ''}</p>`}
       </div>
     </div>`;
+
+  bindAutostart(el, reload);
 
   $('#btn-edit-fields', el)?.addEventListener('click', async () => {
     const res = await formModal({

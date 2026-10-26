@@ -1,4 +1,4 @@
-import type { InventoryLevel, MachineApplication, MachineCustomField, MachineInventory, MachinePatches, PatchStatus } from '@devdeck/shared';
+import type { InventoryLevel, MachineApplication, MachineAutostart, MachineCustomField, MachineInventory, MachinePatches, PatchStatus } from '@devdeck/shared';
 
 const str = (v: unknown, max = 200): string | null => (typeof v === 'string' && v.trim() !== '' ? v.trim().slice(0, max) : null);
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v < 1e9 ? Math.round(v * 100) / 100 : null);
@@ -138,6 +138,18 @@ export function sanitizePatches(raw: unknown): MachinePatches | null {
       return id ? [{ id, description: str(u.description, 200), installed_on: str(u.installed_on, 40) }] : [];
     }),
     notes: (Array.isArray(r.notes) ? r.notes : []).map((n: unknown) => str(n, 300)).filter((n: string | null): n is string => n !== null).slice(0, 10),
+  };
+}
+
+/** Autostart-Zustand des Agents prüfen: nur Schalter, Verfahren und Hinweis (begrenzte Längen). */
+export function sanitizeAutostart(raw: unknown): MachineAutostart | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.enabled !== 'boolean' || typeof r.method !== 'string') return null;
+  return {
+    enabled: r.enabled,
+    method: r.method.slice(0, 80),
+    detail: typeof r.detail === 'string' && r.detail ? r.detail.slice(0, 300) : null,
   };
 }
 

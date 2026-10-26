@@ -5,7 +5,8 @@ import { collectInventory } from './inventory.js';
 import { collectApplications } from './applications.js';
 import { collectPatches } from './patches.js';
 import { collectLogs } from './logs.js';
-import type { MachineApplication, MachineInventory, MachineLogEntry, MachinePatches } from '@devdeck/shared';
+import { getAutostart } from './autostart.js';
+import type { MachineApplication, MachineAutostart, MachineInventory, MachineLogEntry, MachinePatches } from '@devdeck/shared';
 
 /** Heartbeat-Loop: hält die Maschine online (Spezifikation: alle ~30 s). */
 export function startHeartbeat(
@@ -25,6 +26,9 @@ export function startHeartbeat(
     /** Fehlerprotokolle seit `since`; Standard echt, alle 15 Minuten (beim ersten Mal die letzten 7 Tage). */
     collectLogs?: (since: Date) => Promise<{ entries: MachineLogEntry[]; notes: string[] }>;
     logsIntervalMs?: number;
+    /** Autostart-Zustand; Standard echt, stündlich neu. */
+    collectAutostart?: () => Promise<MachineAutostart>;
+    autostartIntervalMs?: number;
   } = {},
 ): { stop(): void } {
   const client = new ServerClient(config);
@@ -82,6 +86,17 @@ export function startHeartbeat(
     }
   };
 
+  const gatherAutostart = options.collectAutostart ?? (() => getAutostart());
+  const autostartEveryMs = options.autostartIntervalMs ?? 60 * 60_000;
+  let pendingAutostart: MachineAutostart | null = null;
+  const refreshAutostart = async (): Promise<void> => {
+    try {
+      pendingAutostart = await gatherAutostart();
+    } catch (err) {
+      log.warn(`Autostart-Zustand nicht ermittelbar: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
   const beat = async (): Promise<void> => {
     if (stopped) return;
     try {
@@ -90,7 +105,9 @@ export function startHeartbeat(
       const sendingApps = pendingApps;
       const sendingPatches = pendingPatches;
       const sendingLogs = pendingLogs;
-      await client.heartbeat(workspaces, sending ?? undefined, sendingApps ?? undefined, sendingPatches ?? undefined, sendingLogs ?? undefined);
+      const sendingAutostart = pendingAutostart;
+      await client.heartbeat(workspaces, sending ?? undefined, sendingApps ?? undefined, sendingPatches ?? undefined, sendingLogs ?? undefined, sendingAutostart ?? undefined);
+      if (sendingAutostart && pendingAutostart === sendingAutostart) pendingAutostart = null;
       if (sendingLogs && pendingLogs === sendingLogs) pendingLogs = null;
       if (sendingPatches && pendingPatches === sendingPatches) pendingPatches = null;
       if (sending && pending === sending) pending = null;
@@ -102,13 +119,15 @@ export function startHeartbeat(
   };
 
   void beat(); // sofort online melden; das Inventar folgt, sobald es gesammelt ist
-  void refreshInventory().then(() => refreshApplications()).then(() => refreshLogs()).then(() => refreshPatches()); // nacheinander: zwei PowerShell-Prozesse gleichzeitig belasten den Start unnötig
+  void refreshInventory().then(() => refreshApplications()).then(() => refreshLogs()).then(() => refreshPatches()).then(() => refreshAutostart()); // nacheinander: zwei PowerShell-Prozesse gleichzeitig belasten den Start unnötig
   const timer = setInterval(() => void beat(), intervalMs);
   const inventoryTimer = setInterval(() => void refreshInventory(), inventoryEveryMs);
   const appsTimer = setInterval(() => void refreshApplications(), appsEveryMs);
   appsTimer.unref?.();
   const patchesTimer = setInterval(() => void refreshPatches(), patchesEveryMs);
   patchesTimer.unref?.();
+  const autostartTimer = setInterval(() => void refreshAutostart(), autostartEveryMs);
+  autostartTimer.unref?.();
   const logsTimer = setInterval(() => void refreshLogs(), logsEveryMs);
   logsTimer.unref?.();
   timer.unref?.();
@@ -121,6 +140,7 @@ export function startHeartbeat(
       clearInterval(appsTimer);
       clearInterval(patchesTimer);
       clearInterval(logsTimer);
+      clearInterval(autostartTimer);
     },
   };
 }

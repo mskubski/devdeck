@@ -33,6 +33,7 @@ export interface MachineRecord {
   agent_commit?: string | null;
   agent_node?: string | null;
   agent_entry?: string | null;
+  autostart_json?: string | null;
   agent_status: string;
   last_seen_at: string | null;
   token_hash: string | null;

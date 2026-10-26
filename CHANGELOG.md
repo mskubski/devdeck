@@ -3,6 +3,8 @@
 ## Unreleased - 2026-10-23
 
 ### Added
+- **Schalter „Autostart“ je Maschine** (Maschinenliste und Detailseite, Agent 0.14.0, Migration v18): nimmt den Agent in den Autostart auf bzw. wieder heraus – Windows: Run-Eintrag des Benutzers (ohne Fenster), Linux: systemd-Benutzerdienst, macOS: LaunchAgent; ohne Administratorrechte, der laufende Agent wird nicht gestoppt oder doppelt gestartet.
+  Neue Agent-Aktion `agent.autostart`, Zustand kommt per Heartbeat (stündlich) bzw. sofort nach dem Umschalten; API `POST /api/machines/:id/autostart {enabled}` (Besitzer/Admin, Audit-Eintrag).
 - **Tab „Logs“** auf der Maschinen-Detailseite (Agent 0.13.0, Migration v16): Fehlerprotokolle (nur Kritisch/Fehler) mit Zeit, Log (Herkunft), Quelle, ID, Ebene und Meldung, mit Suche sowie Filter nach Log und Ebene.
   Der Agent liest alle 15 Minuten nur Neues: Windows Ereignisanzeige (System, Application), Linux systemd-Journal (System/Kernel) und dmesg, macOS Systemprotokoll (`log show`) und Absturzberichte.
   **Aufbewahrung 30 Tage** (Löschung beim Eintreffen neuer Logs und alle 6 Stunden) plus Obergrenze 5000 Einträge je Maschine; Doppelte werden ignoriert. API `GET /api/machines/:id/logs`.
