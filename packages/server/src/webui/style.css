@@ -322,6 +322,10 @@ legend { padding: 0 var(--space-2); color: var(--text-muted); font-size: var(--f
 .btn.subtle { background: var(--accent-soft); color: var(--accent); }
 .btn.subtle:hover { background: var(--accent-soft); filter: brightness(1.1); }
 .btn.sm { padding: 6px 11px; font-size: var(--fs-xs); }
+.inline-check { display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; font-size: var(--fs-xs); cursor: pointer; white-space: nowrap; }
+.inline-check input { width: auto; margin: 0; }
+.inline-check { display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; font-size: var(--fs-xs); cursor: pointer; white-space: nowrap; }
+.inline-check input { width: auto; margin: 0; }
 .btn.icon-only { padding: 7px 9px; }
 .btn-group { display: inline-flex; gap: var(--space-2); }
 

@@ -3,7 +3,9 @@
 ## Unreleased - 2026-10-23
 
 ### Added
-- **GitHub-Issue-Abgleich** (Integrationen → GitHub-Konnektor → „Issue-Abgleich einschalten“, Migration v17): Tasks und Known Issues werden in beide Richtungen mit den GitHub Issues synchronisiert – lokale Änderungen nach wenigen Sekunden,
+- **Schalter „Autostart“ je Maschine** (Maschinenliste und Detailseite, Agent 0.14.0, Migration v17): nimmt den Agent in den Autostart auf bzw. wieder heraus – Windows: Run-Eintrag des Benutzers (ohne Fenster), Linux: systemd-Benutzerdienst, macOS: LaunchAgent; ohne Administratorrechte, der laufende Agent wird nicht gestoppt oder doppelt gestartet.
+  Neue Agent-Aktion `agent.autostart`, Zustand kommt per Heartbeat (stündlich) bzw. sofort nach dem Umschalten; API `POST /api/machines/:id/autostart {enabled}` (Besitzer/Admin, Audit-Eintrag).
+- **GitHub-Issue-Abgleich** (Integrationen → GitHub-Konnektor → „Issue-Abgleich einschalten“, Migration v18): Tasks und Known Issues werden in beide Richtungen mit den GitHub Issues synchronisiert – lokale Änderungen nach wenigen Sekunden,
   Änderungen auf GitHub alle 5 Minuten oder per „Jetzt abgleichen“. Zuordnung: Tasks = Issues ohne Label `bug`/`known-issue`, Known Issues = Issues mit `bug` oder `known-issue`; verwaltete Labels `P1`–`P5`, `in-progress`, `known-issue`, `severity-*`.
   Änderungserkennung per Hash (nur die geänderte Seite wird übernommen, bei beidseitiger Änderung gewinnt GitHub), Pull Requests werden ignoriert, höchstens 50 neue Issues je Lauf, gelöschte Issues werden nicht neu angelegt. Aus per Standard; Einschalten verlangt eine Bestätigung.
   Tasks und Known Issues zeigen die Issue-Nummer als Link. API: `GET .../connectors/:id/sync/preview`, `PUT .../sync`, `POST .../sync/run`.

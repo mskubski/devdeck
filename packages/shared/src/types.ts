@@ -119,6 +119,19 @@ export interface MachineDto {
   last_seen_at: string | null;
   revoked_at: string | null;
   created_at: string;
+  /** Läuft der Agent beim Hochfahren/Anmelden automatisch an? null = unbekannt (Agent meldet es noch nicht) */
+  autostart: MachineAutostart | null;
+  /** Agent kennt `agent.autostart` (≥ 0.14.0) */
+  agent_can_autostart: boolean;
+}
+
+/** Autostart-Zustand des Agents auf der Maschine. */
+export interface MachineAutostart {
+  enabled: boolean;
+  /** z. B. „systemd-Benutzerdienst“, „LaunchAgent“, „Windows-Autostart …“ */
+  method: string;
+  /** Hinweis, z. B. dass der Start erst nach Anmeldung erfolgt */
+  detail: string | null;
 }
 
 /** Hardware-/System-Inventar einer Maschine, vom Agenten gesammelt (keine Geheimnisse, nur Metadaten). */

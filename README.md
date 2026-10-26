@@ -146,6 +146,10 @@ Every project has the same tabs; together they are the project's memory and are 
 | Integrations | Connectors to external services (GitHub first); the token lives in the vault | maintainer |
 | Sync log | History of sync, provision and deploy jobs with errors | – |
 
+### Agent autostart
+
+The **Autostart** checkbox next to every machine (and on its detail page) adds the agent to or removes it from the machine's autostart, without admin rights: Windows per-user Run entry (hidden window), Linux systemd user unit `devdeck-agent.service` (for start without login: `sudo loginctl enable-linger $USER`), macOS LaunchAgent `de.devdeck.agent` (takes effect at next login). The running agent is never stopped or started twice. Needs agent 0.14.0; owner/admin only; audited.
+
 ### Deploying a project that runs on a machine
 
 For software that runs productively on a registered Linux machine (e.g. a Python service as systemd *user* units), **Projects → Workspaces → Deploy** (maintainers, agent ≥ 0.8.0) does what you would otherwise do by hand:

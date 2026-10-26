@@ -433,7 +433,11 @@ const MIGRATIONS: string[] = [
   ALTER TABLE machines ADD COLUMN logs_at TEXT;
   ALTER TABLE machines ADD COLUMN logs_notes_json TEXT;
   `,
-  // v17: Abgleich Tasks/Known Issues <-> GitHub Issues
+  // v17: Autostart-Zustand des Agents je Maschine
+  `
+  ALTER TABLE machines ADD COLUMN autostart_json TEXT;
+  `,
+  // v18: Abgleich Tasks/Known Issues <-> GitHub Issues
   `
   ALTER TABLE project_connectors ADD COLUMN sync_enabled INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE project_connectors ADD COLUMN sync_last_at TEXT;
