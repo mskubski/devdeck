@@ -48,6 +48,14 @@ export interface TaskDto {
   created_at: string;
   updated_at: string;
   closed_at: string | null;
+  /** Verknüpftes GitHub-Issue (wenn der Issue-Abgleich aktiv ist) */
+  github_issue?: GithubIssueRef | null;
+}
+
+/** Verweis auf ein GitHub-Issue. */
+export interface GithubIssueRef {
+  number: number;
+  url: string;
 }
 
 export type DecisionStatus = 'proposed' | 'accepted' | 'superseded' | 'rejected';
@@ -87,6 +95,7 @@ export interface KnownIssueDto {
   created_by: string | null;
   created_at: string;
   resolved_at: string | null;
+  github_issue?: GithubIssueRef | null;
 }
 
 export type MachineStatus = 'online' | 'offline' | 'revoked';

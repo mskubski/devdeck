@@ -2,10 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { AppError } from '@devdeck/shared';
 import type { AppContext } from '../context.js';
-import { asyncHandler, clientIp, param, requireString } from '../http.js';
+import { asyncHandler, clientIp, param, requireConfirmation, requireString } from '../http.js';
 import { requireProjectRole, requireUser, secretCapabilitiesFor } from '../auth/middleware.js';
 import { audit } from '../services/audit.js';
 import { getConnector, listConnectors } from '../services/connectors/index.js';
+import { runIssueSync, syncPreview } from '../services/issueSync.js';
 
 interface ConnectorRow {
   id: string;
@@ -18,6 +19,10 @@ interface ConnectorRow {
   last_check_ok: number | null;
   last_check_message: string | null;
   created_at: string;
+  sync_enabled: number;
+  sync_last_at: string | null;
+  sync_last_ok: number | null;
+  sync_last_message: string | null;
 }
 
 function toDto(row: ConnectorRow) {
@@ -32,6 +37,10 @@ function toDto(row: ConnectorRow) {
     last_check_ok: row.last_check_ok === null ? null : Boolean(row.last_check_ok),
     last_check_message: row.last_check_message,
     created_at: row.created_at,
+    sync_enabled: Boolean(row.sync_enabled),
+    sync_last_at: row.sync_last_at,
+    sync_last_ok: row.sync_last_ok === null ? null : Boolean(row.sync_last_ok),
+    sync_last_message: row.sync_last_message,
   };
 }
 
@@ -149,6 +158,54 @@ export function connectorRoutes(ctx: AppContext): Router {
       res.json({
         data: { ...result, connector: toDto(db.get<ConnectorRow>('SELECT * FROM project_connectors WHERE id = ?', id)!) },
       });
+    }),
+  );
+
+  /** GitHub-Konnektor des Projekts laden (nur dort gibt es den Issue-Abgleich). */
+  function githubConnector(projectId: string, id: string): ConnectorRow {
+    const row = db.get<ConnectorRow>('SELECT * FROM project_connectors WHERE id = ? AND project_id = ?', id, projectId);
+    if (!row) throw new AppError('NOT_FOUND', 'Konnektor nicht gefunden');
+    if (row.type !== 'github') throw new AppError('VALIDATION', 'Der Issue-Abgleich ist nur für GitHub-Konnektoren verfügbar');
+    return row;
+  }
+
+  // Vorschau für die Rückfrage vor dem Aktivieren: wie viele lokale Einträge würden als Issues angelegt
+  router.get(
+    '/projects/:projectId/connectors/:connectorId/sync/preview',
+    requireProjectRole(db, 'maintainer'),
+    asyncHandler(async (req, res) => {
+      const row = githubConnector(req.project!.id, param(req, 'connectorId')!);
+      res.json({ data: syncPreview(ctx, row.id, req.project!.id) });
+    }),
+  );
+
+  // Issue-Abgleich ein-/ausschalten. Einschalten legt für bestehende Tasks/Known Issues GitHub-Issues an → Bestätigung nötig.
+  router.put(
+    '/projects/:projectId/connectors/:connectorId/sync',
+    requireProjectRole(db, 'maintainer'),
+    asyncHandler(async (req, res) => {
+      const row = githubConnector(req.project!.id, param(req, 'connectorId')!);
+      const enabled = req.body?.enabled === true;
+      if (enabled) requireConfirmation(req.body);
+      db.run('UPDATE project_connectors SET sync_enabled = ? WHERE id = ?', enabled ? 1 : 0, row.id);
+      audit(db, {
+        actor_type: 'user', actor_id: req.user!.id, actor_label: req.user!.email,
+        action: enabled ? 'connector.sync.enable' : 'connector.sync.disable', project_id: req.project!.id,
+        target_type: 'connector', target_id: row.id, result: 'success', ip: clientIp(req),
+      });
+      if (enabled) void runIssueSync(ctx, row.id).catch(() => undefined); // erster Abgleich im Hintergrund
+      res.json({ data: toDto(db.get<ConnectorRow>('SELECT * FROM project_connectors WHERE id = ?', row.id)!) });
+    }),
+  );
+
+  // Sofort abgleichen und das Ergebnis zurückgeben
+  router.post(
+    '/projects/:projectId/connectors/:connectorId/sync/run',
+    requireProjectRole(db, 'maintainer'),
+    asyncHandler(async (req, res) => {
+      const row = githubConnector(req.project!.id, param(req, 'connectorId')!);
+      const result = await runIssueSync(ctx, row.id);
+      res.json({ data: { ...result, connector: toDto(db.get<ConnectorRow>('SELECT * FROM project_connectors WHERE id = ?', row.id)!) } });
     }),
   );
 

@@ -4,6 +4,7 @@ import type { AppContext } from '../context.js';
 import { asyncHandler, clientIp, optionalString, param, requireString } from '../http.js';
 import { requireProjectRole, requireUser } from '../auth/middleware.js';
 import { audit } from '../services/audit.js';
+import { attachIssueRefs, scheduleIssueSync } from '../services/issueSync.js';
 import { AppError } from '@devdeck/shared';
 import type { TaskDto, TaskStatus } from '@devdeck/shared';
 
@@ -11,6 +12,15 @@ export function taskRoutes(ctx: AppContext): Router {
   const { db } = ctx;
   const router = Router();
   router.use(requireUser(db));
+  // Nach jeder erfolgreichen Änderung den GitHub-Abgleich anstoßen (nur wirksam, wenn er für das Projekt aktiv ist)
+  router.use((req, res, next) => {
+    if (req.method !== 'GET') {
+      res.on('finish', () => {
+        if (res.statusCode < 400 && req.project) scheduleIssueSync(ctx, req.project.id);
+      });
+    }
+    next();
+  });
 
   // List tasks for a project
   router.get(
@@ -27,7 +37,7 @@ export function taskRoutes(ctx: AppContext): Router {
          ORDER BY t.priority DESC, t.created_at DESC`,
         req.project!.id,
       );
-      res.json({ data: tasks });
+      res.json({ data: attachIssueRefs(db, req.project!.id, 'task', tasks) });
     }),
   );
 

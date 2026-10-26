@@ -93,7 +93,7 @@ export async function renderKnownIssues(el, project) {
   const canWrite = roleAtLeast(project.role, 'developer');
   const rows = items.map((i) => `
     <tr>
-      <td><strong>${esc(i.title)}</strong>${i.description ? `<br><span class="muted text-sm">${esc(i.description)}</span>` : ''}</td>
+      <td><strong>${esc(i.title)}</strong>${i.github_issue ? ` <a class="link text-sm" href="${esc(i.github_issue.url)}" target="_blank" rel="noopener noreferrer" title="GitHub Issue öffnen">#${esc(i.github_issue.number)}</a>` : ''}${i.description ? `<br><span class="muted text-sm">${esc(i.description)}</span>` : ''}</td>
       <td>${badge(SEVERITY_LABEL[i.severity] ?? i.severity, i.severity === 'high' ? 'bad' : i.severity === 'medium' ? 'warn' : '')}</td>
       <td>${badge(i.status === 'open' ? 'offen' : 'gelöst', i.status === 'open' ? 'warn' : 'ok')}</td>
       <td class="muted text-sm">${fmtDate(i.created_at)}</td>

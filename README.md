@@ -120,6 +120,13 @@ The very first time, update the server by hand so it has the button:
 `git checkout main && git pull --ff-only && npm ci && npm run build && systemctl --user restart devdeck-server devdeck-agent`.
 See [ANLEITUNG.md](docs/ANLEITUNG.md) (German, section 9) for details. Target branch: `DEVDECK_UPDATE_BRANCH` (default `main`).
 
+### GitHub issue sync
+
+With a GitHub connector (token in the vault, "Issues: read and write"), **Integrations → Turn on issue sync** keeps DevDeck's tasks and known issues and the repository's GitHub Issues in sync in both directions
+(local changes within seconds, GitHub changes polled every 5 minutes or via "Sync now"). Tasks are issues without the labels `bug`/`known-issue`, known issues are issues with `bug` or `known-issue`.
+DevDeck only manages the labels `P1`–`P5`, `in-progress`, `known-issue` and `severity-low|medium|high` (plus title, body, open/closed); other labels, comments and assignees are left alone. If both sides changed the same item, GitHub wins.
+Off by default; turning it on asks for confirmation and creates at most 50 issues per run.
+
 ### Deploying a project that runs on a machine
 
 For software that runs productively on a registered Linux machine (e.g. a Python service as systemd *user* units), **Projects → Workspaces → Deploy** (maintainers, agent ≥ 0.8.0) does what you would otherwise do by hand:

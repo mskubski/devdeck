@@ -433,6 +433,29 @@ const MIGRATIONS: string[] = [
   ALTER TABLE machines ADD COLUMN logs_at TEXT;
   ALTER TABLE machines ADD COLUMN logs_notes_json TEXT;
   `,
+  // v17: Abgleich Tasks/Known Issues <-> GitHub Issues
+  `
+  ALTER TABLE project_connectors ADD COLUMN sync_enabled INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE project_connectors ADD COLUMN sync_last_at TEXT;
+  ALTER TABLE project_connectors ADD COLUMN sync_last_ok INTEGER;
+  ALTER TABLE project_connectors ADD COLUMN sync_last_message TEXT;
+  ALTER TABLE project_connectors ADD COLUMN sync_since TEXT;
+  CREATE TABLE issue_links (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    connector_id TEXT NOT NULL REFERENCES project_connectors(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    local_id TEXT NOT NULL,
+    issue_number INTEGER NOT NULL,
+    synced_hash TEXT NOT NULL,
+    remote_updated_at TEXT,
+    last_synced_at TEXT NOT NULL,
+    -- 1 = Issue auf GitHub nicht mehr vorhanden: nicht erneut anlegen, nicht mehr abgleichen
+    gone INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (connector_id, issue_number),
+    UNIQUE (connector_id, kind, local_id)
+  );
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

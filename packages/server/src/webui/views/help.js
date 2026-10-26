@@ -46,6 +46,29 @@ export async function renderHelp(el) {
         Kontext für Entwickler und Coding Agents gedacht.</p>`,
     },
     {
+      id: 'issue-sync',
+      icon: 'tasks',
+      title: 'Tasks & GitHub Issues',
+      body: `
+        <p>DevDeck kann seine <strong>Tasks</strong> und <strong>Known Issues</strong> mit den <strong>GitHub Issues</strong> des Projekt-Repositories <strong>in beide Richtungen abgleichen</strong>: Ein neuer oder geänderter Eintrag in DevDeck erscheint
+        als Issue auf GitHub – und umgekehrt. Standardmäßig ist der Abgleich <em>aus</em>; einschalten unter <em>Projekt → Integrationen</em> beim GitHub-Konnektor mit „Issue-Abgleich einschalten“ (Maintainer; das Token im Vault braucht
+        Schreibrecht auf „Issues“). Vor dem Einschalten fragt DevDeck nach und nennt, wie viele bestehende Einträge als Issues angelegt werden. Ohne eingeschalteten Abgleich bleiben Tasks nur in DevDeck – sie kommen nicht von selbst aus GitHub.</p>
+        <table><thead><tr><th>DevDeck</th><th>GitHub</th></tr></thead><tbody>
+          <tr><td><strong>Task</strong> (Titel, Beschreibung)</td><td>Issue ohne Label <code>bug</code>/<code>known-issue</code> (Titel, Text)</td></tr>
+          <tr><td><strong>Known Issue</strong></td><td>Issue mit Label <code>bug</code> oder <code>known-issue</code></td></tr>
+          <tr><td>Task <em>offen</em> / <em>in Arbeit</em></td><td>Issue offen / offen mit Label <code>in-progress</code></td></tr>
+          <tr><td>Task <em>erledigt</em> / <em>verworfen</em></td><td>Issue geschlossen („completed“) / geschlossen („not planned“)</td></tr>
+          <tr><td>Task-Priorität 1–5</td><td>Label <code>P1</code> … <code>P5</code></td></tr>
+          <tr><td>Known Issue <em>offen</em> / <em>gelöst</em></td><td>Issue offen / geschlossen</td></tr>
+          <tr><td>Schwere niedrig / mittel / hoch</td><td>Label <code>severity-low</code> / <code>severity-medium</code> / <code>severity-high</code></td></tr>
+        </tbody></table>
+        <p><strong>Wann wird abgeglichen?</strong> Lokale Änderungen gehen nach wenigen Sekunden an GitHub, Änderungen auf GitHub holt DevDeck alle 5 Minuten (oder sofort mit „Jetzt abgleichen“). Pro Eintrag gilt: Hat sich nur eine Seite geändert, wird sie übernommen;
+        wurde <em>derselbe</em> Eintrag auf beiden Seiten verändert, <strong>gewinnt GitHub</strong> (der Lauf meldet die Anzahl der Konflikte). Andere Labels, Kommentare, Zuständige und Meilensteine auf GitHub bleiben unangetastet – DevDeck verwaltet nur die oben genannten Labels, Titel, Text und Zustand.
+        Pull Requests werden ignoriert. Ein Task mit GitHub-Verknüpfung zeigt die Issue-Nummer <code>#12</code> als Link. Beim ersten Lauf legt DevDeck höchstens 50 Issues an, der Rest folgt in den nächsten Läufen (Schonung der GitHub-Limits).
+        Wird ein Issue auf GitHub <em>gelöscht</em>, bleibt der DevDeck-Eintrag bestehen und wird nicht erneut angelegt. „Abgleich aus“ stoppt die Synchronisation, die Verknüpfungen bleiben erhalten.
+        <strong>Tasks und Known Issues bleiben getrennte Tabs</strong> – auf GitHub ist beides ein Issue, das Label entscheidet, wohin ein neues Issue aus GitHub kommt.</p>`,
+    },
+    {
       id: 'sessions',
       icon: 'code',
       title: 'Coding Sessions & Handover',
