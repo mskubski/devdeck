@@ -206,7 +206,7 @@ DevDeck verwaltet nur die Labels `P1`–`P5` (Priorität), `in-progress`, `known
   liegen. DevDeck prüft das jetzt schon beim Registrieren/Bearbeiten und zeigt den Root an. Falsche Pfade korrigierst du im Tab **Workspaces**
   mit **Bearbeiten** (oder **Entfernen** – löscht nur die Registrierung, nie Dateien). Den Root selbst änderst du unter **Maschinen** → „Root ändern“.
 
-**Autostart:** Hinter jeder Maschine (und auf ihrer Detailseite) schaltet der Haken **Autostart** den Start des Agents beim Hochfahren/Anmelden ein oder aus (Windows: Autostart-Eintrag des Benutzers, Linux: systemd-Benutzerdienst – für Start ohne Anmeldung einmalig `sudo loginctl enable-linger $USER`, macOS: LaunchAgent). Voraussetzung: Maschine online, Agent ab 0.14.0.
+**Autostart:** Hinter jeder Maschine (und auf ihrer Detailseite) schaltet der Schalter **Autostart** den Start des Agents beim Hochfahren/Anmelden ein oder aus (Windows: Autostart-Eintrag des Benutzers, Linux: systemd-Benutzerdienst – für Start ohne Anmeldung einmalig `sudo loginctl enable-linger $USER`, macOS: LaunchAgent). Voraussetzung: Maschine online, Agent ab 0.14.0.
 
 ## 7c. Architektur-Karte (Projekt-Übersicht)
 
