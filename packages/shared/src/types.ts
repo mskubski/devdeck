@@ -180,6 +180,85 @@ export interface MachineInventory {
   }>;
 }
 
+/** Installierte Software (Windows: Programme, Linux: Pakete/Snaps/Flatpaks, macOS: Apps/Homebrew). */
+export interface MachineApplication {
+  name: string;
+  version: string | null;
+  publisher: string | null;
+  identifier: string | null;
+  source: string;
+}
+
+export interface MachineApplicationsDto {
+  applications: MachineApplication[];
+  applications_at: string | null;
+}
+
+/** Patch-Stand: nur was ein Update braucht wird gelistet (kritisch > Sicherheit > sonstige). */
+export type PatchStatus = 'critical' | 'security' | 'update';
+
+export interface MachinePatchItem {
+  vendor: string | null;
+  name: string;
+  /** installierte Version, soweit bekannt */
+  version: string | null;
+  /** verfügbare Version bzw. Update-Kennung (z. B. KB-Nummer) */
+  available: string | null;
+  status: PatchStatus;
+  kind: 'os' | 'app';
+  detail: string | null;
+}
+
+export interface MachineInstalledUpdate {
+  id: string;
+  description: string | null;
+  installed_on: string | null;
+}
+
+export interface MachinePatches {
+  collected_at: string;
+  scanner: string;
+  total: number;
+  critical: number;
+  /** kritisch + sicherheitsrelevant */
+  security: number;
+  reboot_required: boolean | null;
+  last_installed_at: string | null;
+  items: MachinePatchItem[];
+  installed: MachineInstalledUpdate[];
+  notes: string[];
+}
+
+export interface MachinePatchesDto {
+  patches: MachinePatches | null;
+  patches_at: string | null;
+}
+
+/** Fehlerprotokoll-Eintrag einer Maschine (nur Kritisch/Fehler). */
+export type MachineLogLevel = 'critical' | 'error';
+
+export interface MachineLogEntry {
+  /** ISO-Zeitpunkt (UTC) */
+  time: string;
+  /** Aus welchem Protokoll/welcher Datei, z. B. „System (Ereignisanzeige)“, „journal (Kernel)“ */
+  source: string;
+  /** Quelle innerhalb des Protokolls (Anbieter, Dienst, Prozess) */
+  provider: string | null;
+  event_id: string | null;
+  level: MachineLogLevel;
+  message: string;
+}
+
+export interface MachineLogsDto {
+  entries: Array<MachineLogEntry & { id: number }>;
+  /** Anzahl je Protokoll (alle gespeicherten Einträge, unabhängig vom Filter) */
+  sources: Array<{ source: string; count: number }>;
+  total: number;
+  logs_at: string | null;
+  notes: string[];
+  retention_days: number;
+}
+
 export interface MachineCustomField {
   label: string;
   value: string;

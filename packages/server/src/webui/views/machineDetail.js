@@ -161,10 +161,181 @@ function inventoryTab(el, m, inv) {
     </div>`;
 }
 
-/** Weitere Tabs (Einstellungen, Anwendungen, Patches, …) kommen hier später dazu. */
+const APPS_SHOWN = 500;
+
+/** Tab „Anwendungen“: installierte Software mit Suche und Quellenfilter; die Liste wird erst beim Öffnen geladen. */
+async function applicationsTab(el, m) {
+  el.innerHTML = '<div class="skeleton" style="width:60%"></div>';
+  let data;
+  try {
+    data = await get(`/api/machines/${m.id}/applications`);
+  } catch (err) {
+    el.innerHTML = `<div class="card"><p class="error">${esc(err.message)}</p></div>`;
+    return;
+  }
+  const apps = data.applications ?? [];
+  if (!apps.length) {
+    el.innerHTML = `<div class="alert info"><span>Für diese Maschine liegt noch keine Software-Liste vor. Der Agent (ab Version 0.11.0) meldet sie kurz nach dem Start und danach stündlich${m.agent_outdated ? ' – bitte unter „Maschinen“ den Agent aktualisieren' : ''}.</span></div>`;
+    return;
+  }
+  const sources = [...new Set(apps.map((a) => a.source))].sort();
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-head">
+        <h2>Anwendungen <span class="muted text-sm" id="apps-count"></span></h2>
+        <span class="muted text-sm">Aktualisiert: ${esc(fmtDate(data.applications_at))}</span>
+      </div>
+      <div class="row" style="gap:var(--space-3);margin-bottom:var(--space-3);flex-wrap:wrap">
+        <input id="apps-search" type="search" placeholder="Suchen (Name, Hersteller, Version …)" style="flex:1;min-width:220px" />
+        ${sources.length > 1 ? `<select id="apps-source"><option value="">Alle Quellen</option>${sources.map((x) => `<option value="${esc(x)}">${esc(x)}</option>`).join('')}</select>` : ''}
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Name</th><th>Version</th><th>Hersteller</th><th>Kennung</th><th>Quelle</th></tr></thead>
+        <tbody id="apps-body"></tbody>
+      </table></div>
+      <p class="muted text-sm" id="apps-more" style="margin-top:var(--space-3)"></p>
+    </div>`;
+  let showAll = false;
+  const draw = () => {
+    const q = $('#apps-search', el).value.trim().toLowerCase();
+    const src = $('#apps-source', el)?.value ?? '';
+    const hits = apps.filter((a) => (!src || a.source === src)
+      && (!q || [a.name, a.version, a.publisher, a.identifier, a.source].some((v) => String(v ?? '').toLowerCase().includes(q))));
+    const shown = showAll ? hits : hits.slice(0, APPS_SHOWN);
+    $('#apps-count', el).textContent = hits.length === apps.length ? `(${apps.length})` : `(${hits.length} von ${apps.length})`;
+    $('#apps-body', el).innerHTML = shown.map((a) => `
+      <tr><td>${esc(a.name)}</td><td class="mono text-sm">${esc(a.version || '–')}</td><td class="muted text-sm">${esc(a.publisher || '–')}</td>
+        <td class="mono text-sm muted">${esc(a.identifier || '–')}</td><td class="muted text-sm">${esc(a.source)}</td></tr>`).join('')
+      || '<tr><td colspan="5"><div class="empty-state">Keine Treffer.</div></td></tr>';
+    const more = $('#apps-more', el);
+    more.innerHTML = hits.length > shown.length ? `${shown.length} von ${hits.length} angezeigt – <a class="link" href="#" id="apps-all">alle anzeigen</a>` : '';
+    $('#apps-all', el)?.addEventListener('click', (e) => { e.preventDefault(); showAll = true; draw(); });
+  };
+  $('#apps-search', el).addEventListener('input', () => { showAll = false; draw(); });
+  $('#apps-source', el)?.addEventListener('change', () => { showAll = false; draw(); });
+  draw();
+}
+
+const PATCH_LABEL = { critical: 'Kritisch', security: 'Sicherheit', update: 'Update verfügbar' };
+const PATCH_KIND = { critical: 'bad', security: 'warn', update: 'accent' };
+
+/** Tab „Patches“: ausstehende Updates (Betriebssystem und Programme) und zuletzt installierte Updates; lädt erst beim Öffnen. */
+async function patchesTab(el, m) {
+  el.innerHTML = '<div class="skeleton" style="width:60%"></div>';
+  let data;
+  try {
+    data = await get(`/api/machines/${m.id}/patches`);
+  } catch (err) {
+    el.innerHTML = `<div class="card"><p class="error">${esc(err.message)}</p></div>`;
+    return;
+  }
+  const p = data.patches;
+  if (!p) {
+    el.innerHTML = `<div class="alert info"><span>Für diese Maschine liegt noch kein Patch-Stand vor. Der Agent (ab Version 0.12.0) prüft ihn kurz nach dem Start und danach alle 6 Stunden${m.agent_outdated ? ' – bitte unter „Maschinen“ den Agent aktualisieren' : ''}. Die erste Prüfung kann einige Minuten dauern.</span></div>`;
+    return;
+  }
+  const level = p.critical > 0 ? 'bad' : p.security > 0 ? 'warn' : 'ok';
+  const items = p.items ?? [];
+  el.innerHTML = `
+    <div class="stack">
+      <div class="card"><div class="card-head"><h2>Zusammenfassung</h2><span class="muted text-sm">Aktualisiert: ${esc(fmtDate(data.patches_at || p.collected_at))}</span></div>
+        ${rows([
+          ['Gesamtstatus', html(p.total === 0 ? badge('Aktuell', 'ok') : badge(p.critical ? 'Kritische Updates ausstehend' : p.security ? 'Sicherheitsupdates ausstehend' : 'Updates ausstehend', level))],
+          ['Ausstehende Updates', String(p.total)],
+          ['davon kritisch', String(p.critical)],
+          ['davon sicherheitsrelevant (inkl. kritisch)', String(p.security)],
+          ['Neustart erforderlich', p.reboot_required === null ? null : html(p.reboot_required ? badge('Ja', 'warn') : badge('Nein', 'ok'))],
+          ['Zuletzt installiert', p.last_installed_at],
+          ['Prüfverfahren', p.scanner],
+        ])}
+        ${(p.notes ?? []).map((n) => `<p class="muted text-sm" style="margin-top:var(--space-2)">${esc(n)}</p>`).join('')}
+      </div>
+      <div class="card"><div class="card-head"><h2>Ausstehende Updates ${p.total ? `<span class="muted text-sm">(${p.total}${p.total > items.length ? `, ${items.length} angezeigt` : ''})</span>` : ''}</h2></div>
+        ${items.length ? table(['Hersteller', 'Name', 'Installiert', 'Verfügbar', 'Art', 'Patch-Status'],
+          items.map((i) => [i.vendor, i.name, i.version, i.available, i.kind === 'os' ? 'System' : 'Programm', html(badge(PATCH_LABEL[i.status] || i.status, PATCH_KIND[i.status] || ''))]))
+          : '<p class="muted text-sm">Keine ausstehenden Updates gefunden.</p>'}
+        <p class="muted text-sm" style="margin-top:var(--space-3)">Gelistet wird nur, was ein Update braucht. Was hier nicht steht, ist nach Kenntnis des Systems aktuell – DevDeck führt keine Schwachstellen-Datenbank wie ein Hersteller-Scanner.</p>
+      </div>
+      ${(p.installed ?? []).length ? `<div class="card"><div class="card-head"><h2>Zuletzt installierte Updates</h2></div>
+        ${table(['Kennung', 'Beschreibung', 'Installiert am'], p.installed.map((u) => [u.id, u.description, u.installed_on]))}</div>` : ''}
+    </div>`;
+}
+
+const LOG_LEVEL = { critical: ['Kritisch', 'bad'], error: ['Fehler', 'warn'] };
+const MSG_SHOWN = 260;
+
+/** Tab „Logs“: Fehlerprotokolle (Kritisch/Fehler) aus den System-Logs der Maschine, filterbar; lädt erst beim Öffnen. */
+async function logsTab(el, m) {
+  el.innerHTML = '<div class="skeleton" style="width:60%"></div>';
+  const state2 = { source: '', level: '', q: '' };
+  const load = async () => {
+    const qs = new URLSearchParams({ limit: '200' });
+    if (state2.source) qs.set('source', state2.source);
+    if (state2.level) qs.set('level', state2.level);
+    if (state2.q) qs.set('q', state2.q);
+    return get(`/api/machines/${m.id}/logs?${qs}`);
+  };
+  let data;
+  try {
+    data = await load();
+  } catch (err) {
+    el.innerHTML = `<div class="card"><p class="error">${esc(err.message)}</p></div>`;
+    return;
+  }
+  if (!data.logs_at) {
+    el.innerHTML = `<div class="alert info"><span>Für diese Maschine liegen noch keine Logs vor. Der Agent (ab Version 0.13.0) liest sie kurz nach dem Start und danach alle 15 Minuten${m.agent_outdated ? ' – bitte unter „Maschinen“ den Agent aktualisieren' : ''}.</span></div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="stack">
+      <div class="card"><div class="card-head"><h2>Fehlerprotokolle</h2><span class="muted text-sm">Zuletzt gelesen: ${esc(fmtDate(data.logs_at))}</span></div>
+        <p class="muted text-sm" style="margin:0 0 var(--space-3)">Nur Einträge der Stufen Kritisch und Fehler aus den System-Logs dieser Maschine. Einträge werden ${data.retention_days} Tage aufbewahrt und danach automatisch gelöscht.</p>
+        <div class="row" id="log-sources" style="gap:var(--space-2);margin-bottom:var(--space-3)">${data.sources.length
+          ? data.sources.map((s) => `<span class="badge">${esc(s.source)}: ${s.count}</span>`).join('')
+          : '<span class="muted text-sm">Keine Fehler gespeichert – das ist ein gutes Zeichen.</span>'}</div>
+        ${(data.notes ?? []).map((n) => `<p class="muted text-sm">${esc(n)}</p>`).join('')}
+        <div class="row" style="gap:var(--space-3);margin-bottom:var(--space-3);flex-wrap:wrap">
+          <input id="log-q" type="search" placeholder="Suchen (Meldung, Quelle, ID …)" style="flex:1;min-width:220px" value="${esc(state2.q)}" />
+          <select id="log-source"><option value="">Alle Logs</option>${data.sources.map((s) => `<option value="${esc(s.source)}">${esc(s.source)}</option>`).join('')}</select>
+          <select id="log-level"><option value="">Kritisch und Fehler</option><option value="critical">Nur kritisch</option><option value="error">Nur Fehler</option></select>
+        </div>
+        <div id="log-table"></div>
+        <p class="muted text-sm" id="log-count" style="margin-top:var(--space-3)"></p>
+      </div>
+    </div>`;
+  const draw = (d) => {
+    $('#log-table', el).innerHTML = d.entries.length ? table(['Zeit', 'Log', 'Quelle', 'ID', 'Ebene', 'Meldung'], d.entries.map((e) => [
+      fmtDate(e.time), e.source, e.provider, e.event_id,
+      html(badge(LOG_LEVEL[e.level]?.[0] ?? e.level, LOG_LEVEL[e.level]?.[1] ?? '')),
+      html(`<span class="text-sm" title="${esc(e.message)}">${esc(e.message.length > MSG_SHOWN ? `${e.message.slice(0, MSG_SHOWN)}…` : e.message)}</span>`),
+    ])) : '<p class="muted text-sm">Keine passenden Einträge.</p>';
+    $('#log-count', el).textContent = `${d.entries.length} Einträge angezeigt (neueste zuerst), ${d.total} gespeichert.`;
+  };
+  draw(data);
+  $('#log-source', el).value = state2.source;
+  $('#log-level', el).value = state2.level;
+  let timer = null;
+  const refresh = () => {
+    state2.q = $('#log-q', el).value.trim();
+    state2.source = $('#log-source', el).value;
+    state2.level = $('#log-level', el).value;
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      try { draw(await load()); } catch (err) { toast(err.message, 'error'); }
+    }, 250);
+  };
+  $('#log-q', el).addEventListener('input', refresh);
+  $('#log-source', el).addEventListener('change', refresh);
+  $('#log-level', el).addEventListener('change', refresh);
+}
+
+/** Weitere Tabs (Einstellungen, Action-Log, …) kommen hier später dazu. */
 const TABS = [
   { key: 'main', label: 'Übersicht', render: mainTab },
   { key: 'inventory', label: 'Inventar', render: inventoryTab },
+  { key: 'applications', label: 'Anwendungen', render: applicationsTab },
+  { key: 'patches', label: 'Patches', render: patchesTab },
+  { key: 'logs', label: 'Logs', render: logsTab },
 ];
 
 export async function renderMachineDetail(el, idAndQuery, setBreadcrumb) {

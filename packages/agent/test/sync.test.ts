@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { isAgentOutdated } from '@devdeck/shared';
+import { CURRENT_AGENT_VERSION, isAgentOutdated } from '@devdeck/shared';
 import { getAction } from '../src/actions/index.js';
 import '../src/actions/all.js';
 import { ServerClient } from '../src/client.js';
@@ -204,10 +204,8 @@ describe('workspace.sync / workspace.provision (Agent)', () => {
     expect(isAgentOutdated(null)).toBe(true);
     expect(isAgentOutdated('0.6.0')).toBe(true);
     expect(isAgentOutdated('0.7.0')).toBe(true);
-    expect(isAgentOutdated('0.8.0')).toBe(true);
-    expect(isAgentOutdated('0.9.0')).toBe(true);
-    expect(isAgentOutdated('0.10.0')).toBe(false);
-    expect(isAgentOutdated('0.10.0')).toBe(false);
+    expect(isAgentOutdated(CURRENT_AGENT_VERSION)).toBe(false);
+    expect(isAgentOutdated('0.100.0')).toBe(false);
   });
 
   it('lehnt Provisioning außerhalb des Workspace-Root ab', async () => {

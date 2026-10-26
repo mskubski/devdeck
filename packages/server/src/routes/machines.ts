@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
-import { AppError, compareVersions, isAgentOutdated, supportsSelfUpdate, type MachineCustomField, type MachineDetailDto, type MachineDto, type MachineInventory, type ProjectRole } from '@devdeck/shared';
+import { AppError, compareVersions, isAgentOutdated, supportsSelfUpdate, type MachineApplication, type MachineApplicationsDto, type MachineCustomField, type MachineDetailDto, type MachineDto, type MachineInventory, type MachineLogsDto, type MachinePatches, type MachinePatchesDto, type ProjectRole } from '@devdeck/shared';
 import {
   asyncHandler,
   clientIp,
@@ -16,6 +16,7 @@ import { generateToken, hashToken } from '../auth/tokens.js';
 import { audit } from '../services/audit.js';
 import { enqueueCommand } from '../services/provisioning.js';
 import { sanitizeCustomFields } from '../services/inventory.js';
+import { LOG_RETENTION_DAYS } from '../services/machineLogs.js';
 
 /** Update lief „erfolgreich“, der Agent meldet aber noch eine ältere Version als die gebaute → Hinweis für die UI. */
 function updateWarning(db: Database, row: MachineRecord): string | null {
@@ -153,25 +154,102 @@ export function machineRoutes(ctx: AppContext): Router {
     }),
   );
 
+  /** Maschine laden; Zugriff für Besitzer, Admins und Mitglieder eines Projekts, das einen Workspace darauf hat. */
+  function loadAccessible(userId: string, systemRole: string, id: string): MachineRecord {
+    const row = db.get<MachineRecord>(`SELECT ${MACHINE_COLUMNS} FROM machines WHERE id = ?`, id);
+    if (!row) throw new AppError('NOT_FOUND', 'Maschine nicht gefunden');
+    if (row.owner_user_id !== userId && systemRole !== 'admin') {
+      const member = db.get(
+        `SELECT 1 AS x FROM project_members WHERE user_id = ? AND project_id IN
+         (SELECT project_id FROM workspaces WHERE machine_id = ?)`,
+        userId,
+        id,
+      );
+      if (!member) throw new AppError('FORBIDDEN', 'Kein Zugriff auf diese Maschine');
+    }
+    return row;
+  }
+
+  // Installierte Software (eigener Aufruf, weil die Liste lang sein kann)
+  router.get(
+    '/:id/applications',
+    asyncHandler(async (req, res) => {
+      const id = param(req, 'id')!;
+      loadAccessible(req.user!.id, req.user!.system_role, id);
+      const r = db.get<{ applications_json: string | null; applications_at: string | null }>(
+        'SELECT applications_json, applications_at FROM machines WHERE id = ?',
+        id,
+      );
+      let applications: MachineApplication[] = [];
+      try {
+        applications = r?.applications_json ? (JSON.parse(r.applications_json) as MachineApplication[]) : [];
+      } catch {
+        applications = [];
+      }
+      const data: MachineApplicationsDto = { applications, applications_at: r?.applications_at ?? null };
+      res.json({ data });
+    }),
+  );
+
+  // Fehlerprotokolle: neueste zuerst, filterbar nach Protokoll, Ebene und Text
+  router.get(
+    '/:id/logs',
+    asyncHandler(async (req, res) => {
+      const id = param(req, 'id')!;
+      loadAccessible(req.user!.id, req.user!.system_role, id);
+      const source = typeof req.query.source === 'string' && req.query.source ? req.query.source : null;
+      const level = req.query.level === 'critical' || req.query.level === 'error' ? req.query.level : null;
+      const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : '';
+      const limit = Math.min(Math.max(Number(req.query.limit) || 200, 1), 500);
+      const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      const entries = db.all<MachineLogsDto['entries'][number]>(
+        `SELECT id, occurred_at AS time, source, provider, event_id, level, message FROM machine_logs
+         WHERE machine_id = ? AND (? IS NULL OR source = ?) AND (? IS NULL OR level = ?)
+           AND (? = '' OR message LIKE ? ESCAPE '\\' OR COALESCE(provider, '') LIKE ? ESCAPE '\\' OR COALESCE(event_id, '') LIKE ? ESCAPE '\\')
+         ORDER BY occurred_at DESC, id DESC LIMIT ?`,
+        id, source, source, level, level, q, like, like, like, limit,
+      );
+      const sources = db.all<{ source: string; count: number }>(
+        'SELECT source, COUNT(*) AS count FROM machine_logs WHERE machine_id = ? GROUP BY source ORDER BY count DESC, source',
+        id,
+      );
+      const meta = db.get<{ logs_at: string | null; logs_notes_json: string | null }>('SELECT logs_at, logs_notes_json FROM machines WHERE id = ?', id);
+      let notes: string[] = [];
+      try {
+        notes = meta?.logs_notes_json ? (JSON.parse(meta.logs_notes_json) as string[]) : [];
+      } catch {
+        notes = [];
+      }
+      const data: MachineLogsDto = {
+        entries, sources, total: sources.reduce((n, s) => n + s.count, 0), logs_at: meta?.logs_at ?? null, notes, retention_days: LOG_RETENTION_DAYS,
+      };
+      res.json({ data });
+    }),
+  );
+
+  // Patch-Stand (eigener Aufruf wie die Software-Liste)
+  router.get(
+    '/:id/patches',
+    asyncHandler(async (req, res) => {
+      const id = param(req, 'id')!;
+      loadAccessible(req.user!.id, req.user!.system_role, id);
+      const r = db.get<{ patches_json: string | null; patches_at: string | null }>('SELECT patches_json, patches_at FROM machines WHERE id = ?', id);
+      let patches: MachinePatches | null = null;
+      try {
+        patches = r?.patches_json ? (JSON.parse(r.patches_json) as MachinePatches) : null;
+      } catch {
+        patches = null;
+      }
+      const data: MachinePatchesDto = { patches, patches_at: r?.patches_at ?? null };
+      res.json({ data });
+    }),
+  );
+
   router.get(
     '/:id',
     asyncHandler(async (req, res) => {
-      const user = req.user!;
       const id = param(req, 'id')!;
-      const row = db.get<MachineRecord>(
-        `SELECT ${MACHINE_COLUMNS} FROM machines WHERE id = ?`,
-        id,
-      );
-      if (!row) throw new AppError('NOT_FOUND', 'Maschine nicht gefunden');
-      if (row.owner_user_id !== user.id && user.system_role !== 'admin') {
-        const member = db.get(
-          `SELECT 1 AS x FROM project_members WHERE user_id = ? AND project_id IN
-           (SELECT project_id FROM workspaces WHERE machine_id = ?)`,
-          user.id,
-          id,
-        );
-        if (!member) throw new AppError('FORBIDDEN', 'Kein Zugriff auf diese Maschine');
-      }
+      const row = loadAccessible(req.user!.id, req.user!.system_role, id);
       const extra = db.get<{ inventory_json: string | null; inventory_at: string | null; custom_fields_json: string | null }>(
         'SELECT inventory_json, inventory_at, custom_fields_json FROM machines WHERE id = ?',
         id,

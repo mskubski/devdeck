@@ -3,6 +3,15 @@
 ## Unreleased - 2026-10-23
 
 ### Added
+- **Tab „Logs“** auf der Maschinen-Detailseite (Agent 0.13.0, Migration v16): Fehlerprotokolle (nur Kritisch/Fehler) mit Zeit, Log (Herkunft), Quelle, ID, Ebene und Meldung, mit Suche sowie Filter nach Log und Ebene.
+  Der Agent liest alle 15 Minuten nur Neues: Windows Ereignisanzeige (System, Application), Linux systemd-Journal (System/Kernel) und dmesg, macOS Systemprotokoll (`log show`) und Absturzberichte.
+  **Aufbewahrung 30 Tage** (Löschung beim Eintreffen neuer Logs und alle 6 Stunden) plus Obergrenze 5000 Einträge je Maschine; Doppelte werden ignoriert. API `GET /api/machines/:id/logs`.
+- **Tab „Patches“** auf der Maschinen-Detailseite (Agent 0.12.0, Migration v15): ausstehende Updates mit Status Kritisch/Sicherheit/Update verfügbar, Zusammenfassung (Anzahl, Neustart erforderlich, zuletzt installiert) und zuletzt installierte Updates.
+  Der Agent prüft beim Start und alle 6 Stunden: Windows über den Windows Update Agent und `winget`, Linux über `apt`/`dnf`/`checkupdates`, macOS über `softwareupdate` und Homebrew. Kein Hersteller-Scanner: gelistet wird nur, was ein Update braucht.
+  API `GET /api/machines/:id/patches`. Der Versionstest im Agent ist nicht mehr an eine feste Versionsnummer gebunden.
+- **Tab „Anwendungen“** auf der Maschinen-Detailseite (Agent 0.11.0, Migration v14): installierte Software mit Name, Version, Hersteller, Kennung und Quelle, mit Suche und Quellenfilter. Der Agent liest sie beim Start und stündlich:
+  Windows aus den Uninstall-Schlüsseln der Registry (MSI, klassische und Benutzerinstallationen), Linux per dpkg/rpm/pacman sowie snap/flatpak, macOS per system_profiler und Homebrew. Serverseitig auf bekannte Felder, Längen und höchstens 2500 Einträge begrenzt;
+  API `GET /api/machines/:id/applications` (eigener Aufruf, nicht im Detail).
 - **Tab „Inventar“** auf der Maschinen-Detailseite (Agent 0.10.0): Gerät, Sicherheit (inkl. TPM-Hersteller/-Spezifikation), Prozessor (Kerne, Takt, Cache, Architektur), BIOS, Speichermodule (Hersteller, Kapazität, Teilenummer, Steckplatz, Bauform, Geschwindigkeit)
   und Netzwerkverbindungen (MAC, IPv4/IPv6, verbunden) – je Abschnitt mit Zeitstempel. Windows per CIM/PnP, Linux per lscpu/dmidecode (Root)/ip, macOS per sysctl/system_profiler/ifconfig; serverseitig wie das übrige Inventar auf bekannte Felder und Längen begrenzt.
 - **Maschinen-Details:** Klick auf den Namen unter Maschinen öffnet eine Detailseite (Tab „Übersicht“, weitere Tabs vorbereitet) mit Laufwerken, Gerät, Betriebssystem, Sicherheitsstatus, Verwaltung und **Eigenen Feldern**
@@ -33,6 +42,7 @@
 - Architektur-Karte steht auf der Projekt-Übersicht jetzt unten; Kennzahlen, Projektinfo und letzte Sessions bleiben oben.
 
 ### Fixed
+- Sync-Log: Aufträge mit identischem Zeitstempel erscheinen jetzt in stabiler Reihenfolge (neueste zuerst); ein davon abhängiger Test war unter Linux gelegentlich rot.
 - Sync/Deploy-Abbruch „lokale Änderungen“ nennt jetzt die betroffenen Dateien (bis zu fünf) direkt in der Meldung und im Sync-Log.
 - Agent-Update scheiterte mit „GIT_UNREACHABLE … no such ref was fetched“, wenn der Ordner auf einem längst gemergten Feature-Branch stand, dessen Remote nach dem Merge gelöscht wurde
   (`git pull` am Branch). Das Agent-Update holt jetzt wie das Server-Update `origin/main` und wechselt bei Bedarf per Fast-Forward auf `main` (`DEVDECK_UPDATE_BRANCH`); schlägt Build oder Probelauf

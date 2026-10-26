@@ -15,6 +15,7 @@ import { sweepExpiredCommands, sweepOfflineAgents } from './services/provisionin
 import type { UserRecord } from './auth/middleware.js';
 import { runAutoUpdateTick } from './services/autoUpdate.js';
 import { runScheduledBackup } from './services/backups.js';
+import { pruneMachineLogs } from './services/machineLogs.js';
 import { VaultService } from './vault/vault.js';
 
 export interface RunningServer {
@@ -128,6 +129,17 @@ export async function startServer(
     }
   }, 60_000);
   sweeper.unref();
+  // Fehlerprotokolle der Maschinen: Aufbewahrung (30 Tage, Obergrenze je Maschine) beim Start und danach alle 6 Stunden durchsetzen
+  const pruneLogs = (): void => {
+    try {
+      pruneMachineLogs(ctx.db);
+    } catch (err) {
+      console.error('[DevDeck] Log-Aufbewahrung fehlgeschlagen:', err);
+    }
+  };
+  setTimeout(pruneLogs, 60_000).unref();
+  const logTimer = setInterval(pruneLogs, 6 * 3_600_000);
+  logTimer.unref();
   // Backup-Scheduler: stündlich prüfen, ob das Intervall (Default 24 h) verstrichen ist
   const backupTimer = setInterval(() => {
     try {
@@ -158,6 +170,7 @@ export async function startServer(
     close: async () => {
       clearInterval(sweeper);
       clearInterval(backupTimer);
+      clearInterval(logTimer);
       clearInterval(updateTimer);
       await new Promise<void>((resolve) => server.close(() => resolve()));
       ctx.vault?.close();

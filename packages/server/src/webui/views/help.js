@@ -172,7 +172,7 @@ npm run build</pre>
         aktuell startet man den Agenten direkt per <span class="mono">node .../dist/index.js</span>.</p>
 
         <h3>Maschinen-Details</h3>
-        <p>Ein Klick auf den <strong>Namen</strong> einer Maschine öffnet ihre Detailseite (Tabs <em>Übersicht</em> und <em>Inventar</em>; weitere folgen). Der Agent (ab 0.9.0) sammelt dafür
+        <p>Ein Klick auf den <strong>Namen</strong> einer Maschine öffnet ihre Detailseite (Tabs <em>Übersicht</em>, <em>Inventar</em>, <em>Anwendungen</em>, <em>Patches</em> und <em>Logs</em>; weitere folgen). Der Agent (ab 0.9.0) sammelt dafür
         beim Start und danach alle 15 Minuten ein <strong>Inventar</strong> – auf Windows, Linux und macOS, nur Metadaten, keine Inhalte oder Passwörter:
         <em>Laufwerke</em> (frei/gesamt), <em>Gerät</em> (Computername, Hersteller, Modell, Prozessor, Seriennummer, RAM, BIOS), <em>Betriebssystem</em> (Version, Build, Sprache),
         <em>Sicherheit</em> (Secure Boot, Firewall, Verschlüsselung, Virenschutz bzw. FileVault/SIP/Gatekeeper, TPM, ausstehender Neustart; grün = in Ordnung, gelb = Hinweis, rot = Problem, grau = nicht ermittelbar),
@@ -182,6 +182,29 @@ npm run build</pre>
         <em>Prozessor</em> (Name, Hersteller, Kerne/Threads, Takt, Datenbreite, L2-Cache, Architektur), <em>BIOS</em>, <em>Speichermodule</em> (Hersteller, Kapazität, Teilenummer, Steckplatz, Bauform, Geschwindigkeit)
         und <em>Netzwerkverbindungen</em> (Name, MAC, IPv4/IPv6, verbunden). Unter Linux brauchen die Speichermodule Root-Rechte (<code>dmidecode</code>) – ohne bleibt der Abschnitt leer; unter macOS mit Apple Silicon erscheint der gemeinsame Arbeitsspeicher als ein Eintrag.
         Ist noch kein Inventar da, ist der Agent zu alt (Übersicht ab 0.9.0, Inventar-Details ab 0.10.0): unter <em>Maschinen</em> „Agent updaten“.</p>
+
+        <p>Der Tab <strong>Anwendungen</strong> listet die <strong>installierte Software</strong> mit Name, Version, Hersteller, Kennung und Quelle – mit Suchfeld und Filter nach Quelle, Zeitstempel der letzten Erfassung
+        (der Agent ab 0.11.0 liest sie beim Start und danach stündlich; angezeigt werden die ersten 500 Treffer, „alle anzeigen“ lädt den Rest).
+        <em>Windows:</em> Programme aus den Uninstall-Schlüsseln der Registry (Quelle <em>MSI</em>, <em>Add or remove programs</em> bzw. <em>(user)</em> für Benutzerinstallationen); Updates und ausgeblendete Nicht-MSI-Einträge entfallen, Microsoft-Store-Apps sind nicht enthalten.
+        <em>Linux:</em> Pakete des Paketmanagers (<code>dpkg</code>, sonst <code>rpm</code> oder <code>pacman</code>) sowie <code>snap</code> und <code>flatpak</code>, soweit vorhanden – Hersteller ist bei dpkg der Paketbetreuer. Das sind oft viele hundert Einträge, gespeichert werden höchstens 2500.
+        <em>macOS:</em> Programme aus <code>system_profiler</code> (Quelle Apple, Mac App Store, Identifizierter Entwickler) und Homebrew-Pakete. Nicht über den Paketmanager installierte Programme (portable Apps, selbst kompiliert) kennt DevDeck nicht.</p>
+
+        <p>Der Tab <strong>Patches</strong> zeigt, <strong>welche Updates ausstehen</strong> (Agent ab 0.12.0, Prüfung beim Start und danach alle 6 Stunden; die erste kann einige Minuten dauern):
+        Zusammenfassung (Gesamtstatus, Anzahl ausstehender/kritischer/sicherheitsrelevanter Updates, Neustart erforderlich, zuletzt installiert), die Tabelle <em>Ausstehende Updates</em> (Hersteller, Name, installierte und verfügbare Version,
+        Art System/Programm, Status <span class="badge bad">Kritisch</span> · <span class="badge warn">Sicherheit</span> · <span class="badge accent">Update verfügbar</span>) und <em>Zuletzt installierte Updates</em>.
+        <em>Windows:</em> ausstehende Windows-Updates über den Windows Update Agent (Schweregrad Kritisch/Wichtig laut Microsoft) und veraltete Programme über <code>winget</code>; installierte Updates aus der Hotfix-Liste.
+        <em>Linux:</em> <code>apt list --upgradable</code> (Sicherheits-Suiten werden als „Sicherheit“ markiert), sonst <code>dnf</code> (mit Sicherheitsmeldungen) oder <code>checkupdates</code>; das Ergebnis ist so aktuell wie die Paketliste – der Tab nennt deren Alter (die Pakete selbst aktualisiert DevDeck nicht).
+        <em>macOS:</em> <code>softwareupdate -l</code> und <code>brew outdated</code>. <strong>Wichtig:</strong> Das ist kein Hersteller-Scanner mit Schwachstellen-Datenbank: Gelistet wird nur, was ein Update braucht; „aktuell“ heißt „dem System ist kein Update bekannt“.
+        Programme, die weder winget noch ein Paketmanager kennt, werden nicht bewertet.</p>
+
+        <p>Der Tab <strong>Logs</strong> zeigt die <strong>Fehlermeldungen der Maschine</strong> (nur Stufen Kritisch und Fehler) mit Zeit, <em>Log</em> (aus welchem Protokoll der Eintrag stammt), Quelle (Anbieter, Dienst oder Prozess), ID, Ebene und Meldung –
+        neueste zuerst, mit Suche und Filter nach Log und Ebene; über der Tabelle steht, wie viele Einträge je Log gespeichert sind. Der Agent (ab 0.13.0) liest sie alle 15 Minuten (beim ersten Mal die letzten 7 Tage) und überträgt nur Neues.
+        <em>Windows:</em> Ereignisanzeige, Protokolle <em>System</em> (dort auch Hardware-/Laufwerksfehler, z. B. Anbieter disk, Ntfs, WHEA-Logger) und <em>Application</em>; das Sicherheitsprotokoll braucht Administratorrechte und wird nicht gelesen.
+        <em>Linux:</em> systemd-Journal (Priorität „err“ und schlimmer, getrennt in <em>journal (System)</em> und <em>journal (Kernel)</em> – letzteres sind Treiber-/Hardwarefehler) sowie der Kernel-Ringpuffer <em>dmesg</em>, soweit lesbar.
+        Damit der Agent <em>alle</em> Journal-Einträge sieht, muss sein Benutzer in der Gruppe <code>systemd-journal</code> (oder <code>adm</code>) sein, sonst sieht er nur eigene – der Tab weist darauf hin.
+        <em>macOS:</em> Systemprotokoll (<code>log show</code>, Error und Fault) sowie Absturz- und Kernel-Panic-Berichte aus <em>DiagnosticReports</em>.
+        <strong>Aufbewahrung:</strong> Einträge werden <strong>30 Tage</strong> gespeichert und danach automatisch gelöscht (beim Eintreffen neuer Logs und alle 6 Stunden); zusätzlich gilt eine Obergrenze von 5000 Einträgen je Maschine (die ältesten fallen zuerst weg), damit die Datenbank nicht überläuft.
+        Meldungen werden auf 600 Zeichen gekürzt. Logs können versehentlich sensible Angaben enthalten (Pfade, Benutzernamen) – sie sind nur für Berechtigte der Maschine sichtbar.</p>
 
         <h3>Die drei Knöpfe pro Maschine</h3>
         <table><thead><tr><th>Knopf</th><th>Was passiert genau?</th><th>Voraussetzung</th></tr></thead><tbody>
