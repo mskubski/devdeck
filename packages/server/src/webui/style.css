@@ -504,3 +504,13 @@ svg.an-edges .an-label:hover rect { fill: #f1f5f9; }
 .sec-alert-name { font-weight: 600; }
 @media (max-width: 720px) { .sec-alert-btn span { display: none; } }
 input.pick { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
+
+/* Segment-Auswahl (z. B. Betriebssystem) und Installations-Dialog */
+.seg { display: inline-flex; padding: 3px; gap: 2px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 999px; margin: var(--space-2) 0 var(--space-3); }
+.seg-btn { border: 0; background: transparent; color: var(--text-muted); font: inherit; font-size: var(--fs-sm); font-weight: 600; padding: 6px 16px; border-radius: 999px; cursor: pointer; }
+.seg-btn.active { background: var(--accent); color: #fff; }
+.inst-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.inst-grid .inst-toggle { align-self: end; grid-column: 1 / -1; }
+.inst-cmds { white-space: pre-wrap; word-break: break-all; max-height: 220px; overflow: auto; font-size: var(--fs-xs); }
+@media (max-width: 720px) { .inst-grid { grid-template-columns: 1fr; } }
+.modal:has(.inst-grid) { max-width: 680px; width: 92vw; }

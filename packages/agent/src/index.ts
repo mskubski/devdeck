@@ -17,11 +17,12 @@ import { startWorker } from './worker.js';
 import { startSessionScanner } from './sessionScanner.js';
 import { startLocalApi } from './localApi.js';
 import { log, logFilePath } from './logger.js';
+import { getAutostart, setAutostart, startInBackground } from './autostart.js';
 import './actions/all.js';
 import { recordRunningHead } from './actions/agentUpdate.js';
 
 interface CliArgs {
-  command: 'start' | 'enroll' | 'status';
+  command: 'start' | 'enroll' | 'status' | 'autostart' | 'start-background';
   server?: string;
   token?: string;
   name?: string;
@@ -32,7 +33,7 @@ interface CliArgs {
 function parseArgs(argv: string[]): CliArgs {
   const args: CliArgs = { command: 'start', configPath: defaultConfigPath() };
   const [cmd, ...rest] = argv;
-  if (cmd === 'enroll' || cmd === 'status' || cmd === 'start') args.command = cmd;
+  if (cmd === 'enroll' || cmd === 'status' || cmd === 'start' || cmd === 'autostart' || cmd === 'start-background') args.command = cmd;
   for (let i = 0; i < rest.length; i += 1) {
     const key = rest[i];
     const value = rest[i + 1];
@@ -137,6 +138,23 @@ async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   if (args.command === 'enroll') {
     await runEnroll(args);
+    return;
+  }
+  if (args.command === 'autostart') {
+    // devdeck-agent autostart on|off|status – für die Installationsskripte und zur Handarbeit
+    const sub = process.argv[3];
+    if (sub !== 'on' && sub !== 'off' && sub !== 'status') {
+      console.error('Aufruf: node packages/agent/dist/index.js autostart <on|off|status>');
+      process.exitCode = 2;
+      return;
+    }
+    const state = sub === 'status' ? await getAutostart() : await setAutostart(sub === 'on');
+    console.log(`Autostart: ${state.enabled ? 'eingeschaltet' : 'ausgeschaltet'} (${state.method})`);
+    if (state.detail) console.log(state.detail);
+    return;
+  }
+  if (args.command === 'start-background') {
+    console.log(await startInBackground());
     return;
   }
   if (args.command === 'status') {

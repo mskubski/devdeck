@@ -146,6 +146,10 @@ Every project has the same tabs; together they are the project's memory and are 
 | Integrations | Connectors to external services (GitHub first); the token lives in the vault | maintainer |
 | Sync log | History of sync, provision and deploy jobs with errors | – |
 
+### Adding a machine
+
+**Machines → Add machine** creates a one-time enrollment token and opens an install dialog: pick the OS (Windows, Linux, macOS) and either download an install script (`install-devdeck-agent.ps1` / `.sh`) or copy the commands. The script checks git and Node.js ≥ 22.5, asks for install folder, workspace root, machine name and whether to start the agent at login/boot, then clones, builds, enrolls, sets up autostart and starts the agent. Scripts are generated in the browser; the token is not stored. The agent CLI also offers `autostart on|off|status` and `start-background`.
+
 ### Installing patches
 
 On a machine's **Patches** tab pending updates can be installed one by one or several at once (Windows Update Agent + winget, apt/dnf, softwareupdate + Homebrew). The agent only installs what a fresh scan reports as pending (allowlisted action `patches.install`, strictly validated ids, no shell). A required **reboot is never performed**, only shown. Needs agent 0.15.0, owner/admin, and elevated rights on the machine (Windows: agent run as administrator; Linux/macOS: root or passwordless sudo). Machines with pending security updates show a shield alert in the top bar.

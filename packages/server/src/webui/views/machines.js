@@ -4,6 +4,7 @@ import { state } from '../lib/api.js';
 import { roleAtLeast } from '../lib/roles.js';
 import { icon } from '../lib/icons.js';
 import { autostartSwitch, bindAutostart } from '../lib/autostart.js';
+import { showInstallModal } from './installModal.js';
 
 async function loadMachines() {
   if (state.user.system_role === 'admin') {
@@ -44,9 +45,9 @@ export async function renderMachines(el) {
     <div class="page-head">
       <div>
         <h1>Maschinen</h1>
-        <p class="lede">Entwicklungsrechner mit laufendem DevDeck Agent. Ein Enrollment-Token verbindet einen neuen Rechner einmalig mit DevDeck.</p>
+        <p class="lede">Entwicklungsrechner mit laufendem DevDeck Agent. Mit „Maschine hinzufügen“ erzeugst du ein Enrollment-Token und bekommst ein Installationsskript bzw. die Befehle für Windows, Linux oder macOS.</p>
       </div>
-      ${canCreateToken ? '<div class="page-actions"><button class="btn" id="btn-new-token">' + icon('plus') + 'Enrollment-Token erzeugen</button></div>' : ''}
+      ${canCreateToken ? '<div class="page-actions"><button class="btn" id="btn-new-token">' + icon('plus') + 'Maschine hinzufügen</button></div>' : ''}
     </div>
     ${machines.filter((m) => m.update_warning).map((m) => `<div class="alert danger"><span><strong>${esc(m.name)}:</strong> ${esc(m.update_warning)}${m.agent_entry ? ` Der laufende Agent wurde gestartet aus: <span class="mono">${esc(m.agent_entry)}</span>.` : ''}</span></div>`).join('')}
     <div class="card">
@@ -65,8 +66,8 @@ export async function renderMachines(el) {
       .filter((m) => roleAtLeast(m.role, 'maintainer'))
       .map((m) => `<option value="${esc(m.project_id)}">${esc(m.name)}</option>`).join('');
     const res = await formModal({
-      title: 'Enrollment-Token erzeugen',
-      submitLabel: 'Erzeugen',
+      title: 'Maschine hinzufügen',
+      submitLabel: 'Weiter',
       bodyHtml: `
         ${state.user.system_role === 'admin'
           ? `<label>Projekt (optional – ohne Zuordnung nur als Admin) <select name="project_id"><option value="">– ohne Projekt –</option>${projectOptions}</select></label>`
@@ -78,7 +79,7 @@ export async function renderMachines(el) {
       const body = { ttl_minutes: Number(res.data.ttl_minutes) };
       if (res.data.project_id) body.project_id = res.data.project_id;
       const token = await post('/api/machines/enrollment-tokens', body);
-      showTokenModal(token.token);
+      showInstallModal(token.token);
     } catch (err) { toast(err.message, 'error'); }
   });
 
@@ -158,24 +159,4 @@ export async function renderMachines(el) {
       } catch (err) { toast(err.message, 'error'); }
     });
   }
-}
-
-function showTokenModal(token) {
-  const cmd = `node packages/agent/dist/index.js enroll --server ${location.origin} --token ${token}`;
-  openModal(`
-    <h2>Enrollment-Token</h2>
-    <p class="muted text-sm">Dieses Token wird nur einmal angezeigt. Im DevDeck-Repository auf dem
-    Zielrechner ausführen (es gibt noch kein global installiertes <span class="mono">devdeck-agent</span>-Kommando):</p>
-    <div class="secret-value">${esc(cmd)}</div>
-    <p class="muted text-sm">Danach dauerhaft im Hintergrund starten: <span class="mono">node packages/agent/dist/index.js start</span></p>
-    <div class="modal-actions">
-      <button class="btn" id="btn-copy-token" type="button">Befehl kopieren</button>
-    </div>`, (root) => {
-    root.querySelector('#btn-copy-token').addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(cmd);
-        toast('Kopiert', 'success');
-      } catch { toast('Kopieren nicht möglich', 'error'); }
-    });
-  });
 }

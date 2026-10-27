@@ -116,8 +116,8 @@ Entscheidung später ggf. durch eine neuere ab. Die 15 neuesten akzeptierten Ent
 Der DevDeck Agent läuft auf jedem Entwicklungsrechner, auf dem tatsächlich programmiert
 wird (nicht zwingend auf dem Server selbst). Pro Maschine braucht es einmalig:
 
-1. Im Projekt, oder global als Admin: Sidebar → **Maschinen** → **„+ Enrollment-Token
-   erzeugen“**. Das Token wird nur einmal angezeigt.
+1. Im Projekt, oder global als Admin: Sidebar → **Maschinen** → **„Maschine hinzufügen“**. Das Token wird nur einmal angezeigt; danach öffnet sich der Installations-Dialog:
+   Betriebssystem wählen und **„Skript herunterladen“** (fragt Installationsordner, Workspace-Root, Maschinenname und Autostart ab und installiert alles bis zum laufenden Agent) oder **„Befehle kopieren“**. Die Schritte 2 und 3 unten zeigen dasselbe von Hand.
 2. Auf dem Zielrechner, im dort ausgecheckten DevDeck-Repository:
    ```bash
    npm install && npm run build   # einmalig
