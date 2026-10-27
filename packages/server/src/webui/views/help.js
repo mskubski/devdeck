@@ -161,9 +161,13 @@ export async function renderHelp(el) {
 
         <h3>Rechner verbinden – Schritt für Schritt</h3>
         <ol>
-          <li>In der Web-UI: <strong>Maschinen → „+ Enrollment-Token erzeugen“</strong> (als Projekt-Maintainer/
-            Owner oder Admin). Das Token wird nur einmal angezeigt und läuft nach der gewählten Zeit ab.</li>
-          <li>Auf dem Zielrechner (Windows/macOS/Linux) das DevDeck-Repository auschecken und einmalig bauen:
+          <li>In der Web-UI: <strong>Maschinen → „Maschine hinzufügen“</strong> (als Projekt-Maintainer/
+            Owner oder Admin) – Projekt und Gültigkeit wählen. Es öffnet sich der <strong>Installations-Dialog</strong> (siehe unten); das Token wird nur einmal angezeigt und läuft nach der gewählten Zeit ab.</li>
+          <li><strong>Der einfache Weg:</strong> Im Dialog das Betriebssystem der neuen Maschine wählen (Windows, Linux, macOS), optional Installationsordner, Workspace-Root, Maschinenname und „Agent beim Start automatisch starten“ vorgeben und
+            <strong>„Skript herunterladen“</strong> – auf der Maschine ausführen (Windows: <code>powershell -ExecutionPolicy Bypass -File .\install-devdeck-agent.ps1</code>, Linux/macOS: <code>bash install-devdeck-agent.sh</code>). Das Skript prüft Git und Node.js (unter Windows bietet es die Installation per winget an),
+            fragt Installationsordner, Workspace-Root, Maschinenname und Autostart mit deinen Werten als Vorschlag ab, holt den Code, baut ihn, registriert die Maschine, richtet den Autostart ein und startet den Agent. Statt des Skripts gibt es unter „Befehle kopieren“ dieselben Schritte als Befehlsliste zum Einfügen ins Terminal.
+            Das Skript enthält das einmalige Token – nach der Installation löschen.</li>
+          <li><em>Von Hand:</em> Auf dem Zielrechner (Windows/macOS/Linux) das DevDeck-Repository auschecken und einmalig bauen:
             <pre>git clone &lt;devdeck-repo&gt;
 cd devdeck
 npm install
@@ -174,7 +178,7 @@ npm run build</pre>
           </li>
           <li>Agent starten:
             <pre>node packages/agent/dist/index.js start</pre>
-            Läuft im Vordergrund, solange das Terminal offen bleibt – für Dauerbetrieb siehe Tabelle unten.</li>
+            Läuft im Vordergrund, solange das Terminal offen bleibt. Im Hintergrund: <code>node packages/agent/dist/index.js start-background</code>; Autostart ein-/ausschalten: <code>node packages/agent/dist/index.js autostart on|off|status</code> (oder per Schalter in der Maschinenliste).</li>
           <li>Die Maschine erscheint danach unter <strong>Maschinen</strong> mit Status
             <span class="badge ok">online</span>. Widerruf jederzeit mit einem Klick.</li>
         </ol>

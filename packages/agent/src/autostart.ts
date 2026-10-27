@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -157,6 +157,19 @@ async function windowsSet(env: AutostartEnv, enabled: boolean): Promise<void> {
   }
   const r = await powershell(env, script);
   if (r.code !== 0) throw new AppError('INTERNAL', 'Der Autostart-Eintrag konnte in der Windows-Registrierung nicht geändert werden');
+}
+
+// ---------- Agent im Hintergrund starten (für die Installation) ----------
+
+/** Startet den Agent losgelöst vom Terminal; unter Linux über den systemd-Dienst, falls der Autostart eingeschaltet ist. */
+export async function startInBackground(env: AutostartEnv = realEnv()): Promise<string> {
+  if (env.platform === 'linux') {
+    const state = await linuxState(env);
+    if (state.enabled && (await env.run('systemctl', ['--user', 'start', UNIT_NAME])).code === 0) return 'Agent über den systemd-Benutzerdienst gestartet';
+  }
+  const child = spawn(env.node, [entryOf(env), 'start'], { cwd: env.root, detached: true, stdio: 'ignore', windowsHide: true });
+  child.unref();
+  return 'Agent im Hintergrund gestartet';
 }
 
 // ---------- Öffentliche API ----------

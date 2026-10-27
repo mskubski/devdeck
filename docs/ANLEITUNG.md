@@ -116,8 +116,8 @@ Entscheidung später ggf. durch eine neuere ab. Die 15 neuesten akzeptierten Ent
 Der DevDeck Agent läuft auf jedem Entwicklungsrechner, auf dem tatsächlich programmiert
 wird (nicht zwingend auf dem Server selbst). Pro Maschine braucht es einmalig:
 
-1. Im Projekt, oder global als Admin: Sidebar → **Maschinen** → **„+ Enrollment-Token
-   erzeugen“**. Das Token wird nur einmal angezeigt.
+1. Im Projekt, oder global als Admin: Sidebar → **Maschinen** → **„Maschine hinzufügen“**. Das Token wird nur einmal angezeigt; danach öffnet sich der Installations-Dialog:
+   Betriebssystem wählen und **„Skript herunterladen“** (fragt Installationsordner, Workspace-Root, Maschinenname und Autostart ab und installiert alles bis zum laufenden Agent) oder **„Befehle kopieren“**. Die Schritte 2 und 3 unten zeigen dasselbe von Hand.
 2. Auf dem Zielrechner, im dort ausgecheckten DevDeck-Repository:
    ```bash
    npm install && npm run build   # einmalig
@@ -206,7 +206,7 @@ DevDeck verwaltet nur die Labels `P1`–`P5` (Priorität), `in-progress`, `known
   liegen. DevDeck prüft das jetzt schon beim Registrieren/Bearbeiten und zeigt den Root an. Falsche Pfade korrigierst du im Tab **Workspaces**
   mit **Bearbeiten** (oder **Entfernen** – löscht nur die Registrierung, nie Dateien). Den Root selbst änderst du unter **Maschinen** → „Root ändern“.
 
-**Autostart:** Hinter jeder Maschine (und auf ihrer Detailseite) schaltet der Haken **Autostart** den Start des Agents beim Hochfahren/Anmelden ein oder aus (Windows: Autostart-Eintrag des Benutzers, Linux: systemd-Benutzerdienst – für Start ohne Anmeldung einmalig `sudo loginctl enable-linger $USER`, macOS: LaunchAgent). Voraussetzung: Maschine online, Agent ab 0.14.0.
+**Autostart:** Hinter jeder Maschine (und auf ihrer Detailseite) schaltet der Schalter **Autostart** den Start des Agents beim Hochfahren/Anmelden ein oder aus (Windows: Autostart-Eintrag des Benutzers, Linux: systemd-Benutzerdienst – für Start ohne Anmeldung einmalig `sudo loginctl enable-linger $USER`, macOS: LaunchAgent). Voraussetzung: Maschine online, Agent ab 0.14.0.
 
 ## 7c. Architektur-Karte (Projekt-Übersicht)
 

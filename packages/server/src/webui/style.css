@@ -322,10 +322,16 @@ legend { padding: 0 var(--space-2); color: var(--text-muted); font-size: var(--f
 .btn.subtle { background: var(--accent-soft); color: var(--accent); }
 .btn.subtle:hover { background: var(--accent-soft); filter: brightness(1.1); }
 .btn.sm { padding: 6px 11px; font-size: var(--fs-xs); }
-.inline-check { display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; font-size: var(--fs-xs); cursor: pointer; white-space: nowrap; }
-.inline-check input { width: auto; margin: 0; }
-.inline-check { display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; font-size: var(--fs-xs); cursor: pointer; white-space: nowrap; }
-.inline-check input { width: auto; margin: 0; }
+/* Toggle-Schalter (Schiebeschalter) */
+.toggle { display: inline-flex; align-items: center; gap: 8px; margin-right: 10px; font-size: var(--fs-xs); cursor: pointer; white-space: nowrap; }
+.toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+.toggle .track { position: relative; width: 34px; height: 20px; border-radius: 999px; background: var(--border); transition: background .15s; flex: none; }
+.toggle .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+.toggle input:checked + .track { background: var(--accent); }
+.toggle input:checked + .track::after { transform: translateX(14px); }
+.toggle input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+.toggle input:disabled + .track { opacity: .45; }
+.toggle:has(input:disabled) { cursor: not-allowed; }
 .btn.icon-only { padding: 7px 9px; }
 .btn-group { display: inline-flex; gap: var(--space-2); }
 
@@ -498,3 +504,13 @@ svg.an-edges .an-label:hover rect { fill: #f1f5f9; }
 .sec-alert-name { font-weight: 600; }
 @media (max-width: 720px) { .sec-alert-btn span { display: none; } }
 input.pick { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
+
+/* Segment-Auswahl (z. B. Betriebssystem) und Installations-Dialog */
+.seg { display: inline-flex; padding: 3px; gap: 2px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 999px; margin: var(--space-2) 0 var(--space-3); }
+.seg-btn { border: 0; background: transparent; color: var(--text-muted); font: inherit; font-size: var(--fs-sm); font-weight: 600; padding: 6px 16px; border-radius: 999px; cursor: pointer; }
+.seg-btn.active { background: var(--accent); color: #fff; }
+.inst-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.inst-grid .inst-toggle { align-self: end; grid-column: 1 / -1; }
+.inst-cmds { white-space: pre-wrap; word-break: break-all; max-height: 220px; overflow: auto; font-size: var(--fs-xs); }
+@media (max-width: 720px) { .inst-grid { grid-template-columns: 1fr; } }
+.modal:has(.inst-grid) { max-width: 680px; width: 92vw; }
