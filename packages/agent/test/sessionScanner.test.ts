@@ -4,7 +4,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ServerClient } from '../src/client.js';
 import type { AgentConfig } from '../src/config.js';
-import { encodeProjectPath, scanAndReport, scanWorkspace, summarizeTranscript } from '../src/sessionScanner.js';
+import { encodeProjectPath, normalizeCwd, scanAndReport, scanWorkspace, summarizeTranscript } from '../src/sessionScanner.js';
 import { startTestServer, TEST_ADMIN, type TestServer } from '../../server/test/helpers.js';
 
 const SECRET_PROMPT = 'Bitte nutze das Passwort hunter2 für die DB';
@@ -65,6 +65,33 @@ describe('Claude-Code-Session-Scanner (Agent)', () => {
     const found = scanWorkspace(workspace, claude).map((s) => s.external_id).sort();
     expect(found).toEqual(['a', 'b']);
     expect(scanWorkspace(path.join(tmp, 'gibt-es-nicht'), claude)).toEqual([]);
+  });
+
+  it('findet eine Session, die nach einem Umzug des Projekts im neuen Ordner fortgesetzt wurde (Start-Ordner liegt noch am alten Ort)', () => {
+    const old = path.join(tmp, 'OneDrive', 'alt', 'my.app');
+    const lines = [
+      { type: 'user', cwd: old, timestamp: '2026-10-01T10:00:00Z', message: { content: 'x' } },
+      { type: 'assistant', cwd: old, timestamp: '2026-10-01T10:01:00Z', message: { content: 'x' } },
+      { type: 'user', cwd: workspace, timestamp: '2026-10-20T10:00:00Z', message: { content: 'x' } },
+      { type: 'assistant', cwd: path.join(workspace, 'apps', 'backend'), timestamp: '2026-10-20T10:05:00Z', message: { content: 'x' } },
+    ];
+    write(workspace, 'moved', `${lines.map((l) => JSON.stringify(l)).join('\n')}\n`);
+    const [s] = scanWorkspace(workspace, claude);
+    expect(s).toMatchObject({ external_id: 'moved', message_count: 4 });
+    expect(s!.cwds).toContain(old);
+    // eine Session, die in einem fremden Ordner liegt und nur zu Besuch in diesen Workspace wechselte, gehört nicht hierher
+    const other = path.join(tmp, 'Development', 'other');
+    fs.mkdirSync(other, { recursive: true });
+    write(other, 'visitor', `${lines.map((l) => JSON.stringify(l)).join('\n')}\n`);
+    expect(scanWorkspace(other, claude)).toEqual([]);
+    expect(scanWorkspace(workspace, claude).map((x) => x.external_id)).toEqual(['moved']);
+  });
+
+  it('Git-Bash-Pfade (/d/Projekt) werden unter Windows als D:\\Projekt gelesen, sonst unverändert', () => {
+    expect(normalizeCwd('/d/DEVDECK/DEV/wawimobile_dev', 'win32')).toBe('D:\\DEVDECK\\DEV\\wawimobile_dev');
+    expect(normalizeCwd('/c', 'win32')).toBe('C:\\');
+    expect(normalizeCwd('/home/me/app', 'linux')).toBe('/home/me/app');
+    expect(normalizeCwd('D:\\x', 'win32')).toBe('D:\\x');
   });
 
   describe('Meldung an den Server', () => {
