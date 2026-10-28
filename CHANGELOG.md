@@ -2,6 +2,9 @@
 
 ## Unreleased - 2026-10-23
 
+### Fixed
+- **Coding Sessions nach Projekt-Umzug**: Der Session-Scanner ordnete eine Session nur über den Arbeitsordner der ersten Nachricht zu. Wurde ein Projekt verschoben (z. B. aus OneDrive nach `D:\DEVDECK\DEV`) und die Session im neuen Ordner fortgesetzt, stand am Anfang noch der alte Pfad – die Session fehlte im Projekt. Liegt die Transcript-Datei jetzt genau im Ordner des Workspaces, genügt ein Arbeitsordner innerhalb davon; Git-Bash-Pfade (`/d/…`) werden unter Windows erkannt.
+
 ### Added
 - **Maschine hinzufügen mit Installations-Dialog**: Nach dem Erzeugen des Enrollment-Tokens Betriebssystem wählen (Windows, Linux, macOS) und ein **Installationsskript herunterladen** (`install-devdeck-agent.ps1` / `.sh`) oder die **Befehle kopieren**. Das Skript prüft Git und Node.js (Windows: Installation per winget auf Nachfrage),
   fragt Installationsordner, Workspace-Root, Maschinenname und Autostart ab (Vorschläge aus dem Formular), klont und baut den Agent, registriert die Maschine, richtet den Autostart ein und startet den Agent. Skripte werden im Browser erzeugt, das Token wird nirgends gespeichert; Eingaben werden gegen Zeichen geprüft, die Befehle einschleusen könnten.

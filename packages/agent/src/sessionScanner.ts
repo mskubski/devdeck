@@ -19,7 +19,12 @@ export interface SessionSummary {
   pr_url: string | null;
   message_count: number;
   entrypoint: string | null;
+  /** Arbeitsordner beim Start der Session */
   cwd: string;
+  /** Arbeitsordner der letzten Nachricht */
+  last_cwd: string;
+  /** Alle verschiedenen Arbeitsordner der Session (begrenzt) – eine Session kann nach einem Umzug des Projekts den Ordner wechseln */
+  cwds: string[];
 }
 
 export function claudeDir(env: NodeJS.ProcessEnv = process.env): string {
@@ -29,6 +34,12 @@ export function claudeDir(env: NodeJS.ProcessEnv = process.env): string {
 /** Claude kodiert den Projektpfad als Ordnernamen: alles außer [A-Za-z0-9] wird zu `-`. */
 export function encodeProjectPath(p: string): string {
   return p.replace(/[^a-zA-Z0-9]/g, '-');
+}
+
+/** Git-Bash/MSYS-Pfade (`/d/Projekt`) unter Windows in die übliche Form (`D:\Projekt`) bringen. */
+export function normalizeCwd(p: string, platform: NodeJS.Platform = process.platform): string {
+  const m = platform === 'win32' ? /^\/([a-zA-Z])(?:\/(.*))?$/.exec(p) : null;
+  return m ? `${m[1]!.toUpperCase()}:\\${(m[2] ?? '').replace(/\//g, '\\')}` : p;
 }
 
 const norm = (p: string): string => (process.platform === 'win32' ? p.toLowerCase() : p);
@@ -52,6 +63,8 @@ export function summarizeTranscript(file: string): SessionSummary | null {
   let pr: string | null = null;
   let entrypoint: string | null = null;
   let cwd: string | null = null;
+  let lastCwd: string | null = null;
+  const cwds = new Set<string>();
   let first: string | null = null;
   let last: string | null = null;
   let count = 0;
@@ -68,14 +81,19 @@ export function summarizeTranscript(file: string): SessionSummary | null {
       first ??= o.timestamp;
       last = o.timestamp;
     }
-    if (typeof o.cwd === 'string' && o.cwd) cwd ??= o.cwd;
+    if (typeof o.cwd === 'string' && o.cwd) {
+      const c = normalizeCwd(o.cwd);
+      cwd ??= c;
+      lastCwd = c;
+      if (cwds.size < 200) cwds.add(c);
+    }
     if (typeof o.gitBranch === 'string' && o.gitBranch && o.gitBranch !== 'HEAD') branch = o.gitBranch;
     if (typeof o.entrypoint === 'string' && o.entrypoint) entrypoint ??= o.entrypoint;
     if (o.type === 'ai-title' && typeof o.aiTitle === 'string' && o.aiTitle.trim()) title = o.aiTitle.trim();
     if (o.type === 'pr-link' && typeof o.prUrl === 'string') pr = o.prUrl;
     if (o.type === 'user' || o.type === 'assistant') count++;
   }
-  if (!first || !last || !cwd || count === 0) return null;
+  if (!first || !last || !cwd || !lastCwd || count === 0) return null;
   return {
     external_id: path.basename(file, '.jsonl'),
     title,
@@ -86,6 +104,8 @@ export function summarizeTranscript(file: string): SessionSummary | null {
     message_count: count,
     entrypoint,
     cwd,
+    last_cwd: lastCwd,
+    cwds: [...cwds],
   };
 }
 
@@ -125,7 +145,12 @@ export function scanWorkspace(
       const sig = `${stat.mtimeMs}:${stat.size}`;
       if (seen?.get(file) === sig) continue; // unverändert seit dem letzten Scan
       const summary = summarizeTranscript(file);
-      if (summary && insideWorkspace(summary.cwd, workspacePath)) {
+      // Liegt die Datei genau im Ordner dieses Workspaces, genügt ein Arbeitsordner darin: Wurde das Projekt verschoben, steht am Anfang
+      // der Session noch der alte Pfad (Sessions werden unter dem neuen Ordner fortgesetzt). In Unterordner-Ordnern gilt Start oder letzter Ordner.
+      const belongs = summary !== null && (folder === enc
+        ? summary.cwds.some((c) => insideWorkspace(c, workspacePath))
+        : insideWorkspace(summary.cwd, workspacePath) || insideWorkspace(summary.last_cwd, workspacePath));
+      if (summary && belongs) {
         out.push(summary);
         pending?.set(file, sig);
       } else {
