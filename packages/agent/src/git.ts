@@ -16,11 +16,13 @@ export async function git(
   cwd: string,
   args: string[],
   timeoutMs = 60_000,
+  env?: Record<string, string>,
 ): Promise<GitResult> {
   try {
     const { stdout, stderr } = await exec('git', args, {
       cwd,
       timeout: timeoutMs,
+      ...(env ? { env: { ...process.env, ...env } } : {}),
       windowsHide: true,
       maxBuffer: 10 * 1024 * 1024,
     });
@@ -31,6 +33,19 @@ export async function git(
       return { code: e.code, stdout: e.stdout ?? '', stderr: e.stderr ?? e.message ?? '' };
     }
     throw err;
+  }
+}
+
+/**
+ * Den Stand des Remotes holen (nur lesend: `git fetch`, ändert weder Arbeitsverzeichnis noch Branches), damit „ahead/behind“
+ * den echten GitHub-Stand zeigt und nicht den des letzten manuellen Fetch. Nie nach Zugangsdaten fragen. Liefert false, wenn der Remote nicht erreichbar war.
+ */
+export async function fetchRemote(cwd: string): Promise<boolean> {
+  try {
+    const res = await git(cwd, ['fetch', '--quiet', '--prune', 'origin'], 30_000, { GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' });
+    return res.code === 0;
+  } catch {
+    return false;
   }
 }
 

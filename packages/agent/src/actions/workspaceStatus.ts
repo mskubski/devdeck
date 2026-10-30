@@ -3,7 +3,7 @@ import path from 'node:path';
 import { AppError } from '@devdeck/shared';
 import { registerAction, type ActionContext } from './index.js';
 import { loadManifest } from '../manifest.js';
-import { gitStatus, isGitRepo, git } from '../git.js';
+import { fetchRemote, gitStatus, isGitRepo, git } from '../git.js';
 import { buildReadiness } from '../readiness.js';
 import { collectFacts } from '../facts.js';
 
@@ -55,6 +55,7 @@ registerAction('workspace.status', async (ctx) => {
   }
   const manifest = loadManifest(workspacePath);
   const repo = await isGitRepo(workspacePath);
+  const remoteReachable = repo ? await fetchRemote(workspacePath) : true; // GitHub-Stand aktualisieren, bevor ahead/behind gezählt wird
   const gitState = repo ? await gitStatus(workspacePath) : null;
   const gitProbe = await git(workspacePath, ['--version'], 5_000);
   const readiness = await buildReadiness({
@@ -63,6 +64,7 @@ registerAction('workspace.status', async (ctx) => {
     gitState,
     isRepo: repo,
     gitAvailable: gitProbe.code === 0,
+    remoteReachable,
   });
 
   const workspaceId =

@@ -3,7 +3,7 @@ import { registerAction } from './index.js';
 import { resolveWorkspacePath } from './workspaceStatus.js';
 import { runDeploy } from '../deploy.js';
 import { loadManifest } from '../manifest.js';
-import { gitStatus } from '../git.js';
+import { fetchRemote, gitStatus } from '../git.js';
 import { buildReadiness } from '../readiness.js';
 import { collectFacts } from '../facts.js';
 
@@ -26,6 +26,7 @@ registerAction('workspace.deploy', async (ctx) => {
 
   // Neuen Stand melden (wie nach einem Sync), damit Status und Commit in der Oberfläche stimmen
   if (workspaceId) {
+    const remoteReachable = await fetchRemote(workspacePath);
     const gitState = await gitStatus(workspacePath);
     const readiness = await buildReadiness({
       workspacePath,
@@ -33,6 +34,7 @@ registerAction('workspace.deploy', async (ctx) => {
       gitState,
       isRepo: true,
       gitAvailable: true,
+      remoteReachable,
     });
     await ctx.client.request('POST', `/api/agent/workspaces/${workspaceId}/status`, {
       body: { git: gitState, readiness, facts: collectFacts(workspacePath) },

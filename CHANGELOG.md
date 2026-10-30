@@ -3,6 +3,8 @@
 ## Unreleased - 2026-10-23
 
 ### Fixed
+- **Workspace-Status zeigte nicht den echten GitHub-Stand**: Die Prüfung rief nie `git fetch` auf und lief nur einmalig (bei Anlage bzw. nach einem Agent-Update) – „neue Commits auf dem Remote“ war dadurch veraltet oder fehlte (z. B. beim Helferle-Server nach einem Push von einem anderen PC). Jetzt holt der Agent bei jeder Prüfung den Remote-Stand (nur lesend, ohne Passwortabfrage, 30 s Limit),
+  der Server stößt die Prüfung für online befindliche Maschinen alle 5 Minuten neu an (wenn die letzte älter als 10 Minuten ist), bei Deploy-Workspaces heißt die Warnung „Deploy ausführen“, und ein nicht erreichbarer Remote wird als Warnung gemeldet.
 - **Coding Sessions nach Projekt-Umzug**: Der Session-Scanner ordnete eine Session nur über den Arbeitsordner der ersten Nachricht zu. Wurde ein Projekt verschoben (z. B. aus OneDrive nach `D:\DEVDECK\DEV`) und die Session im neuen Ordner fortgesetzt, stand am Anfang noch der alte Pfad – die Session fehlte im Projekt. Liegt die Transcript-Datei jetzt genau im Ordner des Workspaces, genügt ein Arbeitsordner innerhalb davon; Git-Bash-Pfade (`/d/…`) werden unter Windows erkannt.
 
 ### Added
