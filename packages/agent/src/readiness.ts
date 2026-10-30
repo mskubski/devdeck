@@ -10,6 +10,8 @@ export interface ReadinessInput {
   gitState: GitState | null;
   isRepo: boolean;
   gitAvailable: boolean;
+  /** false, wenn der Remote beim letzten Abruf nicht erreichbar war (ahead/behind dann evtl. veraltet) */
+  remoteReachable?: boolean;
 }
 
 function overallOf(checks: ReadinessCheck[]): ReadinessReport['overall'] {
@@ -104,8 +106,10 @@ export async function buildReadiness(input: ReadinessInput): Promise<ReadinessRe
       checks.push({
         name: 'GitHub',
         status: 'WARNING',
-        detail: `${behind} neue${behind === 1 ? 'r Commit' : ' Commits'} auf dem Remote – Sync ausführen`,
+        detail: `${behind} neue${behind === 1 ? 'r Commit' : ' Commits'} auf dem Remote – ${input.manifest?.deploy ? 'Deploy ausführen' : 'Sync ausführen'}`,
       });
+    } else if (input.remoteReachable === false) {
+      checks.push({ name: 'GitHub', status: 'WARNING', detail: 'Remote nicht erreichbar (Netz oder Zugangsdaten) – der Abgleich mit GitHub ist nicht aktuell' });
     } else {
       checks.push({ name: 'GitHub', status: 'OK', detail: 'synchron mit dem Remote' });
     }

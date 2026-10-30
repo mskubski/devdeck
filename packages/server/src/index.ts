@@ -11,7 +11,7 @@ import { createApp } from './app.js';
 import type { AppContext } from './context.js';
 import { hashPassword } from './auth/passwords.js';
 import { audit } from './services/audit.js';
-import { sweepExpiredCommands, sweepOfflineAgents } from './services/provisioning.js';
+import { requestWorkspaceStatus, sweepExpiredCommands, sweepOfflineAgents } from './services/provisioning.js';
 import type { UserRecord } from './auth/middleware.js';
 import { runAutoUpdateTick } from './services/autoUpdate.js';
 import { runScheduledBackup } from './services/backups.js';
@@ -141,6 +141,22 @@ export async function startServer(
   setTimeout(pruneLogs, 60_000).unref();
   const logTimer = setInterval(pruneLogs, 6 * 3_600_000);
   logTimer.unref();
+  // Workspace-Status regelmäßig erneuern (alle 5 Minuten für Maschinen, die online sind und deren letzte Prüfung älter als 10 Minuten ist):
+  // So zeigen „neue Commits auf dem Remote“ und der Git-Zustand den echten GitHub-Stand, nicht den der letzten manuellen Prüfung.
+  const statusTimer = setInterval(() => {
+    try {
+      const stale = new Date(Date.now() - 10 * 60_000).toISOString();
+      const list = ctx.db.all<{ id: string; machine_id: string | null; local_path: string }>(
+        `SELECT w.id, w.machine_id, w.local_path FROM workspaces w JOIN machines m ON m.id = w.machine_id
+         WHERE m.agent_status = 'online' AND m.revoked_at IS NULL AND (w.checked_at IS NULL OR w.checked_at < ?)`,
+        stale,
+      );
+      for (const w of list) requestWorkspaceStatus(ctx.db, w, null);
+    } catch {
+      /* Fehler nie den Betrieb stoppen */
+    }
+  }, 5 * 60_000);
+  statusTimer.unref();
   // GitHub-Issue-Abgleich (nur für Projekte mit aktiviertem Abgleich): alle 5 Minuten; lokale Änderungen stoßen ihn zusätzlich sofort an
   const issueSyncTimer = setInterval(() => void runAllIssueSyncs(ctx), 5 * 60_000);
   issueSyncTimer.unref();
@@ -176,6 +192,7 @@ export async function startServer(
       clearInterval(backupTimer);
       clearInterval(logTimer);
       clearInterval(issueSyncTimer);
+      clearInterval(statusTimer);
       clearInterval(updateTimer);
       await new Promise<void>((resolve) => server.close(() => resolve()));
       ctx.vault?.close();

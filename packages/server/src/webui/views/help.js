@@ -333,6 +333,9 @@ npm run build</pre>
       health_url: http://localhost:5000/login
     - unit: helferle           # ohne health_url: is-active</pre>
         Projekte, die über GitHub/GitLab direkt auf Vercel laufen, brauchen kein Deploy hier – dort deployt der Push.</p>
+        <p><strong>Von jedem PC coden, dann auf dem Server ausrollen:</strong> Auf jedem registrierten PC den Workspace des Projekts anlegen und <em>Provision</em> ausführen (klont das Repository), dort arbeiten und nach <code>main</code> pushen (Pull Request mergen).
+        DevDeck gleicht den Workspace-Status <strong>alle paar Minuten mit GitHub ab</strong> (<code>git fetch</code>, nur lesend): Hat der Server hinter dem neuen Push zurück, steht bei seinem Workspace die Warnung <em>„n neue Commits auf dem Remote – Deploy ausführen“</em>. Ein Klick auf <em>Deploy</em> beim Workspace auf dem Server holt den Stand und startet die Dienste neu – danach verschwindet die Warnung.
+        Ist GitHub vom Rechner aus nicht erreichbar (Netz oder Zugangsdaten), warnt der Status mit <em>„Remote nicht erreichbar“</em>, statt einen alten Stand als aktuell auszugeben.</p>
         <p><strong>Deploy bricht ab?</strong> Die Meldung steht im Dialog und im <em>Sync-Log</em>. <em>„lokale Änderungen“</em> nennt die Dateien: auf der Maschine committen oder entfernen (die Software darf nicht in versionierte Dateien schreiben).
         <em>„Kein deploy-Block“</em>: das Manifest liegt noch nicht auf dem Branch des Workspaces. <em>„Neustart von … fehlgeschlagen“</em>: Unit-Name falsch oder es ist keine Benutzer-Unit (<code>systemctl --user status &lt;unit&gt;</code> prüfen).
         <em>„… nicht gesund“</em>: der Dienst startet, antwortet aber nicht in der Zeit – der Workspace wurde auf den alten Stand zurückgesetzt; Logs mit <code>journalctl --user -u &lt;unit&gt;</code>.</p>
