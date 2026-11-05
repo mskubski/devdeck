@@ -161,7 +161,8 @@ registerAction('backup.restore', async (ctx) => {
 /** backup.prune – Replik prüfen und die Aufbewahrung spiegeln: löscht Backups, die es beim Primären nicht mehr gibt; meldet, was vorhanden ist. */
 registerAction('backup.prune', async (ctx) => {
   const keep = Array.isArray(ctx.payload.keep) ? ctx.payload.keep.filter((x): x is string => typeof x === 'string') : [];
-  const result = pruneReplica(str(ctx.payload.target_dir, 'target_dir'), keep, ctx.payload.delete === true);
+  const kind = ctx.payload.kind === 'job' || ctx.payload.kind === 'system' ? ctx.payload.kind : undefined;
+  const result = pruneReplica(str(ctx.payload.target_dir, 'target_dir'), keep, ctx.payload.delete === true, kind);
   if (result.deleted.length) log.info(`Replik: ${result.deleted.length} Backup(s) gelöscht (Aufbewahrung des Primären gespiegelt)`);
   return { ...result };
 });

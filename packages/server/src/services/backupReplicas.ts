@@ -293,7 +293,7 @@ function startPrune(ctx: AppContext, row: ReplicaRow): void {
   const id = enqueueCommand(ctx.db, {
     machineId: row.machine_id, action: 'backup.prune',
     // Ohne Backups beim Primären wird nie etwas gelöscht (z. B. wenn dessen Ordner gerade nicht lesbar war)
-    payload: { replica_id: row.id, target_dir: row.target_dir, keep, delete: keep.length > 0 },
+    payload: { replica_id: row.id, target_dir: row.target_dir, keep, delete: keep.length > 0, kind: row.scope },
     ttlSeconds: 3600,
   });
   setState(ctx, row, { state: 'pruning', cur_command_id: id, cur_bundle: null, last_message: 'Prüft die Replik …' });
@@ -522,9 +522,16 @@ function machineChoices(ctx: AppContext, sourceDir: string, sourcePlatform: stri
   const machines = ctx.db.all<MachineRecord>('SELECT * FROM machines WHERE revoked_at IS NULL ORDER BY name');
   return machines.map((m) => {
     const p = pathFor(m.platform);
-    // Vorschlag: derselbe Pfad wie beim Primären (DevDeck-Standardpfad), wenn er auf der Ziel-Maschine gültig ist; sonst neben dem Workspace-Root
-    const samePath = sourcePlatform === null ? (p.isAbsolute(sourceDir) ? sourceDir : null) : ((sourcePlatform === 'win32') === (m.platform === 'win32') && p.isAbsolute(sourceDir) ? sourceDir : null);
-    const beside = m.workspace_root ? p.join(p.dirname(m.workspace_root), 'devdeck-backups', slug) : null;
+    // Vorschlag: derselbe Pfad wie beim Primären (DevDeck-Standardpfad), wenn er auf der Ziel-Maschine gültig ist (gleiche Pfadform, und der Benutzer-Ordner
+    // des Primären – /home/<name> bzw. /Users/<name> – ist nicht der eines anderen Benutzers); sonst neben dem Workspace-Root, bei einem Home-Ordner als Root darin
+    const home = (dir: string): string | null => /^(\/home\/[^/]+|\/Users\/[^/]+)(\/|$)/.exec(dir)?.[1] ?? null;
+    const sourceHome = home(sourceDir);
+    const targetHome = m.workspace_root ? home(m.workspace_root) : null;
+    const compatible = sourcePlatform === null ? true : (sourcePlatform === 'win32') === (m.platform === 'win32');
+    const samePath = compatible && p.isAbsolute(sourceDir) && (!sourceHome || !targetHome || sourceHome === targetHome) ? sourceDir : null;
+    const parent = m.workspace_root ? p.dirname(m.workspace_root) : null;
+    const rootIsHome = parent !== null && (parent === '/home' || parent === '/Users' || p.dirname(parent) === parent);
+    const beside = m.workspace_root ? p.join(rootIsHome ? m.workspace_root : parent!, 'devdeck-backups', slug) : null;
     return {
       id: m.id, name: m.name, platform: m.platform, agent_status: m.agent_status, agent_version: m.agent_version,
       supported: agentSupportsAction(m.agent_version, 'backup.import') && agentSupportsAction(m.agent_version, 'backup.prune'),
