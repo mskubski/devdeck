@@ -85,31 +85,49 @@ async function listTables(access: SupabaseAccess, targetDir: string): Promise<{ 
 
 const safeName = (table: string): string => table.replace(/\./g, '_');
 
+/**
+ * Tabelle seitenweise exportieren. Bei einem einzelnen Schlüssel (Primärschlüssel oder `id`) per Keyset-Paginierung
+ * (`id=gt.<letzter>`): jede Seite ist ein Indexzugriff, unabhängig von der Tabellengröße. Tiefes OFFSET dagegen wird bei
+ * großen Tabellen langsam und läuft in den Statement-Timeout von Supabase. Ohne eindeutigen Schlüssel bleibt nur OFFSET.
+ * Läuft eine Seite trotzdem in einen Timeout, wird die Seitengröße halbiert.
+ */
 async function exportTable(access: SupabaseAccess, def: TableDef, file: string, progress: (text: string) => void): Promise<number> {
   const pk = Object.entries(def.columns).filter(([, c]) => c.pk).map(([n]) => n);
-  const order = pk.length > 0 ? `&order=${pk.map((c) => `${encodeURIComponent(c)}.asc`).join(',')}` : '';
+  const keyColumn = pk.length === 1 ? pk[0]! : pk.length === 0 && def.columns.id ? 'id' : null;
+  const order = keyColumn
+    ? `&order=${encodeURIComponent(keyColumn)}.asc`
+    : pk.length > 0 ? `&order=${pk.map((c) => `${encodeURIComponent(c)}.asc`).join(',')}` : '';
   const out = fs.createWriteStream(file, { encoding: 'utf8' });
   let rows = 0;
+  let size = PAGE;
+  let last: unknown = null;
   try {
     out.write('[');
     for (;;) {
-      const res = await request(
-        `${access.url}/rest/v1/${encodeURIComponent(def.name)}?select=*${order}`,
-        { headers: headers(access.key, { Range: `${rows}-${rows + PAGE - 1}`, 'Range-Unit': 'items' }) },
-        120_000,
-      );
+      const filter = keyColumn && last !== null ? `&${encodeURIComponent(keyColumn)}=gt.${encodeURIComponent(String(last))}` : '';
+      const url = `${access.url}/rest/v1/${encodeURIComponent(def.name)}?select=*${order}${filter}`;
+      const res = keyColumn
+        ? await request(`${url}&limit=${size}`, { headers: headers(access.key) }, 120_000, 1)
+        : await request(url, { headers: headers(access.key, { Range: `${rows}-${rows + size - 1}`, 'Range-Unit': 'items' }) }, 120_000, 1);
       if (res.status === 416) break; // Anzahl war ein Vielfaches der Seitengröße: nichts mehr hinter dem Ende
       if (!res.ok && res.status !== 206) {
-        throw new AppError('INTERNAL', `Tabelle ${def.name}: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
+        const body = (await res.text()).slice(0, 200);
+        if (res.status >= 500 && size > 50) {
+          size = Math.max(50, Math.floor(size / 2)); // Timeout o. ä.: kleinere Seite versuchen
+          progress(`Tabelle ${def.name}: Seitengröße auf ${size} reduziert`);
+          continue;
+        }
+        throw new AppError('INTERNAL', `Tabelle ${def.name}: HTTP ${res.status} ${body}`);
       }
-      const page = (await res.json()) as unknown[];
+      const page = (await res.json()) as Array<Record<string, unknown>>;
       if (!Array.isArray(page) || page.length === 0) break;
       for (const row of page) {
         out.write(`${rows === 0 ? '\n' : ',\n'}${JSON.stringify(row)}`);
         rows += 1;
       }
+      if (keyColumn) last = page[page.length - 1]![keyColumn] ?? null;
       progress(`Tabelle ${def.name}: ${rows} Zeilen`);
-      if (page.length < PAGE) break;
+      if (page.length < size || (keyColumn && last === null)) break;
     }
     out.write('\n]\n');
   } finally {

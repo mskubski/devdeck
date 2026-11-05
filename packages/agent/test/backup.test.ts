@@ -164,6 +164,13 @@ describe('Backup: Supabase (gegen einen lokalen Testserver)', () => {
         return json(200, { definitions: { toilets: { required: ['id'], properties: { id: { type: 'integer', format: 'bigint', description: 'Note:\nThis is a Primary Key.<pk/>' }, name: { type: 'string' } } }, leer: { properties: { id: { type: 'integer' } } } } });
       }
       if (u.pathname === '/rest/v1/toilets') {
+        const limit = Number(u.searchParams.get('limit') ?? 0);
+        const gt = u.searchParams.get('id');
+        if (limit > 0) {
+          if (limit > 600) return json(500, { code: '57014', message: 'canceling statement due to statement timeout' }); // zu große Seite
+          const after = gt ? Number(gt.replace('gt.', '')) : 0;
+          return json(200, rows.filter((r) => r.id > after).slice(0, limit));
+        }
         const [from] = String(req.headers.range ?? '0-999').split('-').map(Number);
         if (from! >= rows.length) return json(416, { message: 'Requested range not satisfiable' });
         return json(206, rows.slice(from, from! + 1000));
@@ -193,7 +200,7 @@ describe('Backup: Supabase (gegen einen lokalen Testserver)', () => {
   });
   afterEach(() => new Promise<void>((r) => server.close(() => r())));
 
-  it('sichert Tabellen (Seitengrenze exakt 1000), Schema und Storage im Format des bisherigen Skripts', async () => {
+  it('sichert Tabellen per Keyset-Paginierung (Timeout bei großer Seite, Seitengrenze exakt), Schema und Storage im Format des bisherigen Skripts', async () => {
     const bundleDir = path.join(root, 'bundle');
     fs.mkdirSync(bundleDir);
     const result = await backupSupabase({ access: { url, key: 'testkey' }, bundleDir, targetDir: target, buckets: [], schema: true, progress: () => undefined });
@@ -204,7 +211,8 @@ describe('Backup: Supabase (gegen einen lokalen Testserver)', () => {
     expect(JSON.parse(fs.readFileSync(path.join(bundleDir, 'database', 'leer.json'), 'utf8'))).toEqual([]);
     expect(fs.readFileSync(path.join(bundleDir, 'storage', 'bilder', 'user1', 'x.jpg'), 'utf8')).toBe('daten:/storage/v1/object/bilder/user1/x.jpg');
     expect(fs.readFileSync(path.join(bundleDir, 'schema', 'tables_schema.sql'), 'utf8')).toContain('PRIMARY KEY ("id")');
-    expect(calls.some((c) => c.includes('order=id.asc'))).toBe(true);
+    expect(calls.some((c) => c.includes('order=id.asc') && c.includes('id=gt.'))).toBe(true); // Keyset statt OFFSET
+    expect(calls.some((c) => c.includes('limit=500'))).toBe(true); // nach Timeout halbierte Seitengröße
   });
 
   it('meldet einen abgelehnten Schlüssel verständlich und einen fehlenden Bucket als Fehler', async () => {
