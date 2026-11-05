@@ -36,3 +36,7 @@ coverage/
 .devdeck/project.json
 .devdeck/session.json
 .devdeck/handover/
+
+# Lokale Kopie des PeeFinder-Backup-Skripts (config.py mit Service-Key) und seine Backups (Nutzerdaten) – nie committen
+/BACKUP/
+/peefinder-backups/

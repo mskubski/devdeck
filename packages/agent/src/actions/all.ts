@@ -17,3 +17,4 @@ import './agentUpdate.js';
 import './agentAutostart.js';
 import './patchesInstall.js';
 import './projectImport.js';
+import './backup.js';

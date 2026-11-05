@@ -60,6 +60,7 @@ syncing source code through a file-sync service or a proprietary mechanism.
 - Encrypted vault (AES-256-GCM) for secret values and secret files, with per-capability access and auditing
 - `devdeck` CLI (status, sync, sessions, handovers, `env run`) and launchers for Claude Code / Codex (`devdeck claude`, `devdeck codex`)
 - System backups (database + encrypted vault) with verification, retention and a scheduler; restore is terminal-only by design
+- Project backups (Supabase DB + storage, PostgreSQL, SQLite, data folders) on any registered machine with auto-detection, schedule and retention; restore only with typed confirmation
 - Service connectors with vault-backed credentials (GitHub first)
 - Plain HTML/CSS/JS web UI – no frontend build step
 - Audit log for security-relevant actions
@@ -182,6 +183,21 @@ Projects deployed to Vercel via a Git push don't need this. Typical abort: *„l
 Admins can create and verify system backups in the web UI (**Backups**); the vault key is never included –
 store it separately. Restoring overwrites production data and is therefore only possible interactively in a
 terminal (stop the server first): `node packages/server/dist/restore.js <backup-dir>`.
+
+### Project backups
+
+Each project has a **Backups** tab (maintainers set up, owners restore). A backup job defines *what* is backed up, *where* (any registered machine, any folder),
+*when* (daily / weekly / every N hours / manual) and *how long* (retention: days, plus a minimum count that is always kept).
+
+- **Auto-detection** – Supabase database + all storage buckets (from the vault secrets `…SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`), PostgreSQL (`DATABASE_URL`, needs `pg_dump`),
+  SQLite files and data folders (`uploads`, `media`, `data`, …) of the project's workspaces. Folders holding credentials are never suggested; `.env`, `node_modules` and `.git` are never archived.
+- **Runs on the agent** (`backup.run`, agent ≥ 0.16.0): credentials are fetched from the vault per run (with the machine owner's rights) and never stored. Bundles are written atomically (`.partial` → rename) as `<YYYY-MM-DD_HHMMSS>/` with a manifest and SHA-256 checksums.
+- **Existing backups are recognised**: the folder is scanned and bundles of the earlier PeeFinder script (same folder naming + `backup_manifest.json`) are adopted; new Supabase backups use the same layout (`database/`, `schema/`, `storage/`).
+- **Retention** only deletes real bundles (timestamp name + manifest) after a successful run – never other files. A failed run leaves no partial bundle behind.
+- **Restore** is deliberately hard: project owner/admin only, browser session only (no CLI token), a second dialog and the literal text **„Restore starten“**; the agent re-verifies checksums, re-checks the confirmation, creates a safety backup first
+  (abort if that fails), moves files/SQLite aside to `_pre-restore-…` and upserts Supabase rows (nothing is deleted). Restore is never exercised by tests.
+
+API: `GET|POST /api/projects/:id/backup-jobs`, `PATCH|DELETE …/:jobId`, `POST …/detect`, `…/:jobId/run|scan`, `…/:jobId/backups/:backupId/verify|restore`.
 
 ### Importing existing project data
 

@@ -17,10 +17,14 @@ export const AGENT_ACTIONS = [
   'agent.autostart',
   'patches.install',
   'project.import',
+  'backup.detect',
+  'backup.scan',
+  'backup.run',
+  'backup.restore',
 ] as const;
 
 /** Aktuelle Agent-Version; ältere Agenten kennen neuere Aktionen nicht und gelten als veraltet. */
-export const CURRENT_AGENT_VERSION = '0.15.0';
+export const CURRENT_AGENT_VERSION = '0.16.0';
 
 function versionParts(v: string): number[] {
   return v.split('.').map((p) => Number.parseInt(p, 10) || 0);
@@ -50,6 +54,10 @@ export const MIN_AGENT_VERSION_FOR_ACTION: Partial<Record<string, string>> = {
   'workspace.deploy': '0.8.0',
   'agent.autostart': '0.14.0',
   'patches.install': '0.15.0',
+  'backup.detect': '0.16.0',
+  'backup.scan': '0.16.0',
+  'backup.run': '0.16.0',
+  'backup.restore': '0.16.0',
 };
 
 export function agentSupportsAction(version: string | null | undefined, action: string): boolean {

@@ -19,6 +19,7 @@ import { sanitizeFacts } from '../services/architecture/facts.js';
 import { sanitizeApplications, sanitizeAutostart, sanitizeInventory, sanitizePatches } from '../services/inventory.js';
 import { pruneMachineLogs, sanitizeLogReport, storeMachineLogs } from '../services/machineLogs.js';
 import { getProjectMembership } from '../auth/middleware.js';
+import { ingestReport } from '../services/projectBackups.js';
 
 /** Agent-Protokoll (pollbasiert, PLAN §11). */
 export function agentRoutes(ctx: AppContext): Router {
@@ -608,6 +609,57 @@ export function agentRoutes(ctx: AppContext): Router {
         },
       });
       res.json({ data: projected });
+    }),
+  );
+
+  // Projekt-Backups: Fortschritt/Ergebnis/Ordner-Scan des Agenten
+  router.post(
+    '/backups/report',
+    asyncHandler(async (req, res) => {
+      ingestReport(ctx, req.machine!, req.body);
+      res.json({ data: { ok: true } });
+    }),
+  );
+
+  // Projekt-Backups: nur die Secrets, die die Quellen des Jobs brauchen (Berechtigung des Maschinen-Besitzers)
+  router.post(
+    '/backup-jobs/:jobId/secrets',
+    asyncHandler(async (req, res) => {
+      if (!ctx.vault) throw new AppError('VAULT_ERROR', 'Vault ist auf diesem Server nicht initialisiert');
+      const machine = req.machine!;
+      const job = db.get<{ id: string; project_id: string; machine_id: string }>(
+        'SELECT id, project_id, machine_id FROM backup_jobs WHERE id = ?',
+        param(req, 'jobId'),
+      );
+      if (!job || job.machine_id !== machine.id) throw new AppError('NOT_FOUND', 'Backup-Job nicht gefunden');
+      const names = (req.body as { names?: unknown })?.names;
+      if (!Array.isArray(names) || names.length > 20) throw new AppError('VALIDATION', 'names muss eine Liste (max. 20) sein');
+      const owner = db.get<{ system_role: string }>('SELECT system_role FROM users WHERE id = ?', machine.owner_user_id);
+      const byEnv = new Map<string, ReturnType<typeof projectSecretsFor>>();
+      const secrets: Record<string, string> = {};
+      for (const n of names as Array<{ name?: unknown; environment?: unknown }>) {
+        if (typeof n?.name !== 'string' || typeof n.environment !== 'string') throw new AppError('VALIDATION', 'Ungültiger Secret-Eintrag');
+        let projected = byEnv.get(n.environment);
+        if (!projected) {
+          projected = projectSecretsFor(db, ctx.vault, job.project_id, machine.owner_user_id, owner?.system_role === 'admin', n.environment);
+          byEnv.set(n.environment, projected);
+        }
+        const value = projected.env[n.name];
+        if (value !== undefined) secrets[`${n.environment}::${n.name}`] = value;
+      }
+      audit(db, {
+        actor_type: 'agent',
+        actor_id: machine.id,
+        actor_label: machine.name,
+        action: 'backup.secret_projection',
+        project_id: job.project_id,
+        machine_id: machine.id,
+        target_type: 'backup_job',
+        target_id: job.id,
+        result: 'success',
+        detail: { requested: names.length, delivered: Object.keys(secrets).length },
+      });
+      res.json({ data: { secrets } });
     }),
   );
 
