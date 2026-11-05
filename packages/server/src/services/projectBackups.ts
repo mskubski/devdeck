@@ -456,8 +456,24 @@ export function runBackupScheduleTick(ctx: AppContext, now = new Date()): string
     try {
       startRun(ctx, job, 'schedule', { id: null, label: 'zeitplan', type: 'system' });
       started.push(job.id);
-    } catch {
-      /* Maschine offline, Agent zu alt oder Lauf aktiv – beim nächsten Tick erneut versuchen */
+    } catch (err) {
+      // Wird beim nächsten Tick erneut versucht; der Grund erscheint (höchstens alle 6 Stunden einmal) im Backup-Log
+      const reason = err instanceof AppError ? err.message : 'Unerwarteter Fehler beim Start';
+      if (!(err instanceof AppError && err.code === 'CONFLICT')) {
+        const since = new Date(now.getTime() - 6 * 3_600_000).toISOString();
+        const seen = ctx.db.get(
+          `SELECT 1 FROM project_backups WHERE job_id = ? AND trigger_kind = 'schedule' AND status = 'failed' AND error = ? AND created_at > ?`,
+          job.id, `Geplantes Backup nicht gestartet: ${reason}`, since,
+        );
+        if (!seen) {
+          const at = now.toISOString();
+          ctx.db.run(
+            `INSERT INTO project_backups (id, job_id, project_id, status, trigger_kind, origin, created_at, updated_at, finished_at, error)
+             VALUES (?, ?, ?, 'failed', 'schedule', 'devdeck', ?, ?, ?, ?)`,
+            randomUUID(), job.id, job.project_id, at, at, at, `Geplantes Backup nicht gestartet: ${reason}`,
+          );
+        }
+      }
     }
   }
   return started;
@@ -687,4 +703,55 @@ export async function detectSources(ctx: AppContext, projectId: string, machineI
     notes.push(`„${machine.name}“ ist offline oder hat einen älteren Agenten: Ordner und vorhandene Backups wurden nicht gesucht.`);
   }
   return { candidates, backup_dirs: backupDirs, notes };
+}
+
+export interface BackupLogEntry {
+  at: string;
+  kind: 'backup' | 'restore' | 'agent';
+  level: 'error' | 'info';
+  job: string | null;
+  machine: string | null;
+  title: string;
+  message: string | null;
+}
+
+/** Backup-Log eines Projekts: Läufe, Restores und fehlgeschlagene Agent-Aufträge (neueste zuerst). */
+export function backupLog(ctx: AppContext, projectId: string, limit = 200): BackupLogEntry[] {
+  const out: BackupLogEntry[] = [];
+  const runs = ctx.db.all<{ at: string; status: string; trigger_kind: string; bundle_name: string | null; error: string | null; size_bytes: number | null; job: string; machine: string | null }>(
+    `SELECT COALESCE(b.finished_at, b.created_at) AS at, b.status, b.trigger_kind, b.bundle_name, b.error, b.size_bytes, j.name AS job, m.name AS machine
+     FROM project_backups b JOIN backup_jobs j ON j.id = b.job_id LEFT JOIN machines m ON m.id = j.machine_id
+     WHERE b.project_id = ? AND b.origin = 'devdeck' AND b.status IN ('success','failed') ORDER BY at DESC LIMIT ?`,
+    projectId, limit,
+  );
+  const label: Record<string, string> = { manual: 'manuell', schedule: 'Zeitplan', 'restore-safety': 'Sicherheits-Backup vor Restore' };
+  for (const r of runs) {
+    out.push({
+      at: r.at, kind: 'backup', level: r.status === 'failed' ? 'error' : 'info', job: r.job, machine: r.machine,
+      title: r.status === 'failed' ? `Backup fehlgeschlagen (${label[r.trigger_kind] ?? r.trigger_kind})` : `Backup erstellt (${label[r.trigger_kind] ?? r.trigger_kind})`,
+      message: r.status === 'failed' ? r.error : `${r.bundle_name ?? ''}${r.size_bytes != null ? `, ${r.size_bytes} Bytes` : ''}`,
+    });
+  }
+  const restores = ctx.db.all<{ at: string; status: string; bundle_name: string; error: string | null; job: string; machine: string | null }>(
+    `SELECT COALESCE(r.finished_at, r.started_at) AS at, r.status, r.bundle_name, r.error, j.name AS job, m.name AS machine
+     FROM backup_restores r JOIN backup_jobs j ON j.id = r.job_id LEFT JOIN machines m ON m.id = j.machine_id
+     WHERE r.project_id = ? AND r.status <> 'running' ORDER BY at DESC LIMIT ?`,
+    projectId, limit,
+  );
+  for (const r of restores) {
+    out.push({ at: r.at, kind: 'restore', level: r.status === 'failed' ? 'error' : 'info', job: r.job, machine: r.machine,
+      title: r.status === 'failed' ? 'Restore fehlgeschlagen' : 'Restore abgeschlossen', message: r.error ?? r.bundle_name });
+  }
+  const cmds = ctx.db.all<{ at: string; action: string; status: string; error: string | null; job: string | null; machine: string | null }>(
+    `SELECT COALESCE(c.finished_at, c.created_at) AS at, c.action, c.status, c.error, j.name AS job, m.name AS machine
+     FROM agent_commands c JOIN backup_jobs j ON j.id = json_extract(c.payload_json, '$.job_id') LEFT JOIN machines m ON m.id = c.machine_id
+     WHERE j.project_id = ? AND c.action LIKE 'backup.%' AND c.status IN ('failed','expired') ORDER BY at DESC LIMIT ?`,
+    projectId, limit,
+  );
+  const names: Record<string, string> = { 'backup.run': 'Backup-Start', 'backup.scan': 'Ordner einlesen/Prüfen', 'backup.restore': 'Restore-Start', 'backup.detect': 'Erkennung' };
+  for (const c of cmds) {
+    out.push({ at: c.at, kind: 'agent', level: 'error', job: c.job, machine: c.machine,
+      title: `${names[c.action] ?? c.action} fehlgeschlagen`, message: c.status === 'expired' ? 'Der Agent hat den Auftrag nicht rechtzeitig abgeholt (Maschine offline?)' : c.error });
+  }
+  return out.sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, limit);
 }

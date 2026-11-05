@@ -193,11 +193,12 @@ Each project has a **Backups** tab (maintainers set up, owners restore). A backu
   SQLite files and data folders (`uploads`, `media`, `data`, …) of the project's workspaces. Folders holding credentials are never suggested; `.env`, `node_modules` and `.git` are never archived.
 - **Runs on the agent** (`backup.run`, agent ≥ 0.16.0): credentials are fetched from the vault per run (with the machine owner's rights) and never stored. Bundles are written atomically (`.partial` → rename) as `<YYYY-MM-DD_HHMMSS>/` with a manifest and SHA-256 checksums.
 - **Existing backups are recognised**: the folder is scanned and bundles of the earlier PeeFinder script (same folder naming + `backup_manifest.json`) are adopted; new Supabase backups use the same layout (`database/`, `schema/`, `storage/`).
+- **Backup log** tab: every run and restore with its error message, plus scheduled runs that could not start (machine offline, agent too old) and failed agent commands; filter "errors only".
 - **Retention** only deletes real bundles (timestamp name + manifest) after a successful run – never other files. A failed run leaves no partial bundle behind.
 - **Restore** is deliberately hard: project owner/admin only, browser session only (no CLI token), a second dialog and the literal text **„Restore starten“**; the agent re-verifies checksums, re-checks the confirmation, creates a safety backup first
   (abort if that fails), moves files/SQLite aside to `_pre-restore-…` and upserts Supabase rows (nothing is deleted). Restore is never exercised by tests.
 
-API: `GET|POST /api/projects/:id/backup-jobs`, `PATCH|DELETE …/:jobId`, `POST …/detect`, `…/:jobId/run|scan`, `…/:jobId/backups/:backupId/verify|restore`.
+API: `GET|POST /api/projects/:id/backup-jobs`, `PATCH|DELETE …/:jobId`, `POST …/detect`, `…/:jobId/run|scan`, `…/:jobId/backups/:backupId/verify|restore`, `GET /api/projects/:id/backup-log`.
 
 ### Importing existing project data
 

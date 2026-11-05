@@ -15,7 +15,7 @@ Stand: 2026-10-23. Aktualisiert nach jeder Phase (Code → Tests → Typecheck �
 | F | Coding Sessions ✅ · .devdeck Context ✅ · Handovers ✅ | ✅ abgeschlossen |
 | G | DevDeck Vault: Metadata, Values, Files, Permissions, Projektion | ✅ abgeschlossen |
 | H | DevDeck CLI ✅ · Claude-/Codex-Launcher | ✅ abgeschlossen (`devdeck claude\|codex` startet den Agent im Workspace mit Kontext + Session) |
-| I | Backups, Restore, Retention | ✅ System-Backup, Verify, Retention, Scheduler, Terminal-Restore (Projekt-Backups/Konnektoren in J) |
+| I | Backups, Restore, Retention | ✅ System-Backup, Verify, Retention, Scheduler, Terminal-Restore; Projekt-Backups (Tab „Backups“/„Backup-Log“, Agent 0.16.0, UI-Restore nur mit Texteingabe) |
 | J | Service-Integrationen (Konnektoren) | ⏳ Interface + GitHub fertig; GitLab, Supabase, Vercel, Brevo, Apple, Google Play, IONOS offen |
 
 ## Review & Vervollständigung – 2026-10-08
@@ -125,7 +125,8 @@ Tests: 83/83 grün (`npm test`), `tsc -b` sauber. Neue Tests:
   übernimmt akzeptierte Entscheidungen und offene Known Issues.
 - **H:** `packages/cli` (Basis-Befehle, `env run`) und Launcher `devdeck claude|codex` mit Allowlist.
 - **I:** `services/backups.ts`, `routes/backups.ts`, `restore.ts` (nur interaktiv im Terminal; kein API-/UI-Restore),
-  Scheduler im Server. Offen: projektbezogene Backups (z. B. Supabase) über Konnektoren.
+  Scheduler im Server. Projekt-Backups: `services/projectBackups.ts`, `routes/projectBackups.ts`, Agent `backup/*` und Aktionen `backup.*`;
+  Restore im Projekt nur für Owner mit Browser-Sitzung und Eingabe „Restore starten“ (System-Restore bleibt Terminal-only).
 - **J:** Connector-Interface + GitHub (`services/connectors/`, Migration v7, Tab „Integrationen“).
   Offen: GitLab, Supabase, Vercel, Brevo, Apple, Google Play, IONOS.
 - **Sessions-Scan:** Agent-Scanner für Claude-Code-Transcripts (nur Metadaten), `POST /api/agent/sessions/import`, Migration v8, Agent 0.3.0. Offen: Hooks für Live-Status (siehe ROADMAP.md).

@@ -26,7 +26,8 @@
 - [ ] Architektur-Karte: Live-Daten – Supabase (Größe/Region per Token), Vercel, IONOS (P3)
 - [ ] Phase J: Service-Integrationen (Konnektoren)
 - [ ] Konnektor GitLab (P2)
-- [ ] Konnektor Supabase inkl. projektbezogenem DB-/Storage-Backup (P3)
+- [x] Projektbezogene Backups (Supabase DB/Storage, PostgreSQL, SQLite, Ordner) mit Zeitplan, Aufbewahrung, Backup-Log und geschütztem Restore
+- [ ] Konnektor Supabase (Live-Zahlen, Verwaltung) (P3)
 - [ ] Konnektor Vercel (P2)
 - [ ] Konnektor Brevo (P1)
 - [ ] Konnektoren Apple App Store und Google Play (P1)

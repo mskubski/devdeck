@@ -566,7 +566,13 @@ Zu sichern sind insbesondere:
 
 ### Projektbackups
 
-Projektbezogene Backup-Integrationen können beispielsweise Datenbanken oder Storage umfassen.
+Projektbezogene Backups sind umgesetzt (Tab **Backups** im Projekt, Agent ab 0.16.0):
+
+- Automatische Erkennung der Quellen: Supabase-Datenbank und Storage (aus den Vault-Secrets), PostgreSQL, SQLite-Dateien und Datenordner. Ordner mit Zugangsdaten werden nie vorgeschlagen; `.env`, `node_modules` und `.git` kommen nie in ein Archiv.
+- Backups liegen auf einer frei wählbaren eingetragenen Maschine im gewählten Ordner; Zeitplan (täglich, wöchentlich, alle N Stunden, manuell) und Aufbewahrung (Tage + Mindestanzahl) pro Job.
+- Vorhandene Backups im Ordner (auch vom bisherigen PeeFinder-Skript) werden erkannt und übernommen; Prüfsummen und „Prüfen“.
+- Tab **Backup-Log**: alle Läufe und Restores mit Fehlermeldungen, auch geplante Backups, die nicht starten konnten.
+- **Restore** nur für Projekt-Owner in der Web-Oberfläche, mit zweiter Abfrage und wörtlicher Eingabe „Restore starten“; vorher automatisches Sicherheits-Backup. Restores werden nie zum Testen ausgeführt.
 
 Backups sollen auf einem vom Primärsystem unabhängigen Ziel gespeichert werden.
 
