@@ -1,5 +1,5 @@
 import { get, post, patch, del } from '../../lib/api.js';
-import { $, $$, esc, badge, fmtDate, toast, formModal, setModalError, closeModal } from '../../lib/ui.js';
+import { $, $$, esc, badge, fmtDate, toast, formModal, setModalError, closeModal, confirmModal } from '../../lib/ui.js';
 import { roleAtLeast } from '../../lib/roles.js';
 import { icon } from '../../lib/icons.js';
 
@@ -31,7 +31,7 @@ export async function renderTasks(el, project) {
     <div class="card">
       <div class="card-head">
         <h2>Tasks</h2>
-        ${canManage ? '<button class="btn sm" id="btn-new-task">' + icon('plus') + 'Neuer Task</button>' : ''}
+        ${canManage ? '<div class="btn-group"><button class="btn ghost sm" id="btn-dedupe" title="Doppelte Tasks finden und bereinigen">' + icon('layers', { size: 16 }) + '<span>Doppelte bereinigen</span></button><button class="btn sm" id="btn-new-task">' + icon('plus') + 'Neuer Task</button></div>' : ''}
       </div>
       <div class="table-wrap">
         <table>
@@ -40,6 +40,28 @@ export async function renderTasks(el, project) {
         </table>
       </div>
     </div>`;
+
+  $('#btn-dedupe', el)?.addEventListener('click', async () => {
+    try {
+      const plan = await post(`/api/projects/${project.id}/tasks/dedupe`, { dry_run: true });
+      if (!plan.duplicates) {
+        toast('Keine doppelten Tasks gefunden', 'success');
+        return;
+      }
+      const ok = await confirmModal({
+        title: `${plan.duplicates} doppelte${plan.duplicates === 1 ? 'n Task' : ' Tasks'} bereinigen?`,
+        message: `In ${plan.groups} Gruppe${plan.groups === 1 ? '' : 'n'} stehen Tasks mehrfach (z. B. „${plan.samples[0]}“). Je Gruppe bleibt der Task mit dem weitesten Stand (in Arbeit, erledigt, offen), bei Gleichstand der älteste; die übrigen werden gelöscht (Tasks mit GitHub-Issue werden verworfen).`,
+        confirmLabel: 'Bereinigen',
+        danger: false,
+      });
+      if (!ok) return;
+      const r = await post(`/api/projects/${project.id}/tasks/dedupe`, { confirm: true });
+      toast(`${r.deleted + r.cancelled} doppelte Tasks bereinigt${r.repaired ? `, ${r.repaired} Titel repariert` : ''}`, 'success');
+      renderTasks(el, project);
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  });
 
   $('#btn-new-task', el)?.addEventListener('click', async () => {
     const res = await formModal({

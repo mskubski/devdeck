@@ -105,6 +105,23 @@ export function parseChangelog(md: string): ChangelogItem[] {
   return items;
 }
 
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+
+/** Alleinstehende Surrogat-Hälften (kaputte Emoji) durch U+FFFD ersetzen – die Datenbank speichert sie ohnehin so. */
+export function wellFormed(s: string): string {
+  return s.replace(LONE_SURROGATE, '\uFFFD');
+}
+
+/**
+ * Vergleichsschlüssel für Task-Titel (Import-Abgleich, Duplikat-Erkennung): ohne beschädigte Zeichen, ohne führende Symbole/Emoji,
+ * Leerraum vereinheitlicht, Groß-/Kleinschreibung egal. So gilt „🛠️ Termine löschen“ auch dann als vorhanden, wenn das Emoji früher beschädigt gespeichert wurde.
+ */
+export function taskKey(title: string): string {
+  const base = wellFormed(title).replace(/\uFFFD/g, '').replace(/\s+/g, ' ').trim();
+  const key = base.replace(/^[^\p{L}\p{N}]+/u, '').trim().toLowerCase();
+  return key || base.toLowerCase();
+}
+
 export interface TaskItem {
   title: string;
   done: boolean;
@@ -141,7 +158,7 @@ export function parseTasks(md: string): TaskItem[] {
       priority = Number(p[1]);
       title = title.slice(0, p.index).trim();
     }
-    if (title) out.push({ title: title.slice(0, 300), done: m[1] !== ' ', priority, section });
+    if (title) out.push({ title: wellFormed(title.slice(0, 300)), done: m[1] !== ' ', priority, section });
   }
   if (out.length > 0) return out;
 
@@ -162,7 +179,7 @@ export function parseTasks(md: string): TaskItem[] {
     const text = m[1]!;
     const struck = /~~.+~~/.test(text);
     const marked = /[✅☑✔]/.test(text);
-    let title = stripMd(text.replace(/~~/g, '').replace(/[✅☑✔⬜☐🔲⏳🚧]/g, ''))
+    let title = stripMd(text.replace(/~~/g, '').replace(/[✅☑✔⬜☐🔲⏳🚧]/gu, ''))
       .replace(/\s+/g, ' ')
       .trim();
     const p = /\s*\(P([1-5])\)\s*$/.exec(title);
@@ -171,10 +188,10 @@ export function parseTasks(md: string): TaskItem[] {
       priority = Number(p[1]);
       title = title.slice(0, p.index).trim();
     }
-    if (!title || seen.has(title)) continue;
-    seen.add(title);
+    if (!title || seen.has(taskKey(title))) continue;
+    seen.add(taskKey(title));
     out.push({
-      title: title.slice(0, 300),
+      title: wellFormed(title.slice(0, 300)),
       done: struck || marked || Boolean(section && DONE_SECTION.test(section)),
       priority,
       section,

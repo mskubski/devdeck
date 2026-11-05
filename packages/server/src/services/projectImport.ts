@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { ChangelogItem, SecretItem, TaskItem } from '@devdeck/shared';
+import { taskKey, type ChangelogItem, type SecretItem, type TaskItem } from '@devdeck/shared';
 import type { AppContext } from '../context.js';
 import { audit } from './audit.js';
 import { createSecretRow, setSecretValue } from '../vault/secretOps.js';
@@ -24,7 +24,7 @@ export interface ImportInput {
 export interface ImportSummary {
   dry_run: boolean;
   changelog: { total: number; new: number; existing: number };
-  tasks: { total: number; new: number; new_done: number; existing: number };
+  tasks: { total: number; new: number; new_done: number; existing: number; /** vorhandene Tasks mit beschädigtem Titel, die korrigiert werden */ repaired: number };
   /** Einige Beispiele zur Kontrolle in der Vorschau (keine Secrets). */
   samples: { changelog: string[]; tasks: Array<{ title: string; done: boolean }> };
   secrets: {
@@ -53,7 +53,7 @@ export function importProjectData(ctx: AppContext, input: ImportInput): ImportSu
     return true;
   });
   const seenTask = new Set<string>();
-  const inputTasks = input.tasks.filter((t) => (seenTask.has(t.title) ? false : (seenTask.add(t.title), true)));
+  const inputTasks = input.tasks.filter((t) => (seenTask.has(taskKey(t.title)) ? false : (seenTask.add(taskKey(t.title)), true)));
   const seenLog = new Set<string>();
   const inputChangelog = input.changelog.filter((c) => {
     const k = `${c.version ?? ''}|${c.summary}`;
@@ -66,8 +66,13 @@ export function importProjectData(ctx: AppContext, input: ImportInput): ImportSu
   );
   const newLog = inputChangelog.filter((c) => !knownLog.has(`${c.version ?? ''}|${c.summary}`));
 
-  const knownTasks = new Set(db.all<{ title: string }>('SELECT title FROM tasks WHERE project_id = ?', pid).map((t) => t.title));
-  const newTasks = inputTasks.filter((t) => !knownTasks.has(t.title));
+  // Abgleich über den Vergleichsschlüssel (ohne führende Emoji): so entstehen keine Duplikate, wenn ein Emoji früher beschädigt gespeichert wurde
+  const knownTasks = new Map(db.all<{ id: string; title: string }>('SELECT id, title FROM tasks WHERE project_id = ?', pid).map((t) => [taskKey(t.title), t]));
+  const newTasks = inputTasks.filter((t) => !knownTasks.has(taskKey(t.title)));
+  const repairs = inputTasks.flatMap((t) => {
+    const hit = knownTasks.get(taskKey(t.title));
+    return hit && hit.title.includes('\uFFFD') && !t.title.includes('\uFFFD') ? [{ id: hit.id, title: t.title.slice(0, 300) }] : [];
+  });
 
   const existingSecrets = db.all<{ id: string; name: string; environment: string }>(
     'SELECT id, name, environment FROM secrets WHERE project_id = ?', pid,
@@ -86,6 +91,7 @@ export function importProjectData(ctx: AppContext, input: ImportInput): ImportSu
       new: newTasks.length,
       new_done: newTasks.filter((t) => t.done).length,
       existing: inputTasks.length - newTasks.length,
+      repaired: repairs.length,
     },
     samples: {
       changelog: newLog.slice(0, 3).map((c) => `${c.version ? `${c.version}: ` : ''}${c.summary}`.slice(0, 120)),
@@ -112,6 +118,7 @@ export function importProjectData(ctx: AppContext, input: ImportInput): ImportSu
         new Date(when) > new Date() ? now : when,
       );
     }
+    for (const r of repairs) db.run('UPDATE tasks SET title = ?, updated_at = ? WHERE id = ?', r.title, now, r.id);
     for (const t of newTasks) {
       db.run(
         `INSERT INTO tasks (id, project_id, title, description, status, priority, created_by, created_at, updated_at, closed_at)
