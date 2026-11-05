@@ -57,7 +57,9 @@ export function startWorker(config: AgentConfig, options: { pollSeconds?: number
         const commands = await client.pollCommands(pollSeconds);
         for (const command of commands) {
           if (stopped) break;
-          await execute(command);
+          // Große Kopien (Backup-Replikation) laufen nebenher, damit Status-Prüfungen und andere Aufträge nicht stundenlang warten
+          if (command.action === 'backup.export' || command.action === 'backup.import') void execute(command);
+          else await execute(command);
         }
       } catch (err) {
         if (stopped) break;

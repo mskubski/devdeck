@@ -11,6 +11,7 @@ import { createApp } from './app.js';
 import type { AppContext } from './context.js';
 import { hashPassword } from './auth/passwords.js';
 import { audit } from './services/audit.js';
+import { runReplicaTick } from './services/backupReplicas.js';
 import { requestWorkspaceStatus, sweepExpiredCommands, sweepOfflineAgents } from './services/provisioning.js';
 import type { UserRecord } from './auth/middleware.js';
 import { runAutoUpdateTick } from './services/autoUpdate.js';
@@ -158,6 +159,15 @@ export async function startServer(
     }
   }, 5 * 60_000);
   statusTimer.unref();
+  // Replikation von Backups auf zweite Maschinen: alle 20 Sekunden jeden aktiven Abgleich einen Schritt weiterbringen
+  const replicaTimer = setInterval(() => {
+    try {
+      runReplicaTick(ctx);
+    } catch {
+      /* Fehler nie den Betrieb stoppen */
+    }
+  }, 20_000);
+  replicaTimer.unref();
   // GitHub-Issue-Abgleich (nur für Projekte mit aktiviertem Abgleich): alle 5 Minuten; lokale Änderungen stoßen ihn zusätzlich sofort an
   const issueSyncTimer = setInterval(() => void runAllIssueSyncs(ctx), 5 * 60_000);
   issueSyncTimer.unref();
@@ -203,6 +213,7 @@ export async function startServer(
       clearInterval(logTimer);
       clearInterval(issueSyncTimer);
       clearInterval(statusTimer);
+      clearInterval(replicaTimer);
       clearInterval(updateTimer);
       clearInterval(projectBackupTimer);
       await new Promise<void>((resolve) => server.close(() => resolve()));

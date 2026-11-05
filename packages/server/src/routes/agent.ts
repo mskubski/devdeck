@@ -20,6 +20,7 @@ import { sanitizeApplications, sanitizeAutostart, sanitizeInventory, sanitizePat
 import { pruneMachineLogs, sanitizeLogReport, storeMachineLogs } from '../services/machineLogs.js';
 import { getProjectMembership } from '../auth/middleware.js';
 import { ingestReport } from '../services/projectBackups.js';
+import { mountReplicaTransferRoutes } from './agentReplicas.js';
 
 /** Agent-Protokoll (pollbasiert, PLAN §11). */
 export function agentRoutes(ctx: AppContext): Router {
@@ -620,6 +621,9 @@ export function agentRoutes(ctx: AppContext): Router {
       res.json({ data: { ok: true } });
     }),
   );
+
+  // Replikation von Backups: Dateiübertragung Agent ↔ Server
+  mountReplicaTransferRoutes(router, ctx);
 
   // Projekt-Backups: nur die Secrets, die die Quellen des Jobs brauchen (Berechtigung des Maschinen-Besitzers)
   router.post(

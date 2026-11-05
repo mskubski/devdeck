@@ -180,6 +180,8 @@ Projects deployed to Vercel via a Git push don't need this. Typical abort: *„l
 
 ### Backups and restore
 
+**Replication:** every project backup job and the system backups can additionally be copied to a second machine (**Backups → Replication**, or the job's *Back up to a second machine*; agent 0.17.0). Choose the target machine and folder; all existing and future backups are copied through the server (agents are outbound-only; staging in `data/replica-staging`, capped by `DEVDECK_REPLICA_STAGING_MAX_GB`, default 20), every file is SHA-256 verified, and retention is mirrored (deleted on the primary → deleted on the replica; only backup folders with a manifest, never when the primary list is empty).
+
 Admins can create and verify system backups in the web UI (**Backups**); the vault key is never included –
 store it separately. Restoring overwrites production data and is therefore only possible interactively in a
 terminal (stop the server first): `node packages/server/dist/restore.js <backup-dir>`.

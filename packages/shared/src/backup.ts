@@ -259,3 +259,26 @@ export interface BackupReport {
   /** durch die Aufbewahrung gelöschte Backups */
   deleted?: string[];
 }
+
+// ── Replikation (Kopie von Backups auf eine zweite Maschine) ──
+
+/** System-Backups des Servers heißen `devdeck-<Zeitstempel>` (Doppelpunkte und Punkte durch `-` ersetzt). */
+export const SYSTEM_BUNDLE_NAME_PATTERN = /^devdeck-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/;
+
+/** Nur Ordner mit diesen Namen werden repliziert oder auf der Replik gelöscht – alles andere im Zielordner bleibt unangetastet. */
+export function isReplicableBundleName(name: string): boolean {
+  return BUNDLE_NAME_PATTERN.test(name) || SYSTEM_BUNDLE_NAME_PATTERN.test(name);
+}
+
+/** Relativer Dateipfad innerhalb eines Backups, wie er zwischen Agent und Server übertragen wird (immer `/`, nie nach oben, nie absolut). */
+export function isSafeTransferPath(rel: unknown): rel is string {
+  if (typeof rel !== 'string' || rel === '' || rel.length > 500) return false;
+  if (rel.includes('\\') || rel.includes('\0') || rel.startsWith('/')) return false;
+  return rel.split('/').every((seg) => seg !== '' && seg !== '.' && seg !== '..');
+}
+
+export interface TransferFile {
+  path: string;
+  sha256: string;
+  bytes: number;
+}

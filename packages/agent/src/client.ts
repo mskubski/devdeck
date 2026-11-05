@@ -1,4 +1,8 @@
 import { AppError, type AgentCommandPayload, type MachineApplication, type MachineAutostart, type MachineInventory, type MachineLogEntry, type MachinePatches } from '@devdeck/shared';
+import { createHash } from 'node:crypto';
+import fs from 'node:fs';
+import { Readable, Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import type { AgentConfig } from './config.js';
 import { getRunningHead } from './runtimeInfo.js';
 
@@ -64,6 +68,81 @@ export class ServerClient {
         }
       }
       return { status: res.status, data: body?.data as T, error: body?.error };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /** Datei als Rohdaten hochladen (Prüfsumme im Header, der Server prüft sie beim Empfang). Für Backup-Replikation. */
+  async putFile(apiPath: string, file: string, sha256: string, size: number, timeoutMs = 2 * 3_600_000): Promise<void> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      let res: Response;
+      try {
+        res = await fetch(`${this.config.serverUrl}${apiPath}`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${this.config.machineToken ?? ''}`,
+            'Content-Type': 'application/octet-stream',
+            'Content-Length': String(size),
+            'X-Sha256': sha256,
+          },
+          body: fs.createReadStream(file) as never,
+          duplex: 'half',
+          signal: controller.signal,
+        } as RequestInit & { duplex: 'half' });
+      } catch (err) {
+        throw unreachable(this.config.serverUrl, err, controller.signal.aborted);
+      }
+      if (res.status >= 400) {
+        const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+        throw new AppError('INTERNAL', body?.error?.message ?? `Upload fehlgeschlagen (HTTP ${res.status})`);
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /** Datei herunterladen und dabei Größe und Prüfsumme prüfen (bei Abweichung wird die Zieldatei gelöscht). */
+  async getFile(apiPath: string, dest: string, expect: { sha256: string; bytes: number }, timeoutMs = 2 * 3_600_000): Promise<void> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      let res: Response;
+      try {
+        res = await fetch(`${this.config.serverUrl}${apiPath}`, {
+          headers: { Authorization: `Bearer ${this.config.machineToken ?? ''}` },
+          signal: controller.signal,
+        });
+      } catch (err) {
+        throw unreachable(this.config.serverUrl, err, controller.signal.aborted);
+      }
+      if (res.status >= 400 || !res.body) {
+        const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+        throw new AppError('INTERNAL', body?.error?.message ?? `Download fehlgeschlagen (HTTP ${res.status})`);
+      }
+      const hash = createHash('sha256');
+      let received = 0;
+      try {
+        await pipeline(
+          Readable.fromWeb(res.body as never),
+          new Transform({
+            transform(chunk: Buffer, _enc, cb) {
+              received += chunk.length;
+              hash.update(chunk);
+              cb(null, chunk);
+            },
+          }),
+          fs.createWriteStream(dest, { mode: 0o600 }),
+        );
+        if (received !== expect.bytes || hash.digest('hex') !== expect.sha256) {
+          throw new AppError('INTERNAL', 'Datei beschädigt übertragen (Größe oder Prüfsumme stimmt nicht)');
+        }
+      } catch (err) {
+        fs.rmSync(dest, { force: true });
+        throw err;
+      }
     } finally {
       clearTimeout(timeout);
     }

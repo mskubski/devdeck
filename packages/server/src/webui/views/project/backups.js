@@ -1,4 +1,5 @@
-import { get, post, patch, del } from '../../lib/api.js';
+import { get, post, put, patch, del } from '../../lib/api.js';
+import { replicaModal, replicaStatusHtml } from '../../lib/replica.js';
 import { $, $$, esc, badge, fmtDate, toast, confirmModal, closeModal, openModal, setModalError } from '../../lib/ui.js';
 import { roleAtLeast } from '../../lib/roles.js';
 import { icon } from '../../lib/icons.js';
@@ -94,6 +95,16 @@ function jobCard(job, canEdit, canRestore) {
         Aufbewahrung: ${job.retention.keep_days} Tage, mindestens ${job.retention.keep_min} Backups<br>
         ${job.stats.count} Backups, ${fmtBytes(job.stats.total_bytes)}${job.stats.newest_success_at ? `, letztes: ${fmtDate(job.stats.newest_success_at)}` : ''}
       </p>
+      <div class="text-sm replica-line" style="margin:var(--space-2) 0">
+        <strong>Replik:</strong> ${job.replica
+          ? `<span class="muted">${esc(job.replica.machine?.name ?? '?')}:</span> <span class="mono">${esc(job.replica.target_dir)}</span> · ${replicaStatusHtml(job.replica)}`
+          : '<span class="muted">keine – die Backups liegen nur auf dieser Maschine</span>'}
+        ${canEdit ? `<span class="btn-group" style="margin-left:var(--space-2)">
+          <button class="btn ghost sm" data-replica="${esc(job.id)}">${icon('copy', { size: 14 })}${job.replica ? 'Replik ändern' : 'Auf zweite Maschine sichern'}</button>
+          ${job.replica ? `<button class="btn ghost sm" data-replica-sync="${esc(job.id)}" ${job.replica.busy ? 'disabled' : ''}>Jetzt abgleichen</button>
+          <button class="btn ghost sm danger" data-replica-del="${esc(job.id)}">Replik entfernen</button>` : ''}
+        </span>` : ''}
+      </div>
       <p class="text-sm">${job.sources.map((s) => `<span class="badge ${s.enabled ? 'accent' : ''}" title="${esc(s.config.path || s.config.url_secret || '')}">${esc(KIND_LABEL[s.kind])}: ${esc(s.label)}${s.enabled ? '' : ' (aus)'}</span>`).join(' ')}</p>
       <div class="table-wrap">
         <table>
@@ -142,6 +153,37 @@ export async function renderBackups(el, project) {
   };
   $$('[data-run]', el).forEach((b) => b.addEventListener('click', () => act(() => post(`/api/projects/${project.id}/backup-jobs/${b.dataset.run}/run`), 'Backup gestartet')));
   $$('[data-scan]', el).forEach((b) => b.addEventListener('click', () => act(() => post(`/api/projects/${project.id}/backup-jobs/${b.dataset.scan}/scan`), 'Ordner wird eingelesen – gleich neu laden')));
+  $$('[data-replica]', el).forEach((b) => b.addEventListener('click', async () => {
+    const job = find(b.dataset.replica);
+    let machines;
+    try {
+      machines = await get(`/api/projects/${project.id}/backup-jobs/${job.id}/replica-options`);
+    } catch (err) {
+      toast(err.message, 'error');
+      return;
+    }
+    replicaModal({
+      title: `Replik für „${job.name}“`,
+      intro: `Die Backups dieses Jobs (Quelle: <strong>${esc(job.machine?.name ?? '?')}</strong>, <span class="mono">${esc(job.target_dir)}</span>) werden zusätzlich auf eine zweite Maschine kopiert – auch bereits vorhandene.`,
+      machines,
+      current: job.replica,
+      onSave: async (payload) => {
+        await put(`/api/projects/${project.id}/backup-jobs/${job.id}/replica`, payload);
+        toast('Replik eingerichtet – der Abgleich startet gleich', 'success');
+        reload();
+      },
+    });
+  }));
+  $$('[data-replica-sync]', el).forEach((b) => b.addEventListener('click', () => act(() => post(`/api/projects/${project.id}/backup-jobs/${b.dataset.replicaSync}/replica/sync`), 'Abgleich angestoßen')));
+  $$('[data-replica-del]', el).forEach((b) => b.addEventListener('click', async () => {
+    const job = find(b.dataset.replicaDel);
+    const ok = await confirmModal({
+      title: 'Replik entfernen?',
+      message: `Die Replik von „${job.name}“ wird nicht mehr abgeglichen. Bereits kopierte Backups bleiben auf ${job.replica.machine?.name ?? 'der Ziel-Maschine'} in ${job.replica.target_dir} liegen.`,
+      confirmLabel: 'Replik entfernen',
+    });
+    if (ok) act(() => del(`/api/projects/${project.id}/backup-jobs/${job.id}/replica`, { confirm: true }), 'Replik entfernt');
+  }));
   $$('[data-edit]', el).forEach((b) => b.addEventListener('click', () => jobModal(project, find(b.dataset.edit), reload)));
   $$('[data-delete]', el).forEach((b) => b.addEventListener('click', async () => {
     const job = find(b.dataset.delete);
@@ -163,7 +205,7 @@ export async function renderBackups(el, project) {
   }));
 
   // Solange etwas läuft: automatisch aktualisieren (nur solange diese Ansicht noch offen ist)
-  if (jobs.some((j) => j.busy) || jobs.some((j) => j.backups.some((b) => b.status === 'queued' || b.status === 'running'))) {
+  if (jobs.some((j) => j.busy || j.replica?.busy) || jobs.some((j) => j.backups.some((b) => b.status === 'queued' || b.status === 'running'))) {
     setTimeout(() => { if (el.isConnected && !document.querySelector('.modal')) reload(); }, 4000);
   }
 }

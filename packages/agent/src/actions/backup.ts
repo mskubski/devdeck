@@ -13,6 +13,7 @@ import { scanBundles, verifyBundleDir } from '../backup/bundle.js';
 import { safeJoin } from '../backup/fsutil.js';
 import { checkTargetDir, claimJob, releaseJob, Reporter, runBackupJob } from '../backup/run.js';
 import { runRestoreJob } from '../backup/restore.js';
+import { exportBundle, importBundle, pruneReplica } from '../backup/replica.js';
 import { log } from '../logger.js';
 
 const str = (v: unknown, field: string): string => {
@@ -155,4 +156,26 @@ registerAction('backup.restore', async (ctx) => {
     log.error(`Restore abgebrochen: ${err instanceof Error ? err.message : String(err)}`);
   });
   return { started: true };
+});
+
+/** backup.prune – Replik prüfen und die Aufbewahrung spiegeln: löscht Backups, die es beim Primären nicht mehr gibt; meldet, was vorhanden ist. */
+registerAction('backup.prune', async (ctx) => {
+  const keep = Array.isArray(ctx.payload.keep) ? ctx.payload.keep.filter((x): x is string => typeof x === 'string') : [];
+  const result = pruneReplica(str(ctx.payload.target_dir, 'target_dir'), keep, ctx.payload.delete === true);
+  if (result.deleted.length) log.info(`Replik: ${result.deleted.length} Backup(s) gelöscht (Aufbewahrung des Primären gespiegelt)`);
+  return { ...result };
+});
+
+/** backup.export – Quell-Maschine: ein Backup in den Zwischenspeicher des Servers übergeben. */
+registerAction('backup.export', async (ctx) => {
+  const r = await exportBundle(ctx.client, { replicaId: str(ctx.payload.replica_id, 'replica_id'), targetDir: str(ctx.payload.target_dir, 'target_dir'), bundle: str(ctx.payload.bundle, 'bundle') });
+  log.info(`Replik: Backup ${String(ctx.payload.bundle)} übergeben (${r.files} Dateien, ${r.bytes} Bytes)`);
+  return { ...r };
+});
+
+/** backup.import – Ziel-Maschine: ein Backup vom Server holen, prüfen und im Zielordner ablegen. */
+registerAction('backup.import', async (ctx) => {
+  const r = await importBundle(ctx.client, { replicaId: str(ctx.payload.replica_id, 'replica_id'), targetDir: str(ctx.payload.target_dir, 'target_dir'), bundle: str(ctx.payload.bundle, 'bundle') });
+  if (!r.skipped) log.info(`Replik: Backup ${String(ctx.payload.bundle)} abgelegt (${r.files} Dateien, ${r.bytes} Bytes)`);
+  return { ...r };
 });
