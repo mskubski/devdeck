@@ -18,6 +18,7 @@ import {
   updateJob,
   type JobRow,
 } from '../services/projectBackups.js';
+import { jobReplicaOptions, removeReplica, replicaDto, requestReplicaSync, getReplica, setReplica } from '../services/backupReplicas.js';
 
 /**
  * Projekt-Backups (Tab „Backups“): Jobs mit Quellen, Maschine, Zeitplan und Aufbewahrung.
@@ -105,6 +106,46 @@ export function projectBackupRoutes(ctx: AppContext): Router {
       requireConfirmation(req.body);
       deleteJob(ctx, req.project!.id, jobOf(req).id, actorOf(req));
       res.status(204).end();
+    }),
+  );
+
+  // Replikation: Backups dieses Jobs auf eine zweite Maschine kopieren (Aufbewahrung wird gespiegelt)
+  router.get(
+    `${base}/:jobId/replica-options`,
+    requireProjectRole(db, 'maintainer'),
+    asyncHandler(async (req, res) => {
+      res.json({ data: jobReplicaOptions(ctx, jobOf(req).id) });
+    }),
+  );
+
+  router.put(
+    `${base}/:jobId/replica`,
+    requireProjectRole(db, 'maintainer'),
+    asyncHandler(async (req, res) => {
+      const job = jobOf(req);
+      setReplica(ctx, 'job', job.id, req.body ?? {}, actorOf(req));
+      res.json({ data: replicaDto(ctx, getReplica(ctx, 'job', job.id)) });
+    }),
+  );
+
+  router.delete(
+    `${base}/:jobId/replica`,
+    requireProjectRole(db, 'maintainer'),
+    asyncHandler(async (req, res) => {
+      requireConfirmation(req.body);
+      removeReplica(ctx, 'job', jobOf(req).id, actorOf(req));
+      res.status(204).end();
+    }),
+  );
+
+  router.post(
+    `${base}/:jobId/replica/sync`,
+    requireProjectRole(db, 'maintainer'),
+    asyncHandler(async (req, res) => {
+      const job = jobOf(req);
+      if (!getReplica(ctx, 'job', job.id)) throw new AppError('NOT_FOUND', 'Keine Replik eingerichtet');
+      requestReplicaSync(ctx, 'job', job.id);
+      res.status(202).json({ data: replicaDto(ctx, getReplica(ctx, 'job', job.id)) });
     }),
   );
 

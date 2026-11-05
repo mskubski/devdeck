@@ -19,6 +19,7 @@ import type { AppContext } from '../context.js';
 import type { MachineRecord } from '../auth/middleware.js';
 import { audit } from './audit.js';
 import { enqueueCommand } from './provisioning.js';
+import { getReplica, replicaDto, requestReplicaSync } from './backupReplicas.js';
 
 export interface JobRow {
   id: string;
@@ -374,6 +375,7 @@ export function ingestReport(ctx: AppContext, machine: MachineRecord, raw: unkno
 
   if (r.kind === 'scan') {
     syncBundles(ctx, job, cleanBundles(r.bundles), true);
+    requestReplicaSync(ctx, 'job', job.id);
     return;
   }
 
@@ -406,6 +408,7 @@ export function ingestReport(ctx: AppContext, machine: MachineRecord, raw: unkno
         }
       }
     });
+    requestReplicaSync(ctx, 'job', job.id);
     audit(db, { actor_type: 'agent', actor_id: machine.id, actor_label: machine.name, action: 'project.backup.finish', project_id: job.project_id, machine_id: machine.id, target_type: 'backup_job', target_id: job.id, result: 'success', detail: { run_id: run.id, bundle: bundle.name, bytes: bundle.size_bytes, deleted: Array.isArray(r.deleted) ? r.deleted.length : 0 } });
     return;
   }
@@ -504,6 +507,7 @@ export function jobDto(ctx: AppContext, job: JobRow, now = new Date()): Record<s
     schedule,
     retention: parse<BackupRetention>(job.retention_json, normalizeBackupRetention({})),
     enabled: job.enabled === 1,
+    replica: replicaDto(ctx, getReplica(ctx, 'job', job.id)),
     last_triggered_at: job.last_triggered_at,
     next_run_at: job.enabled === 1 ? nextScheduledRun(schedule, job.last_triggered_at, now)?.toISOString() ?? null : null,
     busy: backups.some((b) => b.status === 'queued' || b.status === 'running') || restores.some((r) => r.status === 'running'),

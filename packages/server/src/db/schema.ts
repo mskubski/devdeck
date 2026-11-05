@@ -513,6 +513,33 @@ const MIGRATIONS: string[] = [
     error TEXT
   );
   `,
+  // v20: Replikation – Backups (Projekt-Jobs und System-Backups) auf eine zweite Maschine kopieren, Aufbewahrung wird gespiegelt
+  `
+  CREATE TABLE backup_replicas (
+    id TEXT PRIMARY KEY,
+    -- 'system' (Backups des DevDeck-Servers) oder 'job' (Backup-Job eines Projekts)
+    scope TEXT NOT NULL,
+    job_id TEXT REFERENCES backup_jobs(id) ON DELETE CASCADE,
+    -- 'system' bzw. die Job-ID: genau eine Replik je Quelle
+    job_key TEXT NOT NULL UNIQUE,
+    machine_id TEXT NOT NULL REFERENCES machines(id) ON DELETE CASCADE,
+    target_dir TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    state TEXT NOT NULL DEFAULT 'idle',
+    cur_command_id TEXT,
+    cur_bundle TEXT,
+    state_since TEXT,
+    sync_requested INTEGER NOT NULL DEFAULT 1,
+    last_check_at TEXT,
+    last_sync_at TEXT,
+    last_ok INTEGER,
+    last_message TEXT,
+    present_json TEXT,
+    created_by TEXT REFERENCES users(id),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

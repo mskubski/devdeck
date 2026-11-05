@@ -297,5 +297,6 @@ export function runScheduledBackup(ctx: AppContext, now = Date.now()): BackupRow
   if (last && now - Date.parse(last.created_at) < hours * 3_600_000) return null;
   const row = createSystemBackup(ctx, { id: null, label: 'scheduler', type: 'system' });
   if (row.status === 'success') applyRetention(ctx);
+  ctx.db.run(`UPDATE backup_replicas SET sync_requested = 1 WHERE job_key = 'system' AND enabled = 1`);
   return row;
 }
