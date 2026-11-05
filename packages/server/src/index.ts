@@ -15,6 +15,7 @@ import { requestWorkspaceStatus, sweepExpiredCommands, sweepOfflineAgents } from
 import type { UserRecord } from './auth/middleware.js';
 import { runAutoUpdateTick } from './services/autoUpdate.js';
 import { runScheduledBackup } from './services/backups.js';
+import { runBackupScheduleTick } from './services/projectBackups.js';
 import { pruneMachineLogs } from './services/machineLogs.js';
 import { runAllIssueSyncs } from './services/issueSync.js';
 import { VaultService } from './vault/vault.js';
@@ -169,6 +170,15 @@ export async function startServer(
     }
   }, 3_600_000);
   backupTimer.unref();
+  // Projekt-Backups: jede Minute prüfen, ob ein Job nach seinem Zeitplan fällig ist (und hängende Läufe aufräumen)
+  const projectBackupTimer = setInterval(() => {
+    try {
+      runBackupScheduleTick(ctx);
+    } catch (err) {
+      console.error('[DevDeck] Projekt-Backup-Zeitplan fehlgeschlagen:', err);
+    }
+  }, 60_000);
+  projectBackupTimer.unref();
   // Automatisches Update (nur wenn in der System-Seite aktiviert): alle 10 Minuten prüfen
   const updateTimer = setInterval(() => {
     runAutoUpdateTick(ctx).catch((err) => console.error('[DevDeck] Auto-Update fehlgeschlagen:', err));
@@ -194,6 +204,7 @@ export async function startServer(
       clearInterval(issueSyncTimer);
       clearInterval(statusTimer);
       clearInterval(updateTimer);
+      clearInterval(projectBackupTimer);
       await new Promise<void>((resolve) => server.close(() => resolve()));
       ctx.vault?.close();
       ctx.db.close();

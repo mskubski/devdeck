@@ -54,6 +54,7 @@ export async function renderHelp(el) {
           <tr><td><strong>Secrets</strong></td><td>Zugangsdaten und Secret-Dateien, verschlüsselt im Vault, getrennt nach development/staging/production (siehe „Secrets &amp; DevDeck Vault“).</td><td>maintainer</td></tr>
           <tr><td><strong>Workspaces</strong></td><td>Die Arbeitskopien des Projekts auf den Maschinen: Prüfen, Sync, Importieren, Provision, Deploy, Bearbeiten, Entfernen (siehe „Workspaces“).</td><td>developer (Import/Deploy/Entfernen: maintainer)</td></tr>
           <tr><td><strong>Integrationen</strong></td><td>Konnektoren zu externen Diensten (derzeit GitHub). Das Zugangs-Token liegt als Secret im Vault und wird nur serverseitig benutzt; „Prüfen“ testet die Verbindung.</td><td>maintainer</td></tr>
+          <tr><td><strong>Backups</strong></td><td>Sicherung der Projektdaten (Datenbank, Storage, SQLite-Dateien, Datenordner) auf einer eingetragenen Maschine – siehe „Projekt-Backups“.</td><td>Einrichten/Sichern: maintainer · Restore: owner</td></tr>
           <tr><td><strong>Sync-Log</strong></td><td>Verlauf aller Sync-, Provision- und Deploy-Aufträge mit Maschine, Pfad, Status und – bei Fehlern – der genauen Meldung.</td><td>– (automatisch)</td></tr>
         </tbody></table>
 
@@ -405,6 +406,31 @@ npm run build</pre>
           <li><strong>Manuell:</strong> Karte anklicken → Bearbeiten, Ausblenden oder Zurücksetzen; <em>+ Komponente</em> / <em>+ Beziehung</em> für Eigenes (Maintainer). Ausgeblendetes ist unter dem Diagramm wiederherstellbar.</li>
         </ol>
         <p><em>Aktualisieren</em> lässt alle Workspaces des Projekts sofort neu prüfen. Live-Zahlen von Supabase, Vercel und IONOS (z. B. Datenbankgröße) folgen mit den jeweiligen Konnektoren.</p>`,
+    },
+    {
+      id: 'projekt-backups',
+      icon: 'database',
+      title: 'Projekt-Backups',
+      body: `
+        <p>Im Tab <strong>Backups</strong> eines Projekts sichert DevDeck die <em>Daten</em> des Projekts (der Quellcode liegt in Git). Ein <strong>Backup-Job</strong> legt fest, was gesichert wird,
+        auf welcher Maschine und in welchem Ordner die Backups liegen, wann gesichert wird und wie lange sie aufbewahrt werden.</p>
+        <ul>
+          <li><strong>Automatische Erkennung:</strong> Beim Einrichten erkennt DevDeck, was zu sichern ist: eine <em>Supabase</em>-Datenbank samt allen Storage-Buckets (aus den Vault-Secrets <code>…SUPABASE_URL</code> und <code>SUPABASE_SERVICE_ROLE_KEY</code>),
+            eine <em>PostgreSQL</em>-Datenbank (<code>DATABASE_URL</code>, braucht <code>pg_dump</code>), <em>SQLite</em>-Dateien und Datenordner (<code>uploads</code>, <code>media</code>, <code>data</code> …) der Workspaces auf der gewählten Maschine.
+            Ordner mit Zugangsdaten (<code>.env</code>, Schlüsseldateien) werden nie vorgeschlagen; <code>.env</code>, <code>node_modules</code> und <code>.git</code> kommen nie in ein Archiv. Die Auswahl lässt sich anpassen.</li>
+          <li><strong>Jede Maschine möglich:</strong> Die Backups liegen auf der Maschine, die du auswählst (alle eingetragenen Maschinen mit aktuellem Agent), im angegebenen Ordner – z. B. auf einem NAS-Laufwerk. Die Zugangsdaten holt der Agent beim Lauf aus dem Vault (mit den Rechten des Maschinen-Besitzers); sie werden nie gespeichert.</li>
+          <li><strong>Vorhandene Backups werden erkannt:</strong> DevDeck liest den Backup-Ordner ein und übernimmt Backups des bisherigen PeeFinder-Skripts (Ordner <code>JJJJ-MM-TT_HHMMSS</code> mit <code>backup_manifest.json</code>); neue Backups landen im selben Ordner im selben Format
+            (zusätzlich mit Prüfsummen). „Ordner neu einlesen“ liest erneut ein.</li>
+          <li><strong>Zeitplan:</strong> täglich, wöchentlich, alle N Stunden oder nur manuell (Serverzeit). War die Maschine zur Zeit offline, wird einmal nachgeholt.</li>
+          <li><strong>Aufbewahrung:</strong> Nach einem erfolgreichen Lauf werden Backups gelöscht, die älter als die eingestellten Tage sind – die neuesten „Mindestens behalten“ bleiben immer. Gelöscht werden nur echte Backup-Ordner (Zeitstempelname mit Manifest), nie andere Dateien.</li>
+          <li><strong>Prüfen:</strong> vergleicht die Prüfsummen (ältere Backups: Vollständigkeit der Tabellendateien).</li>
+          <li><strong>Fehlschläge:</strong> Schlägt eine Quelle fehl, wird kein halbes Backup abgelegt (frühere Backups bleiben unangetastet), und der Fehler steht in der Liste.</li>
+        </ul>
+        <h3>Restore</h3>
+        <p>Ein Restore überschreibt Produktivdaten und ist deshalb mehrfach abgesichert: nur <strong>Projekt-Owner</strong> (oder Admin), nur in der <strong>Web-Oberfläche</strong> (nicht per CLI-Token), mit einer zweiten Abfrage und der <strong>wörtlichen Eingabe „Restore starten“</strong>.
+        Vorher prüft der Agent die Prüfsummen und erstellt automatisch ein <strong>Sicherheits-Backup</strong> des aktuellen Zustands – scheitert das, wird nichts verändert. Ordner und SQLite-Dateien werden nicht überschrieben, sondern nach <code>_pre-restore-…</code> verschoben;
+        Supabase wird per Upsert zurückgeschrieben (nichts wird gelöscht). Anwendungen, die die Daten nutzen, vorher beenden. Der Restore wird im Audit-Log festgehalten.</p>
+        <p>Voraussetzung: Agent ab Version 0.16.0 auf der Backup-Maschine (System → „Server aktualisieren“ mit „Agents mit aktualisieren“). Die System-Backups von DevDeck selbst (Datenbank und Vault) stehen weiterhin unter „Backups“ im Menü.</p>`,
     },
     {
       id: 'audit',

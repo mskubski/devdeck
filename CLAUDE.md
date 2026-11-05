@@ -26,5 +26,5 @@ das Server-Update bricht bei lokalen Änderungen an versionierten Dateien absich
 - Ändern sich Datenbank, Hosting/Deployment oder externe Dienste von DevDeck, `.devdeck/architecture.yaml` (Architektur-Karte) im selben Commit anpassen; keine Geheimnisse hineinschreiben.
 - Nutzersichtbare Änderungen in `CHANGELOG.md` festhalten; Doku (README, `docs/ANLEITUNG.md`, Hilfe-Seite) bei Funktionsänderungen mitziehen.
 - Keine Secrets committen (`.env`, `data/`, `agent.json`, Vault-Key).
-- Restore von Backups nie selbst ausführen oder simulieren (nur ein Mensch im Terminal, siehe README).
+- Restore von Backups nie selbst ausführen oder simulieren – weder das System-Restore (nur ein Mensch im Terminal, siehe README) noch den Projekt-Restore im Tab „Backups“ (nur ein Mensch mit eingetipptem „Restore starten“). Auch Tests lösen nie einen Restore aus oder senden den Bestätigungstext; Backups dürfen zum Testen angelegt werden.
 - Sprache der UI und Doku: Deutsch; Code und Commit-Nachrichten: Englisch.

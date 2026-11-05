@@ -16,6 +16,7 @@ import { connectorRoutes } from './connectors.js';
 import { systemRoutes } from './system.js';
 import { architectureRoutes } from './architecture.js';
 import { backupRoutes } from './backups.js';
+import { projectBackupRoutes } from './projectBackups.js';
 
 /** Alle authentifizierten DevDeck-API-Router unter /api montieren. */
 export function apiRoutes(ctx: AppContext): Router {
@@ -37,6 +38,8 @@ export function apiRoutes(ctx: AppContext): Router {
   router.use('/', knowledgeRoutes(ctx));
   router.use('/', connectorRoutes(ctx));
   router.use('/', architectureRoutes(ctx));
+  // Projekt-Backups vor den Admin-only-System-Backups mounten (deren Router verlangt Admin für alles dahinter)
+  router.use('/', projectBackupRoutes(ctx));
   router.use('/', backupRoutes(ctx));
   router.use('/', systemRoutes(ctx));
 

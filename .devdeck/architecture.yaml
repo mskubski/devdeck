@@ -11,7 +11,7 @@ components:
     name: SQLite (devdeck.db) + Vault (vault.db)
     provider: SQLite
     description: Projekte, Tasks, Changelog, Sessions und Audit-Log in devdeck.db; Secret-Werte AES-256-GCM-verschlüsselt in vault.db.
-    details: { Backup: "täglich nach DEVDECK_BACKUP_TARGET, Restore nur im Terminal" }
+    details: { Backup: "System: täglich nach DEVDECK_BACKUP_TARGET, Restore nur im Terminal. Projekt-Backups: Tab Backups, Agent schreibt auf eine wählbare Maschine, Restore nur mit Texteingabe in der Web-UI" }
   - id: anthropic
     kind: llm
     name: Claude Code (Anthropic)

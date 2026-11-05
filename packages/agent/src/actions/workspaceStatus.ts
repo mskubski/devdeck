@@ -8,7 +8,7 @@ import { buildReadiness } from '../readiness.js';
 import { collectFacts } from '../facts.js';
 
 /** Resolve und sicherstellen, dass der Pfad im erlaubten Workspace-Root liegt. */
-export function resolveWorkspacePath(ctx: ActionContext, rawPath: unknown): string {
+export function resolveWorkspacePath(ctx: Pick<ActionContext, 'config'>, rawPath: unknown): string {
   if (typeof rawPath !== 'string' || rawPath.trim() === '') {
     throw new AppError('VALIDATION', 'local_path ist erforderlich');
   }

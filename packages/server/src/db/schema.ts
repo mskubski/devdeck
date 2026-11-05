@@ -460,6 +460,59 @@ const MIGRATIONS: string[] = [
     UNIQUE (connector_id, kind, local_id)
   );
   `,
+  // v19: Projekt-Backups – Jobs (Quellen, Maschine, Zeitplan, Aufbewahrung), erkannte/erstellte Backups, Restores
+  `
+  CREATE TABLE backup_jobs (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    machine_id TEXT NOT NULL REFERENCES machines(id) ON DELETE CASCADE,
+    target_dir TEXT NOT NULL,
+    sources_json TEXT NOT NULL,
+    schedule_json TEXT NOT NULL,
+    retention_json TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    last_triggered_at TEXT,
+    created_by TEXT REFERENCES users(id),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (project_id, name)
+  );
+  CREATE TABLE project_backups (
+    id TEXT PRIMARY KEY,
+    job_id TEXT NOT NULL REFERENCES backup_jobs(id) ON DELETE CASCADE,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    bundle_name TEXT,
+    status TEXT NOT NULL,
+    trigger_kind TEXT NOT NULL,
+    origin TEXT NOT NULL DEFAULT 'devdeck',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    finished_at TEXT,
+    size_bytes INTEGER,
+    summary_json TEXT,
+    progress TEXT,
+    error TEXT,
+    verified_at TEXT,
+    verify_json TEXT,
+    UNIQUE (job_id, bundle_name)
+  );
+  CREATE INDEX idx_project_backups_job ON project_backups(job_id, created_at);
+  CREATE TABLE backup_restores (
+    id TEXT PRIMARY KEY,
+    job_id TEXT NOT NULL REFERENCES backup_jobs(id) ON DELETE CASCADE,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    bundle_name TEXT NOT NULL,
+    status TEXT NOT NULL,
+    requested_by TEXT REFERENCES users(id),
+    started_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    finished_at TEXT,
+    progress TEXT,
+    summary_json TEXT,
+    error TEXT
+  );
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

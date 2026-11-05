@@ -4,3 +4,4 @@ export * from './protocol.js';
 export * from './types.js';
 export * from './importParsers.js';
 export * from './architecture.js';
+export * from './backup.js';
