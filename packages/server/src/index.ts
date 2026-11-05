@@ -150,7 +150,8 @@ export async function startServer(
       const stale = new Date(Date.now() - 10 * 60_000).toISOString();
       const list = ctx.db.all<{ id: string; machine_id: string | null; local_path: string }>(
         `SELECT w.id, w.machine_id, w.local_path FROM workspaces w JOIN machines m ON m.id = w.machine_id
-         WHERE m.agent_status = 'online' AND m.revoked_at IS NULL AND (w.checked_at IS NULL OR w.checked_at < ?)`,
+         WHERE m.agent_status = 'online' AND m.revoked_at IS NULL AND (w.checked_at IS NULL OR w.checked_at < ?)
+           AND w.project_id IN (SELECT id FROM projects WHERE deleted_at IS NULL)`,
         stale,
       );
       for (const w of list) requestWorkspaceStatus(ctx.db, w, null);

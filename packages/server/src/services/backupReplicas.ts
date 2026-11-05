@@ -404,7 +404,9 @@ function stepReplica(ctx: AppContext, row: ReplicaRow, now: number): void {
 /** Zeitplan-Tick (alle ~20 Sekunden): jede aktive Replik einen Schritt weiterbringen. */
 export function runReplicaTick(ctx: AppContext, now = Date.now()): void {
   sweepStaging(ctx);
-  const rows = ctx.db.all<ReplicaRow>('SELECT * FROM backup_replicas WHERE enabled = 1');
+  const rows = ctx.db.all<ReplicaRow>(
+    `SELECT * FROM backup_replicas WHERE enabled = 1 AND (job_id IS NULL OR job_id IN (SELECT j.id FROM backup_jobs j JOIN projects p ON p.id = j.project_id WHERE p.deleted_at IS NULL))`,
+  );
   for (const row of rows) {
     try {
       stepReplica(ctx, row, now);
@@ -548,7 +550,7 @@ export function jobReplicaOptions(ctx: AppContext, jobId: string): Array<Record<
 export function replicaOverview(ctx: AppContext): Record<string, unknown> {
   const jobs = ctx.db.all<{ id: string; name: string; project_id: string; project_name: string; project_slug: string; machine_id: string; machine_name: string; machine_platform: string; target_dir: string }>(
     `SELECT j.id, j.name, j.project_id, p.name AS project_name, p.slug AS project_slug, j.machine_id, m.name AS machine_name, m.platform AS machine_platform, j.target_dir
-     FROM backup_jobs j JOIN projects p ON p.id = j.project_id JOIN machines m ON m.id = j.machine_id ORDER BY p.name, j.name`,
+     FROM backup_jobs j JOIN projects p ON p.id = j.project_id JOIN machines m ON m.id = j.machine_id WHERE p.deleted_at IS NULL ORDER BY p.name, j.name`,
   );
   const systemCount = ctx.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM backups WHERE kind = 'system' AND status = 'success'`)?.n ?? 0;
   return {

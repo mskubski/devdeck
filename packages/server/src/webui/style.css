@@ -514,3 +514,8 @@ input.pick { accent-color: var(--accent); width: 16px; height: 16px; cursor: poi
 .inst-cmds { white-space: pre-wrap; word-break: break-all; max-height: 220px; overflow: auto; font-size: var(--fs-xs); }
 @media (max-width: 720px) { .inst-grid { grid-template-columns: 1fr; } }
 .modal:has(.inst-grid) { max-width: 680px; width: 92vw; }
+
+/* Auswahl-Karten (Radio) */
+label.choice { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; margin: 0; border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; color: var(--text); }
+label.choice input { width: auto; margin-top: 4px; flex: none; }
+label.choice:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }

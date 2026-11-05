@@ -1,3 +1,4 @@
+import { projectDeleteModal } from '../lib/projectDelete.js';
 import { get, patch } from '../lib/api.js';
 import { $, esc, badge, formModal, setModalError, toast, closeModal } from '../lib/ui.js';
 import { roleAtLeast } from '../lib/roles.js';
@@ -37,6 +38,7 @@ export async function renderProjectDetail(el, idAndQuery, setBreadcrumb) {
   const project = await get(`/api/projects/${id}`);
   setBreadcrumb?.(project.name, 'Projekte');
   const canEdit = roleAtLeast(project.role, 'maintainer');
+  const canDelete = roleAtLeast(project.role, 'owner');
 
   el.innerHTML = `
     <div class="page-head">
@@ -44,7 +46,7 @@ export async function renderProjectDetail(el, idAndQuery, setBreadcrumb) {
         <h1>${esc(project.name)} ${badge(project.role || 'member', 'accent')}</h1>
         <p class="lede">${esc(project.description || 'Keine Beschreibung hinterlegt.')}</p>
       </div>
-      ${canEdit ? '<div class="page-actions"><button class="btn ghost sm" id="btn-edit-project">Bearbeiten</button></div>' : ''}
+      ${canEdit ? `<div class="page-actions"><button class="btn ghost sm" id="btn-edit-project">Bearbeiten</button>${canDelete ? `<button class="btn ghost sm danger" id="btn-delete-project">${icon('trash', { size: 16 })}<span>Löschen</span></button>` : ''}</div>` : ''}
     </div>
     <div class="tabs" id="project-tabs">
       ${TABS.map((t) => `<button class="tab ${t.key === activeTab ? 'active' : ''}" data-tab="${t.key}">${icon(t.icon, { size: 16 })}${t.label}</button>`).join('')}
@@ -60,6 +62,8 @@ export async function renderProjectDetail(el, idAndQuery, setBreadcrumb) {
       location.hash = `#/projects/${id}?tab=${btn.dataset.tab}`;
     });
   }
+
+  $('#btn-delete-project', el)?.addEventListener('click', () => projectDeleteModal(project, () => { location.hash = '#/projects'; }));
 
   $('#btn-edit-project', el)?.addEventListener('click', async () => {
     const res = await formModal({

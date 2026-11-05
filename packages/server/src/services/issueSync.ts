@@ -426,7 +426,7 @@ export function scheduleIssueSync(ctx: AppContext, projectId: string, delayMs = 
 
 /** Alle aktivierten Konnektoren nacheinander abgleichen (periodisch vom Server aufgerufen). */
 export async function runAllIssueSyncs(ctx: AppContext): Promise<void> {
-  const connectors = ctx.db.all<{ id: string }>(`SELECT id FROM project_connectors WHERE type = 'github' AND sync_enabled = 1`);
+  const connectors = ctx.db.all<{ id: string }>(`SELECT id FROM project_connectors WHERE type = 'github' AND sync_enabled = 1 AND project_id IN (SELECT id FROM projects WHERE deleted_at IS NULL)`);
   for (const c of connectors) {
     await runIssueSync(ctx, c.id).catch(() => undefined);
   }

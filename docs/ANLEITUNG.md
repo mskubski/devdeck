@@ -97,6 +97,9 @@ curl http://localhost:8080/api/health
 
 ## 5. Erstes Projekt anlegen
 
+> **Projekt wieder löschen:** Im Projekt neben „Bearbeiten“ auf **Löschen** – entweder *nur das Projekt* (Daten bleiben in DevDeck, ein Admin kann es unter „Projekte → Gelöschte Projekte“ wiederherstellen) oder *mit allen Daten* (endgültig, Projektname muss eingetippt werden). Dateien auf den Maschinen bleiben immer unberührt.
+
+
 1. Sidebar → **Projekte** → **„+ Neues Projekt“** (nur Admin kann Projekte anlegen).
 2. Name, optional Beschreibung und Git-Remote eintragen.
 3. Im Projekt unter **Mitglieder** weitere Benutzer mit einer Projektrolle

@@ -540,6 +540,13 @@ const MIGRATIONS: string[] = [
     updated_at TEXT NOT NULL
   );
   `,
+  // v21: Projekt löschen – „nur Projekt“ blendet es aus (Daten bleiben, wiederherstellbar); Name/Slug werden dabei freigegeben
+  `
+  ALTER TABLE projects ADD COLUMN deleted_at TEXT;
+  ALTER TABLE projects ADD COLUMN deleted_by TEXT;
+  ALTER TABLE projects ADD COLUMN deleted_name TEXT;
+  ALTER TABLE projects ADD COLUMN deleted_slug TEXT;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
