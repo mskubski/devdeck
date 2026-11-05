@@ -4,7 +4,7 @@ import { parseArgs, flagString, type ParsedArgs } from '../args.js';
 import { api, CliError } from '../client.js';
 import { loadConfig, type CliConfig } from '../config.js';
 import type { Ctx } from '../io.js';
-import { parseChangelog, parseSecrets, parseTasks } from '@devdeck/shared';
+import { parseChangelog, parseSecrets, parseTasks, taskKey } from '@devdeck/shared';
 import { resolveProject, type ResolvedProject } from '../project.js';
 
 const CHANGELOG_FILES = ['CHANGELOG.md', 'docs/CHANGELOG.md'];
@@ -69,12 +69,18 @@ async function importTasks(ctx: Ctx, t: Target): Promise<void> {
     return void ctx.io.out(`Tasks: ROADMAP.md ${t.apply ? 'erstellt' : 'würde erstellt'} mit ${tasks.length} Einträgen${t.apply ? '' : ' (--apply zum Schreiben)'}.`);
   }
   const items = parseTasks(fs.readFileSync(file, 'utf8'));
-  const existing = await api<Array<{ title: string }>>(t.config, 'GET', `/api/projects/${t.p.projectId}/tasks`);
-  const known = new Set(existing.map((e) => e.title));
-  const fresh = items.filter((i) => !known.has(i.title));
+  const existing = await api<Array<{ id: string; title: string }>>(t.config, 'GET', `/api/projects/${t.p.projectId}/tasks`);
+  // Abgleich über den Vergleichsschlüssel (ohne führende Emoji): so entstehen keine Duplikate, wenn ein Emoji früher beschädigt gespeichert wurde
+  const known = new Map(existing.map((e) => [taskKey(e.title), e]));
+  const fresh = items.filter((i) => !known.has(taskKey(i.title)));
+  const repairs = items.flatMap((i) => {
+    const hit = known.get(taskKey(i.title));
+    return hit && hit.title.includes('\uFFFD') && !i.title.includes('\uFFFD') ? [{ id: hit.id, title: i.title }] : [];
+  });
   const done = fresh.filter((i) => i.done).length;
-  ctx.io.out(`Tasks (${rel(t.p.root, file)}): ${items.length} Einträge, ${fresh.length} neu (${done} erledigt), ${items.length - fresh.length} bereits vorhanden.`);
+  ctx.io.out(`Tasks (${rel(t.p.root, file)}): ${items.length} Einträge, ${fresh.length} neu (${done} erledigt), ${items.length - fresh.length} bereits vorhanden${repairs.length ? `, ${repairs.length} mit beschädigtem Titel (werden korrigiert)` : ''}.`);
   if (!t.apply) return;
+  for (const r of repairs) await api(t.config, 'PATCH', `/api/projects/${t.p.projectId}/tasks/${r.id}`, { title: r.title });
   for (const i of fresh) {
     await api(t.config, 'POST', `/api/projects/${t.p.projectId}/tasks`, {
       title: i.title,

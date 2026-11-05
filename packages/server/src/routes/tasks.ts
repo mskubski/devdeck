@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import type { AppContext } from '../context.js';
-import { asyncHandler, clientIp, optionalString, param, requireString } from '../http.js';
+import { asyncHandler, clientIp, optionalString, param, requireConfirmation, requireString } from '../http.js';
 import { requireProjectRole, requireUser } from '../auth/middleware.js';
 import { audit } from '../services/audit.js';
 import { attachIssueRefs, scheduleIssueSync } from '../services/issueSync.js';
+import { applyTaskDedupe, planTaskDedupe } from '../services/taskDedupe.js';
 import { AppError } from '@devdeck/shared';
 import type { TaskDto, TaskStatus } from '@devdeck/shared';
 
@@ -108,6 +109,7 @@ export function taskRoutes(ctx: AppContext): Router {
       const taskId = param(req, 'taskId')!;
       const status = req.body?.status as TaskStatus | undefined;
       const description = optionalString(req.body, 'description', 2000);
+      const title = optionalString(req.body, 'title', 300)?.trim();
 
       if (status && !['open', 'in_progress', 'done', 'cancelled'].includes(status)) {
         throw new AppError('VALIDATION', 'Ungültiger Status');
@@ -122,6 +124,10 @@ export function taskRoutes(ctx: AppContext): Router {
       if (description !== undefined) {
         updates.push('description = COALESCE(?, description)');
         params.push(description);
+      }
+      if (title) {
+        updates.push('title = ?');
+        params.push(title);
       }
       if (updates.length === 0) {
         // Nothing to update, just return current
@@ -209,6 +215,21 @@ export function taskRoutes(ctx: AppContext): Router {
         taskId,
       );
       res.json({ data: task });
+    }),
+  );
+
+  // Doppelte Tasks finden (dry_run) bzw. bereinigen: je Gruppe bleibt der weiteste Stand, die übrigen werden gelöscht (mit GitHub-Issue: verworfen)
+  router.post(
+    '/projects/:projectId/tasks/dedupe',
+    requireProjectRole(db, 'maintainer'),
+    asyncHandler(async (req, res) => {
+      if (req.body?.dry_run === true) {
+        const groups = planTaskDedupe(ctx, req.project!.id);
+        res.json({ data: { dry_run: true, groups: groups.length, duplicates: groups.reduce((n, g) => n + g.remove.length, 0), samples: groups.slice(0, 5).map((g) => g.keep.title) } });
+        return;
+      }
+      requireConfirmation(req.body);
+      res.json({ data: { dry_run: false, ...applyTaskDedupe(ctx, req.project!.id, { id: req.user!.id, label: req.user!.email }) } });
     }),
   );
 
