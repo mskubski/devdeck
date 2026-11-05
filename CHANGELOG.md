@@ -3,6 +3,7 @@
 ## Unreleased - 2026-10-23
 
 ### Fixed
+- **Backup-Replikation**: Eine Replik verwaltet jetzt nur ihre eigenen Backup-Namen (Projekt-Jobs Zeitstempel-Namen, System-Backups `devdeck-…`) – liegen beide im selben Ordner, löschen sie sich beim Spiegeln der Aufbewahrung nicht mehr gegenseitig. Der Ordner-Vorschlag nutzt keinen Pfad unter einem fremden Home-Ordner mehr (`/home/<anderer Benutzer>/…`) und legt bei einem Home-Ordner als Workspace-Root den Ordner darin an statt in `/home`.
 - **Supabase-Backup scheiterte bei großen Tabellen** (`canceling statement due to statement timeout`, HTTP 500): Der Export las Tabellen mit tiefem OFFSET, das bei Hunderttausenden Zeilen in Supabases Statement-Timeout läuft. Jetzt Keyset-Paginierung (`id=gt.<letzter>`, jede Seite ein Indexzugriff); bei einem Timeout wird die Seitengröße automatisch halbiert. Agent-Update nötig (System → Server aktualisieren mit Agents).
 - **Workspace-Status zeigte nicht den echten GitHub-Stand**: Die Prüfung rief nie `git fetch` auf und lief nur einmalig (bei Anlage bzw. nach einem Agent-Update) – „neue Commits auf dem Remote“ war dadurch veraltet oder fehlte (z. B. beim Helferle-Server nach einem Push von einem anderen PC). Jetzt holt der Agent bei jeder Prüfung den Remote-Stand (nur lesend, ohne Passwortabfrage, 30 s Limit),
   der Server stößt die Prüfung für online befindliche Maschinen alle 5 Minuten neu an (wenn die letzte älter als 10 Minuten ist), bei Deploy-Workspaces heißt die Warnung „Deploy ausführen“, und ein nicht erreichbarer Remote wird als Warnung gemeldet.

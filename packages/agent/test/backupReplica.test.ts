@@ -222,4 +222,25 @@ describe('Backup-Replikation (Agent + Server)', () => {
     expect((await srv.request('DELETE', '/api/backups/replica', { cookie, body: { confirm: true } })).status).toBe(204);
     expect(listReplicaBundles(dstDir)).toEqual([name]);
   });
+  it('Projekt- und System-Repliken im selben Ordner löschen sich nie gegenseitig (jede verwaltet nur ihre Namen)', () => {
+    makeBundle(dstDir, '2026-10-01_030000', 'job');
+    makeBundle(dstDir, 'devdeck-2026-10-01T03-00-00-000Z', 'sys');
+    // Projekt-Replik hält nichts mehr für nötig → löscht nur den Projekt-Ordner
+    expect(pruneReplica(dstDir, ['2099-01-01_000000'], true, 'job')).toEqual({ present: [], deleted: ['2026-10-01_030000'] });
+    expect(fs.existsSync(path.join(dstDir, 'devdeck-2026-10-01T03-00-00-000Z'))).toBe(true);
+    // System-Replik umgekehrt
+    makeBundle(dstDir, '2026-10-02_030000', 'job2');
+    expect(pruneReplica(dstDir, ['devdeck-2099-01-01T00-00-00-000Z'], true, 'system').deleted).toEqual(['devdeck-2026-10-01T03-00-00-000Z']);
+    expect(listReplicaBundles(dstDir, 'job')).toEqual(['2026-10-02_030000']);
+  });
+
+  it('schlägt Ordner vor, die auf der Ziel-Maschine brauchbar sind (kein fremder Home-Ordner, Home-Ordner als Workspace-Root)', async () => {
+    srv.ctx.db.run(`UPDATE machines SET platform='linux', workspace_root='/home/kauffmann' WHERE id=?`, dst.id);
+    srv.ctx.db.run(`UPDATE machines SET platform='linux', workspace_root='/home/mskubski/Development' WHERE id=?`, src.id);
+    const overview = (await srv.request('GET', '/api/backup-replicas', { cookie })).body.data;
+    const forDst = overview.system.machines.find((m: any) => m.id === dst.id);
+    expect(forDst.suggested_dir).toBe('/home/kauffmann/devdeck-backups/devdeck-system'); // nicht der Pfad unter /home/<anderer Benutzer>
+    const forSrc = overview.system.machines.find((m: any) => m.id === src.id);
+    expect([forSrc.suggested_dir, forSrc.alternative_dir]).toContain('/home/mskubski/devdeck-backups/devdeck-system'); // Vorschlag oder Alternative, je nach Pfadform des Test-Rechners
+  });
 });

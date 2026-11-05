@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { AppError, BACKUP_MANIFEST_FILE, isReplicableBundleName, type TransferFile } from '@devdeck/shared';
+import { AppError, BACKUP_MANIFEST_FILE, BUNDLE_NAME_PATTERN, SYSTEM_BUNDLE_NAME_PATTERN, isReplicableBundleName, type TransferFile } from '@devdeck/shared';
 import type { ServerClient } from '../client.js';
 import { listFiles, safeJoin, sha256File } from './fsutil.js';
 import { checkTargetDir } from './run.js';
@@ -14,8 +14,13 @@ import { checkTargetDir } from './run.js';
 
 const hasManifest = (dir: string): boolean => fs.existsSync(path.join(dir, BACKUP_MANIFEST_FILE));
 
+/** Welche Backup-Namen eine Replik verwaltet: Projekt-Jobs nur Zeitstempel-Namen, System-Backups nur `devdeck-…` – so löschen sich beide nicht gegenseitig, falls sie im selben Ordner liegen. */
+export type ReplicaKind = 'job' | 'system';
+const matches = (name: string, kind?: ReplicaKind): boolean =>
+  kind === 'job' ? BUNDLE_NAME_PATTERN.test(name) : kind === 'system' ? SYSTEM_BUNDLE_NAME_PATTERN.test(name) : isReplicableBundleName(name);
+
 /** Vollständige Backups im Ordner (Name passt, Manifest vorhanden; `.…partial` und fremde Ordner zählen nicht). */
-export function listReplicaBundles(targetDir: string): string[] {
+export function listReplicaBundles(targetDir: string, kind?: ReplicaKind): string[] {
   let entries: fs.Dirent[];
   try {
     entries = fs.readdirSync(targetDir, { withFileTypes: true });
@@ -23,7 +28,7 @@ export function listReplicaBundles(targetDir: string): string[] {
     return [];
   }
   return entries
-    .filter((e) => e.isDirectory() && isReplicableBundleName(e.name) && hasManifest(path.join(targetDir, e.name)))
+    .filter((e) => e.isDirectory() && matches(e.name, kind) && hasManifest(path.join(targetDir, e.name)))
     .map((e) => e.name)
     .sort()
     .reverse();
@@ -35,18 +40,18 @@ export interface PruneResult {
 }
 
 /** Backups löschen, die nicht in `keep` stehen (nur Ordner mit Backup-Namen und Manifest – alles andere bleibt unangetastet). */
-export function pruneReplica(targetDirRaw: string, keep: string[], del: boolean): PruneResult {
+export function pruneReplica(targetDirRaw: string, keep: string[], del: boolean, kind?: ReplicaKind): PruneResult {
   const targetDir = checkTargetDir(targetDirRaw);
   const wanted = new Set(keep);
   const deleted: string[] = [];
   if (del) {
-    for (const name of listReplicaBundles(targetDir)) {
+    for (const name of listReplicaBundles(targetDir, kind)) {
       if (wanted.has(name)) continue;
       fs.rmSync(path.join(targetDir, name), { recursive: true, force: true });
       deleted.push(name);
     }
   }
-  return { present: listReplicaBundles(targetDir), deleted };
+  return { present: listReplicaBundles(targetDir, kind), deleted };
 }
 
 /** Quell-Agent: Backup in den Zwischenspeicher des Servers hochladen. */
