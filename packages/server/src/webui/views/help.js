@@ -55,6 +55,7 @@ export async function renderHelp(el) {
           <tr><td><strong>Workspaces</strong></td><td>Die Arbeitskopien des Projekts auf den Maschinen: Prüfen, Sync, Importieren, Provision, Deploy, Bearbeiten, Entfernen (siehe „Workspaces“).</td><td>developer (Import/Deploy/Entfernen: maintainer)</td></tr>
           <tr><td><strong>Integrationen</strong></td><td>Konnektoren zu externen Diensten (derzeit GitHub). Das Zugangs-Token liegt als Secret im Vault und wird nur serverseitig benutzt; „Prüfen“ testet die Verbindung.</td><td>maintainer</td></tr>
           <tr><td><strong>Backups</strong></td><td>Sicherung der Projektdaten (Datenbank, Storage, SQLite-Dateien, Datenordner) auf einer eingetragenen Maschine – siehe „Projekt-Backups“.</td><td>Einrichten/Sichern: maintainer · Restore: owner</td></tr>
+          <tr><td><strong>Backup-Log</strong></td><td>Verlauf aller Backup- und Restore-Läufe mit Fehlermeldungen – auch geplante Backups, die nicht starten konnten (z. B. Maschine offline), und fehlgeschlagene Agent-Aufträge. Filter „nur Fehler“.</td><td>– (automatisch)</td></tr>
           <tr><td><strong>Sync-Log</strong></td><td>Verlauf aller Sync-, Provision- und Deploy-Aufträge mit Maschine, Pfad, Status und – bei Fehlern – der genauen Meldung.</td><td>– (automatisch)</td></tr>
         </tbody></table>
 
@@ -424,7 +425,7 @@ npm run build</pre>
           <li><strong>Zeitplan:</strong> täglich, wöchentlich, alle N Stunden oder nur manuell (Serverzeit). War die Maschine zur Zeit offline, wird einmal nachgeholt.</li>
           <li><strong>Aufbewahrung:</strong> Nach einem erfolgreichen Lauf werden Backups gelöscht, die älter als die eingestellten Tage sind – die neuesten „Mindestens behalten“ bleiben immer. Gelöscht werden nur echte Backup-Ordner (Zeitstempelname mit Manifest), nie andere Dateien.</li>
           <li><strong>Prüfen:</strong> vergleicht die Prüfsummen (ältere Backups: Vollständigkeit der Tabellendateien).</li>
-          <li><strong>Fehlschläge:</strong> Schlägt eine Quelle fehl, wird kein halbes Backup abgelegt (frühere Backups bleiben unangetastet), und der Fehler steht in der Liste.</li>
+          <li><strong>Fehlschläge:</strong> Schlägt eine Quelle fehl, wird kein halbes Backup abgelegt (frühere Backups bleiben unangetastet), und der Fehler steht in der Liste und im Tab <em>Backup-Log</em> (dort auch geplante Backups, die nicht gestartet werden konnten, etwa weil die Maschine offline war).</li>
         </ul>
         <h3>Restore</h3>
         <p>Ein Restore überschreibt Produktivdaten und ist deshalb mehrfach abgesichert: nur <strong>Projekt-Owner</strong> (oder Admin), nur in der <strong>Web-Oberfläche</strong> (nicht per CLI-Token), mit einer zweiten Abfrage und der <strong>wörtlichen Eingabe „Restore starten“</strong>.

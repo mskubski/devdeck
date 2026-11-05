@@ -279,6 +279,7 @@ Hinweise:
   (z. B. vom alten PeeFinder-Skript) werden erkannt und übernommen. Die Maschine braucht einen Agent ab 0.16.0.
   **Restore** nur als Projekt-Owner in der Web-Oberfläche: Warnung, danach „Restore starten“ eintippen; vorher entsteht automatisch ein
   Sicherheits-Backup. Restore wird nie zum Testen ausgeführt.
+  Fehler stehen im Tab **Backup-Log** (auch geplante Backups, die nicht starten konnten, z. B. weil die Maschine offline war).
 - **CLI:** `node packages/cli/dist/index.js help` zeigt alle Befehle (`login`, `status`, `sync`, `context`,
   `session start|finish`, `handover import`, `task|changelog|decision add`, `secret list`, `env run -- <cmd>`).
   `devdeck claude` bzw. `devdeck codex` startet den Coding Agent im Workspace mit aktuellem Kontext und Coding Session.

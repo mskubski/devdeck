@@ -77,7 +77,7 @@ DevDeck Server
 +-- DevDeck Vault
 +-- Encrypted Secret Files
 +-- Project Knowledge
-+-- Backup Management
++-- Backup Management (System-Backups und Projekt-Backups über Agent-Aktionen)
 +-- Audit Log
 +-- optional später: DevDeck AI
 ```

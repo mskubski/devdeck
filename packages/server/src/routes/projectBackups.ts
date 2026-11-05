@@ -4,6 +4,7 @@ import type { AppContext } from '../context.js';
 import { asyncHandler, param, parseCookies, requireConfirmation, requireString } from '../http.js';
 import { requireProjectRole, requireUser, SESSION_COOKIE } from '../auth/middleware.js';
 import {
+  backupLog,
   backupMachines,
   createJob,
   deleteJob,
@@ -38,6 +39,14 @@ export function projectBackupRoutes(ctx: AppContext): Router {
     asyncHandler(async (req, res) => {
       const jobs = db.all<JobRow>('SELECT * FROM backup_jobs WHERE project_id = ? ORDER BY created_at', req.project!.id);
       res.json({ data: jobs.map((j) => jobDto(ctx, j)) });
+    }),
+  );
+
+  router.get(
+    '/projects/:projectId/backup-log',
+    requireProjectRole(db, 'viewer'),
+    asyncHandler(async (req, res) => {
+      res.json({ data: backupLog(ctx, req.project!.id) });
     }),
   );
 

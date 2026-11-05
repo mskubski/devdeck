@@ -132,8 +132,23 @@ describe('Projekt-Backups', () => {
     expect(runBackupScheduleTick(srv.ctx, later)).toEqual([]); // läuft bereits
 
     await srv.request('PATCH', `/api/projects/${projectId}/backup-jobs/${job.id}`, { cookie, body: { schedule: { mode: 'off' } } });
-    srv.ctx.db.run(`UPDATE project_backups SET status='success', bundle_name='x'`);
+    srv.ctx.db.run(`UPDATE project_backups SET status='success', bundle_name='x' || rowid`);
     expect(runBackupScheduleTick(srv.ctx, new Date(Date.now() + 99 * 3_600_000))).toEqual([]);
+  });
+
+  it('Backup-Log zeigt Fehler, auch nicht gestartete geplante Backups (ohne Wiederholung bei jedem Tick)', async () => {
+    const job = (await createJob({ schedule: { mode: 'interval', time: '03:00', weekday: 1, every_hours: 1 } })).body.data;
+    const run = (await srv.request('POST', `/api/projects/${projectId}/backup-jobs/${job.id}/run`, { cookie })).body.data.run_id;
+    await report({ job_id: job.id, kind: 'run', run_id: run, status: 'failed', error: 'Secret SUPABASE_SERVICE_ROLE_KEY fehlt' });
+    srv.ctx.db.run(`UPDATE machines SET agent_status='offline' WHERE id=?`, machineId);
+    const later = new Date(Date.now() + 2 * 3_600_000);
+    runBackupScheduleTick(srv.ctx, later);
+    runBackupScheduleTick(srv.ctx, later);
+    const log = (await srv.request('GET', `/api/projects/${projectId}/backup-log`, { cookie })).body.data as Array<{ level: string; message: string; title: string }>;
+    expect(log.filter((e) => e.level === 'error').map((e) => e.message).sort()).toEqual([
+      'Geplantes Backup nicht gestartet: Maschine „backup-pc“ ist nicht online',
+      'Secret SUPABASE_SERVICE_ROLE_KEY fehlt',
+    ]);
   });
 
   it('lehnt Läufe ab, wenn der Agent die Backup-Funktionen nicht kennt', async () => {

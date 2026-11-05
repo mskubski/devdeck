@@ -11,6 +11,7 @@ import { renderSecrets } from './project/secrets.js';
 import { renderWorkspaces } from './project/workspaces.js';
 import { renderConnectors } from './project/connectors.js';
 import { renderBackups } from './project/backups.js';
+import { renderBackupLog } from './project/backupLog.js';
 import { renderSyncLog } from './project/synclog.js';
 
 const TABS = [
@@ -26,6 +27,7 @@ const TABS = [
   { key: 'workspaces', icon: 'laptop', label: 'Workspaces', render: renderWorkspaces },
   { key: 'connectors', icon: 'layers', label: 'Integrationen', render: renderConnectors },
   { key: 'backups', icon: 'database', label: 'Backups', render: renderBackups },
+  { key: 'backuplog', icon: 'history', label: 'Backup-Log', render: renderBackupLog },
   { key: 'synclog', icon: 'info', label: 'Sync-Log', render: renderSyncLog },
 ];
 
