@@ -32,8 +32,16 @@ export async function renderHelp(el) {
           <tr><td><span class="badge accent">viewer</span></td><td>Lesen (Tasks, Sessions, Secret-Metadaten)</td></tr>
           <tr><td><span class="badge accent">developer</span></td><td>zusätzlich: Sessions starten, Entscheidungen vorschlagen, Changelog-Einträge und Known Issues erfassen, Workspaces registrieren/bearbeiten/synchronisieren, Secrets <em>nutzen</em> (nicht einsehen)</td></tr>
           <tr><td><span class="badge accent">maintainer</span></td><td>zusätzlich: Tasks anlegen/bearbeiten, Mitglieder verwalten, Secrets anlegen/ändern/einsehen, Entscheidungen akzeptieren/ablehnen/ablösen, Integrationen, Import und Deploy von Workspaces, Projekt bearbeiten</td></tr>
-          <tr><td><span class="badge accent">owner</span></td><td>volle Projektkontrolle</td></tr>
-        </tbody></table>`,
+          <tr><td><span class="badge accent">owner</span></td><td>volle Projektkontrolle (auch Projekt löschen)</td></tr>
+        </tbody></table>
+        <h3>Projekt löschen</h3>
+        <p>Neben <em>Bearbeiten</em> steht im Projekt der Knopf <strong>Löschen</strong> (Projekt-Owner und Administratoren). Der Dialog zeigt, was am Projekt hängt, und bietet zwei Wege:</p>
+        <ul>
+          <li><strong>Nur das Projekt löschen – Daten bleiben erhalten:</strong> Das Projekt verschwindet aus allen Listen und ruht (keine Backups, Syncs, Statusprüfungen, Session-Erfassung mehr). Tasks, Entscheidungen, Changelog, Sessions, Secrets und Backup-Einträge bleiben in DevDeck gespeichert.
+            Der Name wird wieder frei. Ein Administrator findet es unter <em>Projekte → Gelöschte Projekte</em> und kann es <strong>wiederherstellen</strong> (ist der Name inzwischen vergeben, erhält es den Zusatz „(wiederhergestellt)“) oder <strong>endgültig löschen</strong>.</li>
+          <li><strong>Projekt mit allen Daten löschen:</strong> Endgültig und nicht rückgängig zu machen – alles, was in DevDeck am Projekt hängt, wird gelöscht, auch die Secret-Werte im Vault. Dafür muss der <strong>Projektname exakt eingetippt</strong> werden.</li>
+        </ul>
+        <p><strong>Dateien auf den Maschinen bleiben in beiden Fällen unberührt:</strong> Workspace-Ordner (Quellcode), Backup-Ordner und Repliken werden nie gelöscht – wer sie nicht mehr braucht, entfernt sie selbst. Jedes Löschen steht im Audit-Log.</p>`,
     },
     {
       id: 'projekt-tabs',

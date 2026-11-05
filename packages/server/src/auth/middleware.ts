@@ -134,7 +134,7 @@ export function loadProject(db: Database, projectId: string): ProjectRecord | nu
     db.get<ProjectRecord>(
       `SELECT id, name, slug, description, repo_remote, default_branch,
               created_at, updated_at, archived_at
-       FROM projects WHERE id = ?`,
+       FROM projects WHERE id = ? AND deleted_at IS NULL`,
       projectId,
     ) ?? null
   );

@@ -155,6 +155,10 @@ Every project has the same tabs; together they are the project's memory and are 
 
 On a machine's **Patches** tab pending updates can be installed one by one or several at once (Windows Update Agent + winget, apt/dnf, softwareupdate + Homebrew). The agent only installs what a fresh scan reports as pending (allowlisted action `patches.install`, strictly validated ids, no shell). A required **reboot is never performed**, only shown. Needs agent 0.15.0, owner/admin, and elevated rights on the machine (Windows: agent run as administrator; Linux/macOS: root or passwordless sudo). Machines with pending security updates show a shield alert in the top bar.
 
+### Deleting a project
+
+Project owners and admins get a **Delete** button next to *Edit*: either delete **only the project** (hidden and dormant – no backups, syncs or status checks – while its data stays in DevDeck; admins can restore it under *Projects → Deleted projects*) or delete it **with all data** (permanent, incl. vault secret values; the project name must be typed). Files on machines (workspaces, backup folders, replicas) are never touched.
+
 ### Agent autostart
 
 The **Autostart** toggle next to every machine (and on its detail page) adds the agent to or removes it from the machine's autostart, without admin rights: Windows per-user Run entry (hidden window), Linux systemd user unit `devdeck-agent.service` (for start without login: `sudo loginctl enable-linger $USER`), macOS LaunchAgent `de.devdeck.agent` (takes effect at next login). The running agent is never stopped or started twice. Needs agent 0.14.0; owner/admin only; audited.

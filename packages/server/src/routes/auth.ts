@@ -91,7 +91,7 @@ export function authRoutes(ctx: AppContext): Router {
       const memberships = db.all<{ project_id: string; role: string; name: string; slug: string }>(
         `SELECT m.project_id, m.role, p.name, p.slug
          FROM project_members m JOIN projects p ON p.id = m.project_id
-         WHERE m.user_id = ? ORDER BY p.name`,
+         WHERE m.user_id = ? AND p.deleted_at IS NULL ORDER BY p.name`,
         user.id,
       );
       res.json({

@@ -366,7 +366,7 @@ function syncBundles(ctx: AppContext, job: JobRow, bundles: BackupBundleInfo[], 
 export function ingestReport(ctx: AppContext, machine: MachineRecord, raw: unknown): void {
   const r = (raw ?? {}) as Partial<BackupReport>;
   const jobId = str(r.job_id, 60);
-  const job = jobId ? ctx.db.get<JobRow>('SELECT * FROM backup_jobs WHERE id = ?', jobId) : undefined;
+  const job = jobId ? ctx.db.get<JobRow>('SELECT * FROM backup_jobs WHERE id = ? AND project_id IN (SELECT id FROM projects WHERE deleted_at IS NULL)', jobId) : undefined;
   if (!job) throw new AppError('NOT_FOUND', 'Backup-Job nicht gefunden');
   if (job.machine_id !== machine.id) throw new AppError('FORBIDDEN', 'Dieser Job gehört zu einer anderen Maschine');
   const now = new Date().toISOString();
@@ -452,7 +452,7 @@ export function sweepStuckBackups(ctx: AppContext, now = Date.now()): number {
 export function runBackupScheduleTick(ctx: AppContext, now = new Date()): string[] {
   sweepStuckBackups(ctx, now.getTime());
   const started: string[] = [];
-  const jobs = ctx.db.all<JobRow>('SELECT * FROM backup_jobs WHERE enabled = 1');
+  const jobs = ctx.db.all<JobRow>('SELECT * FROM backup_jobs WHERE enabled = 1 AND project_id IN (SELECT id FROM projects WHERE deleted_at IS NULL)');
   for (const job of jobs) {
     const schedule = parse<BackupSchedule | null>(job.schedule_json, null);
     if (!schedule || !isBackupDue(schedule, job.last_triggered_at, now)) continue;

@@ -166,7 +166,7 @@ export function agentRoutes(ctx: AppContext): Router {
         let projectId: string | null = null;
         if (ws.project) {
           const project = db.get<{ id: string }>(
-            'SELECT id FROM projects WHERE slug = ? OR lower(name) = lower(?)',
+            'SELECT id FROM projects WHERE deleted_at IS NULL AND (slug = ? OR lower(name) = lower(?))',
             ws.project,
             ws.project,
           );
@@ -209,14 +209,14 @@ export function agentRoutes(ctx: AppContext): Router {
 
       // Nie geprüfte Workspaces dieser Maschine jetzt prüfen lassen (Status „unknown“ vermeiden)
       const unchecked = db.all<{ id: string; machine_id: string | null; local_path: string }>(
-        `SELECT id, machine_id, local_path FROM workspaces WHERE machine_id = ? AND checked_at IS NULL`,
+        `SELECT id, machine_id, local_path FROM workspaces WHERE machine_id = ? AND checked_at IS NULL AND project_id IN (SELECT id FROM projects WHERE deleted_at IS NULL)`,
         machine.id,
       );
       for (const w of unchecked) requestWorkspaceStatus(db, w, null);
       // Neuer Agent-Code (z. B. nach einem Update) liefert andere/mehr Fakten → alle Workspaces der Maschine neu prüfen
       if (agentVersion && agentVersion !== previousVersion) {
         const all = db.all<{ id: string; machine_id: string | null; local_path: string }>(
-          'SELECT id, machine_id, local_path FROM workspaces WHERE machine_id = ?', machine.id,
+          'SELECT id, machine_id, local_path FROM workspaces WHERE machine_id = ? AND project_id IN (SELECT id FROM projects WHERE deleted_at IS NULL)', machine.id,
         );
         for (const w of all) requestWorkspaceStatus(db, w, null, true);
       }
@@ -405,7 +405,7 @@ export function agentRoutes(ctx: AppContext): Router {
     '/workspaces',
     asyncHandler(async (req, res) => {
       const rows = db.all<{ id: string; project_id: string; local_path: string }>(
-        'SELECT id, project_id, local_path FROM workspaces WHERE machine_id = ?',
+        'SELECT id, project_id, local_path FROM workspaces WHERE machine_id = ? AND project_id IN (SELECT id FROM projects WHERE deleted_at IS NULL)',
         req.machine!.id,
       );
       res.json({ data: rows });
@@ -436,7 +436,7 @@ export function agentRoutes(ctx: AppContext): Router {
         const wsId = str(item.workspace_id, 100);
         const ws = wsId
           ? db.get<{ id: string; project_id: string }>(
-              'SELECT id, project_id FROM workspaces WHERE id = ? AND machine_id = ?',
+              'SELECT id, project_id FROM workspaces WHERE id = ? AND machine_id = ? AND project_id IN (SELECT id FROM projects WHERE deleted_at IS NULL)',
               wsId,
               machine.id,
             )
@@ -632,7 +632,7 @@ export function agentRoutes(ctx: AppContext): Router {
       if (!ctx.vault) throw new AppError('VAULT_ERROR', 'Vault ist auf diesem Server nicht initialisiert');
       const machine = req.machine!;
       const job = db.get<{ id: string; project_id: string; machine_id: string }>(
-        'SELECT id, project_id, machine_id FROM backup_jobs WHERE id = ?',
+        'SELECT id, project_id, machine_id FROM backup_jobs WHERE id = ? AND project_id IN (SELECT id FROM projects WHERE deleted_at IS NULL)',
         param(req, 'jobId'),
       );
       if (!job || job.machine_id !== machine.id) throw new AppError('NOT_FOUND', 'Backup-Job nicht gefunden');

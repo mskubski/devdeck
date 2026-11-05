@@ -98,7 +98,7 @@ export function machineRoutes(ctx: AppContext): Router {
         if (!effective || (effective !== 'owner' && effective !== 'maintainer')) {
           throw new AppError('FORBIDDEN', 'Nur Owner/Maintainer dürfen Enrollment-Tokens erzeugen');
         }
-        if (!db.get('SELECT id FROM projects WHERE id = ?', projectId)) {
+        if (!db.get('SELECT id FROM projects WHERE id = ? AND deleted_at IS NULL', projectId)) {
           throw new AppError('NOT_FOUND', 'Projekt nicht gefunden');
         }
       } else if (user.system_role !== 'admin') {

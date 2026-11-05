@@ -25,6 +25,7 @@ import {
 } from '../auth/middleware.js';
 import { slugify } from '../auth/tokens.js';
 import { audit } from '../services/audit.js';
+import { deletePreview, listDeleted, purgeProject, restoreProject, softDeleteProject } from '../services/projectDelete.js';
 
 function toProjectDto(p: ProjectRecord, role?: ProjectRole): ProjectDto {
   return {
@@ -48,18 +49,24 @@ export function projectRoutes(ctx: AppContext): Router {
     '/',
     asyncHandler(async (req, res) => {
       const user = req.user!;
+      // ?deleted=1 (nur Admin): gelöschte Projekte, die sich wiederherstellen lassen
+      if (req.query.deleted === '1') {
+        if (user.system_role !== 'admin') throw new AppError('FORBIDDEN', 'Nur Administratoren sehen gelöschte Projekte');
+        res.json({ data: listDeleted(ctx) });
+        return;
+      }
       const rows =
         user.system_role === 'admin'
           ? db.all<ProjectRecord & { role: string | null }>(
               `SELECT p.*, m.role FROM projects p
                LEFT JOIN project_members m ON m.project_id = p.id AND m.user_id = ?
-               ORDER BY p.name`,
+               WHERE p.deleted_at IS NULL ORDER BY p.name`,
               user.id,
             )
           : db.all<ProjectRecord & { role: string | null }>(
               `SELECT p.*, m.role FROM projects p
                JOIN project_members m ON m.project_id = p.id AND m.user_id = ?
-               ORDER BY p.name`,
+               WHERE p.deleted_at IS NULL ORDER BY p.name`,
               user.id,
             );
       res.json({
@@ -192,6 +199,61 @@ export function projectRoutes(ctx: AppContext): Router {
 
       const updated = loadProject(db, project.id)!;
       res.json({ data: toProjectDto(updated, req.projectRole) });
+    }),
+  );
+
+  // ── Projekt löschen ──
+  const actorOf = (req: Parameters<Parameters<typeof router.get>[1]>[0]) => ({ id: req.user!.id, label: req.user!.email, ip: clientIp(req) });
+
+  // Was am Projekt hängt (für die Rückfrage im Dialog)
+  router.get(
+    '/:projectId/delete-preview',
+    requireProjectRole(db, 'owner'),
+    asyncHandler(async (req, res) => {
+      res.json({ data: { name: req.project!.name, counts: deletePreview(ctx, req.project!.id) } });
+    }),
+  );
+
+  // mode „keep“: nur das Projekt löschen, Daten bleiben (wiederherstellbar); mode „purge“: mit allen Daten – nur nach wörtlicher Eingabe des Projektnamens
+  router.delete(
+    '/:projectId',
+    requireProjectRole(db, 'owner'),
+    asyncHandler(async (req, res) => {
+      const project = req.project!;
+      const mode = req.body?.mode;
+      if (mode === 'purge') {
+        if (req.body?.confirm_name !== project.name) {
+          throw new AppError('CONFIRMATION_REQUIRED', 'Zum Löschen mit allen Daten muss der Projektname exakt eingegeben werden');
+        }
+        res.json({ data: { mode, counts: purgeProject(ctx, project, actorOf(req)) } });
+        return;
+      }
+      if (mode !== 'keep') throw new AppError('VALIDATION', 'mode muss „keep“ oder „purge“ sein');
+      requireConfirmation(req.body);
+      softDeleteProject(ctx, project, actorOf(req));
+      res.json({ data: { mode } });
+    }),
+  );
+
+  // Gelöschtes Projekt wiederherstellen bzw. endgültig löschen (nur Administratoren)
+  router.post(
+    '/:projectId/restore',
+    requireSystemRole('admin'),
+    asyncHandler(async (req, res) => {
+      res.json({ data: restoreProject(ctx, param(req, 'projectId')!, actorOf(req)) });
+    }),
+  );
+
+  router.delete(
+    '/:projectId/permanent',
+    requireSystemRole('admin'),
+    asyncHandler(async (req, res) => {
+      const p = db.get<{ id: string; deleted_name: string | null; deleted_at: string | null }>('SELECT id, deleted_name, deleted_at FROM projects WHERE id = ?', param(req, 'projectId'));
+      if (!p || !p.deleted_at) throw new AppError('NOT_FOUND', 'Gelöschtes Projekt nicht gefunden');
+      if (req.body?.confirm_name !== p.deleted_name) {
+        throw new AppError('CONFIRMATION_REQUIRED', 'Zum endgültigen Löschen muss der Projektname exakt eingegeben werden');
+      }
+      res.json({ data: { mode: 'purge', counts: purgeProject(ctx, { id: p.id, name: p.deleted_name ?? '' }, actorOf(req)) } });
     }),
   );
 
