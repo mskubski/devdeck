@@ -30,6 +30,7 @@ export function sanitizeFacts(raw: unknown): string | null {
   const facts: WorkspaceFacts = {
     env,
     markers: strs(f.markers, 40, 80),
+    vercel_projects: strs(f.vercel_projects, 10, 100).filter((n) => /^[a-z0-9][a-z0-9._-]{0,99}$/i.test(n)),
     packages: strs(f.packages, 400, 80),
     databases,
     architecture: validated.manifest,

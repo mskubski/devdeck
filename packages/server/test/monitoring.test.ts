@@ -254,6 +254,26 @@ describe('Monitoring (Server)', () => {
     expect((await monitor(unit.id)).status).toBe('unknown');
   });
 
+  it('Vorschläge aus den Fakten des Workspaces (Monorepo): Supabase-Host aus .env ohne Vault, Vercel-Standardadressen – nicht, wenn die Architektur eine Domain nennt', async () => {
+    const ws = (await srv.request('POST', `/api/projects/${projectId}/workspaces`, { cookie, body: { machine_id: machineId, local_path: '/data/wawi' } })).body.data.id;
+    const setFacts = (facts: unknown) => srv.ctx.db.run('UPDATE workspaces SET facts_json = ? WHERE id = ?', JSON.stringify(facts), ws);
+    const base = { env: [{ name: 'VITE_SUPABASE_URL', host: 'roepskibpwdsjbryepsz.supabase.co' }, { name: 'SUPABASE_URL', host: 'roepskibpwdsjbryepsz.supabase.co' }], markers: ['vercel.json'], packages: [], databases: [], architecture: null, architecture_error: null, collected_at: new Date().toISOString() };
+    setFacts({ ...base, vercel_projects: ['wawimobile', 'wawimobile-verwaltung'] });
+    const keys = async () => (await srv.request('GET', `/api/monitors/suggestions?project_id=${projectId}`, { cookie })).body.data.map((s: any) => s.auto_key);
+    expect(await keys()).toEqual(expect.arrayContaining(['supabase-auth:prod', 'supabase-rest:prod', 'web:wawimobile.vercel.app', 'web:wawimobile-verwaltung.vercel.app']));
+    const created = await applySuggestions(srv.ctx, projectId, { id: null, label: 'test', isAdmin: false });
+    expect(created.failed).toEqual([]);
+    const m = (await list()).monitors;
+    expect(m.find((x: any) => x.name.startsWith('Supabase Anmeldung')).config).toMatchObject({ url: 'https://roepskibpwdsjbryepsz.supabase.co/auth/v1/health', expect: 'reachable' });
+    expect(m.map((x: any) => x.target)).toContain('https://wawimobile.vercel.app/');
+
+    // nennt die Architektur-Karte eine eigene Domain, kommt die vercel.app-Adresse nicht zusätzlich dazu
+    setFacts({ ...base, vercel_projects: ['peefinder'], architecture: { components: [{ id: 'vercel', kind: 'hosting', name: 'Vercel', provider: 'Vercel', details: { Domain: 'www.peefinder.com' } }], links: [] } });
+    const after = await keys();
+    expect(after).toContain('web:www.peefinder.com');
+    expect(after).not.toContain('web:peefinder.vercel.app');
+  });
+
   it('Vorschläge: Backup, Replik, Supabase-Zugangsdaten (nur anon-Schlüssel), Mail und Domains aus der Architektur; idempotent', async () => {
     const secret = async (name: string, value: string, environment = 'production') => {
       const id = (await srv.request('POST', `/api/projects/${projectId}/secrets`, { cookie, body: { name, kind: 'env', environment } })).body.data.id;

@@ -27,7 +27,7 @@ export const AGENT_ACTIONS = [
 ] as const;
 
 /** Aktuelle Agent-Version; ältere Agenten kennen neuere Aktionen nicht und gelten als veraltet. */
-export const CURRENT_AGENT_VERSION = '0.18.0';
+export const CURRENT_AGENT_VERSION = '0.18.1';
 
 function versionParts(v: string): number[] {
   return v.split('.').map((p) => Number.parseInt(p, 10) || 0);

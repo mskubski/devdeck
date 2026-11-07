@@ -23,6 +23,25 @@ function readSmall(file: string): string | null {
   }
 }
 
+/**
+ * Ordner, die geprüft werden: der Workspace selbst und – für Monorepos – seine direkten Unterordner sowie die von `apps`, `packages`, `services`
+ * (z. B. `apps/pwa`, `apps/backend`). Höchstens 40, ohne Abhängigkeiten, Builds und versteckte Ordner.
+ */
+export function factRoots(root: string): string[] {
+  const subdirs = (dir: string): string[] => {
+    try {
+      return fs.readdirSync(dir, { withFileTypes: true })
+        .filter((e) => e.isDirectory() && !SKIP_DIRS.has(e.name) && !e.name.startsWith('.'))
+        .map((e) => path.join(dir, e.name));
+    } catch {
+      return [];
+    }
+  };
+  const top = subdirs(root);
+  const nested = top.filter((d) => ['apps', 'packages', 'services'].includes(path.basename(d))).flatMap(subdirs);
+  return [root, ...top, ...nested].slice(0, 40);
+}
+
 /** Variablennamen (und bei Host-artigen Namen den bereinigten Hostnamen) – nie andere Werte. */
 function collectEnv(root: string): WorkspaceFacts['env'] {
   const byName = new Map<string, string | undefined>();
@@ -136,10 +155,31 @@ function collectManifest(root: string): { architecture: WorkspaceFacts['architec
 /** Fakten für die Architektur-Karte sammeln. Liest nur Namen, Dateigrößen und bereinigte Hostnamen. */
 export function collectFacts(workspacePath: string): WorkspaceFacts {
   const manifest = collectManifest(workspacePath);
+  const roots = factRoots(workspacePath);
+  // Variablen aus allen Ordnern zusammenführen; ein Eintrag mit Hostnamen gewinnt gegen einen ohne
+  const envByName = new Map<string, WorkspaceFacts['env'][number]>();
+  for (const r of roots) {
+    for (const e of collectEnv(r)) {
+      const cur = envByName.get(e.name);
+      if (!cur || (!cur.host && e.host)) envByName.set(e.name, e);
+    }
+  }
+  const vercel = new Set<string>();
+  for (const r of roots) {
+    const text = readSmall(path.join(r, '.vercel', 'project.json'));
+    if (!text) continue;
+    try {
+      const name = (JSON.parse(text) as { projectName?: unknown }).projectName;
+      if (typeof name === 'string' && /^[a-z0-9][a-z0-9._-]{0,99}$/i.test(name)) vercel.add(name.toLowerCase());
+    } catch {
+      /* kaputte Datei ignorieren */
+    }
+  }
   return {
-    env: collectEnv(workspacePath),
-    markers: collectMarkers(workspacePath),
-    packages: collectPackages(workspacePath),
+    env: [...envByName.values()].slice(0, 400),
+    markers: [...new Set(roots.flatMap(collectMarkers))].slice(0, 40),
+    packages: [...new Set(roots.flatMap(collectPackages))].slice(0, 400),
+    vercel_projects: [...vercel].slice(0, 10),
     databases: collectDatabases(workspacePath),
     architecture: manifest.architecture,
     architecture_error: manifest.error,
