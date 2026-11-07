@@ -17,6 +17,27 @@ describe('Fakten für die Architektur-Karte (Agent)', () => {
   });
   afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
 
+  it('liest in Monorepos auch die Unterordner (apps/*, packages/*): Variablen, Pakete, Marker und Vercel-Projektnamen', () => {
+    write('package.json', JSON.stringify({ name: 'root', workspaces: ['apps/*'] }));
+    write('apps/pwa/.env', 'VITE_SUPABASE_URL=https://abcdefgh.supabase.co\nVITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_GEHEIM\n');
+    write('apps/pwa/package.json', JSON.stringify({ dependencies: { '@supabase/supabase-js': '2', react: '19' } }));
+    write('apps/pwa/vercel.json', '{}');
+    write('apps/pwa/.vercel/project.json', JSON.stringify({ projectId: 'prj_x', orgId: 'team_y', projectName: 'meine-pwa' }));
+    write('apps/backend/.env', 'SUPABASE_URL=https://abcdefgh.supabase.co\nSERVICE_KEY=NOCH_GEHEIMER\n');
+    write('apps/formulare/.vercel/project.json', JSON.stringify({ projectName: 'Formulare' }));
+    write('node_modules/foo/.env', 'NIE_LESEN=1\n');
+    write('apps/pwa/node_modules/bar/.vercel/project.json', JSON.stringify({ projectName: 'nie' }));
+    const f = collectFacts(dir);
+    expect(f.env.find((e) => e.name === 'VITE_SUPABASE_URL')?.host).toBe('abcdefgh.supabase.co');
+    expect(f.env.find((e) => e.name === 'SUPABASE_URL')?.host).toBe('abcdefgh.supabase.co');
+    expect(f.env.map((e) => e.name)).not.toContain('NIE_LESEN');
+    expect(f.packages).toEqual(expect.arrayContaining(['@supabase/supabase-js', 'react']));
+    expect(f.markers).toEqual(expect.arrayContaining(['vercel.json', '.vercel/project.json']));
+    expect(f.vercel_projects?.sort()).toEqual(['formulare', 'meine-pwa']);
+    const json = JSON.stringify(f);
+    for (const secret of ['GEHEIM', 'NOCH_GEHEIMER']) expect(json).not.toContain(secret);
+  });
+
   it('liest Variablennamen und nur bereinigte Hostnamen – nie Geheimnisse', () => {
     write('.env', [
       'TELEGRAM_BOT_TOKEN=1234:SUPERGEHEIM',

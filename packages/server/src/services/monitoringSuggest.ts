@@ -89,6 +89,16 @@ export function suggestMonitors(ctx: AppContext, projectId: string): Suggestion[
     out.push({ auto_key: `supabase-rest:${kind}`, name: `Supabase Datenbank-API (${label})`, kind: 'http', environment: kind, group: 'Datenbank (Supabase)', config: { url: `${url}/rest/v1/`, expect: 'reachable', headers: anon ? [{ name: 'apikey', secret: { name: anon.name, environment: env } }] : [] }, interval_seconds: 300, reason: `Supabase-URL aus dem Secret ${urlSecret.name}` });
   }
 
+  // Aus den Fakten der Workspaces (auch Unterordner von Monorepos): Supabase-Host aus den .env-Dateien (ohne Vault), Vercel-Standardadresse aus .vercel/project.json
+  const factRows = db.all<{ facts_json: string | null }>('SELECT facts_json FROM workspaces WHERE project_id = ? AND facts_json IS NOT NULL', projectId);
+  const facts = factRows.map((r) => parse<{ env?: Array<{ name: string; host?: string }>; vercel_projects?: string[] } | null>(r.facts_json, null)).filter((f): f is NonNullable<typeof f> => Boolean(f));
+  if (!supabaseDone.has('prod') && !out.some((o) => o.auto_key === 'supabase-auth:prod')) {
+    const host = facts.flatMap((f) => f.env ?? []).find((e) => /(^|_)SUPABASE_URL$/.test(e.name) && e.host && /\.supabase\.(co|com)$/.test(e.host))?.host;
+    if (host) {
+      out.push({ auto_key: 'supabase-auth:prod', name: 'Supabase Anmeldung (Produktion)', kind: 'http', environment: 'prod', group: 'Datenbank (Supabase)', config: { url: `https://${host}/auth/v1/health`, expect: 'reachable' }, interval_seconds: 300, reason: 'Supabase-Host aus den .env-Dateien des Workspaces (ohne Schlüssel: prüft nur die Erreichbarkeit)' });
+      out.push({ auto_key: 'supabase-rest:prod', name: 'Supabase Datenbank-API (Produktion)', kind: 'http', environment: 'prod', group: 'Datenbank (Supabase)', config: { url: `https://${host}/rest/v1/`, expect: 'reachable' }, interval_seconds: 300, reason: 'Supabase-Host aus den .env-Dateien des Workspaces (ohne Schlüssel: prüft nur die Erreichbarkeit)' });
+    }
+  }
   // Domains und Mail-Server aus der Architektur-Karte
   try {
     const model = buildArchitecture(ctx, projectId);
@@ -110,7 +120,15 @@ export function suggestMonitors(ctx: AppContext, projectId: string): Suggestion[
   } catch {
     /* Ohne Architektur-Karte gibt es eben nur die übrigen Vorschläge */
   }
-  return out;
+  // Vercel-Standardadresse(n) aus .vercel/project.json – nur wenn die Architektur-Karte keine eigene Domain nennt
+  if (!out.some((o) => o.auto_key.startsWith('web:'))) for (const name of [...new Set(facts.flatMap((f) => f.vercel_projects ?? []))]) {
+    const host = `${name}.vercel.app`;
+    out.push({ auto_key: `web:${host}`, name: `Website ${host}`, kind: 'http', environment: 'prod', group: 'Hosting (Vercel)', config: { url: `https://${host}/`, expect: 'ok' }, interval_seconds: 300, reason: `Vercel-Projekt „${name}“ (.vercel/project.json) – Standardadresse; bei eigener Domain den Monitor anpassen` });
+  }
+
+  // gleiche Monitore aus mehreren Quellen nur einmal vorschlagen (der erste gewinnt)
+  const seen = new Set<string>();
+  return out.filter((s) => (seen.has(s.auto_key) ? false : (seen.add(s.auto_key), true)));
 }
 
 /** System-Monitore (ohne Projekt, nur Admin): System-Backups und deren Replik. */

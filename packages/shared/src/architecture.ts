@@ -61,6 +61,8 @@ export interface WorkspaceFacts {
   markers: string[];
   /** Namen der Abhängigkeiten (package.json, requirements.txt, pyproject.toml) */
   packages: string[];
+  /** Namen der Vercel-Projekte (`.vercel/project.json`, auch in Unterordnern von Monorepos) – ergibt die Standard-Adresse <name>.vercel.app */
+  vercel_projects?: string[];
   /** Lokale SQLite-Dateien mit Größe */
   databases: Array<{ kind: 'sqlite'; path: string; bytes: number }>;
   /** Geparstes und validiertes `.devdeck/architecture.yaml` (oder null) */
