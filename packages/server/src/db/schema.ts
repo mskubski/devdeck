@@ -547,6 +547,45 @@ const MIGRATIONS: string[] = [
   ALTER TABLE projects ADD COLUMN deleted_name TEXT;
   ALTER TABLE projects ADD COLUMN deleted_slug TEXT;
   `,
+  // v22: Monitoring – Monitore (je Projekt oder systemweit) und Prüfverlauf
+  `
+  CREATE TABLE monitors (
+    id TEXT PRIMARY KEY,
+    project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    environment TEXT NOT NULL DEFAULT 'prod',
+    group_label TEXT,
+    config_json TEXT NOT NULL,
+    machine_id TEXT REFERENCES machines(id) ON DELETE CASCADE,
+    interval_seconds INTEGER NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    severity_cap TEXT NOT NULL DEFAULT 'error',
+    allow_private INTEGER NOT NULL DEFAULT 0,
+    auto_key TEXT,
+    force_token TEXT,
+    status TEXT NOT NULL DEFAULT 'unknown',
+    status_since TEXT,
+    last_checked_at TEXT,
+    last_latency_ms INTEGER,
+    last_message TEXT,
+    details_json TEXT,
+    created_by TEXT REFERENCES users(id),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX idx_monitors_project ON monitors(project_id);
+  CREATE UNIQUE INDEX idx_monitors_auto ON monitors(COALESCE(project_id, ''), auto_key) WHERE auto_key IS NOT NULL;
+  CREATE TABLE monitor_checks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    monitor_id TEXT NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,
+    checked_at TEXT NOT NULL,
+    status TEXT NOT NULL,
+    latency_ms INTEGER,
+    message TEXT
+  );
+  CREATE INDEX idx_monitor_checks ON monitor_checks(monitor_id, checked_at);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

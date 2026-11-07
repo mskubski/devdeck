@@ -5,3 +5,4 @@ export * from './types.js';
 export * from './importParsers.js';
 export * from './architecture.js';
 export * from './backup.js';
+export * from './monitoring.js';

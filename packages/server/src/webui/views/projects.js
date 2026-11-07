@@ -3,6 +3,20 @@ import { $, $$, esc, fmtDate, toast, confirmModal, openModal, closeModal, setMod
 import { state } from '../lib/api.js';
 import { icon } from '../lib/icons.js';
 
+const MON_LABEL = { ok: 'OK', warn: 'Warnung', error: 'Ausfall', unknown: 'unbekannt' };
+const MON_CLASS = { ok: 'ok', warn: 'warn', error: 'bad', unknown: 'unknown' };
+
+/** Ampel-Spalte: grün/gelb/rot mit Anzahl, Link zum Monitoring des Projekts. */
+function monitoringCell(p) {
+  const m = p.monitoring;
+  if (!m || m.status === 'none') return `<a class="link muted text-sm" href="#/monitoring?project=${esc(p.id)}" title="Noch keine Monitore – im Monitoring anlegen">–</a>`;
+  const detail = m.status === 'error' ? `${m.error} Ausfall${m.error === 1 ? '' : 'e'}${m.warn ? `, ${m.warn} Warnung${m.warn === 1 ? '' : 'en'}` : ''}`
+    : m.status === 'warn' ? `${m.warn} Warnung${m.warn === 1 ? '' : 'en'}`
+    : m.status === 'ok' ? `${m.ok} von ${m.total} OK` : 'noch keine Messung';
+  return `<a class="mon-cell ${MON_CLASS[m.status]}" href="#/monitoring?project=${esc(p.id)}" title="${esc(`${MON_LABEL[m.status]} – ${detail} · zum Monitoring`)}">
+    <span class="mon-dot ${MON_CLASS[m.status]}" aria-hidden="true"></span><span>${esc(MON_LABEL[m.status])}</span><span class="muted text-sm">${esc(detail)}</span></a>`;
+}
+
 export async function renderProjects(el) {
   const projects = await get('/api/projects');
   const isAdmin = state.user.system_role === 'admin';
@@ -14,6 +28,7 @@ export async function renderProjects(el) {
       <td class="muted">${esc(p.description || '–')}</td>
       <td class="muted mono text-sm">${esc(p.repo_remote || '–')}</td>
       <td class="muted text-sm">${fmtDate(p.created_at)}</td>
+      <td>${monitoringCell(p)}</td>
     </tr>`).join('');
 
   el.innerHTML = `
@@ -27,8 +42,8 @@ export async function renderProjects(el) {
     <div class="card">
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Name</th><th>Rolle</th><th>Beschreibung</th><th>Repository</th><th>Erstellt</th></tr></thead>
-          <tbody>${rows || '<tr><td colspan="5"><div class="empty-state"><div class="icon">' + icon('folder', { size: 32 }) + '</div>Noch keine Projekte.</div></td></tr>'}</tbody>
+          <thead><tr><th>Name</th><th>Rolle</th><th>Beschreibung</th><th>Repository</th><th>Erstellt</th><th>Monitoring</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="6"><div class="empty-state"><div class="icon">' + icon('folder', { size: 32 }) + '</div>Noch keine Projekte.</div></td></tr>'}</tbody>
         </table>
       </div>
     </div>

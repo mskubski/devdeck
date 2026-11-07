@@ -44,6 +44,33 @@ export async function renderHelp(el) {
         <p><strong>Dateien auf den Maschinen bleiben in beiden Fällen unberührt:</strong> Workspace-Ordner (Quellcode), Backup-Ordner und Repliken werden nie gelöscht – wer sie nicht mehr braucht, entfernt sie selbst. Jedes Löschen steht im Audit-Log.</p>`,
     },
     {
+      id: 'monitoring',
+      icon: 'activity',
+      title: 'Monitoring',
+      body: `
+        <p>Das Menü <strong>Monitoring</strong> überwacht die Produktions- und Entwicklungsumgebungen der Projekte und zeigt jeden Monitor als Ampel: <span class="badge ok">grün</span> = in Ordnung,
+        <span class="badge warn">gelb</span> = Warnung, <span class="badge bad">rot</span> = Fehler/Ausfall, grau = noch keine Messung oder pausiert. In der <strong>Projektübersicht</strong> steht die Spalte <em>Monitoring</em> mit dem Gesamtstand des Projekts – ein Klick führt zum Monitoring dieses Projekts.</p>
+        <h3>Was sich überwachen lässt</h3>
+        <table><thead><tr><th>Art</th><th>Prüft</th><th>Typisch für</th></tr></thead><tbody>
+          <tr><td><strong>Website / API (HTTP)</strong></td><td>Statuscode, Antwortzeit, optional Text oder Anzahl JSON-Zeilen, TLS-Zertifikat (Warnung ab 14 Tagen, Fehler ab 3 Tagen Restlaufzeit); optional Header mit Secrets aus dem Vault (z. B. <code>apikey</code>)</td><td>Vercel-Seiten, Supabase (Anmeldung, Datenbank-API, Karten-Abfrage), APIs, Karten-Kacheln</td></tr>
+          <tr><td><strong>Port (TCP)</strong></td><td>Verbindung zu Host:Port, optional TLS und Zertifikat</td><td>Mail-Server (smtp.ionos.de:465, Brevo), Datenbank-Ports</td></tr>
+          <tr><td><strong>Dienst auf Maschine</strong></td><td>ob ein systemd-Dienst läuft (per Agent ab 0.18.0)</td><td>Dienste auf Servern, z. B. <code>helferle-api</code></td></tr>
+          <tr><td><strong>HTTP/TCP von einer Maschine aus</strong></td><td>wie oben, aber vom Standort der Maschine (für interne Adressen wie <code>http://localhost:5001/v1/health</code>)</td><td>Dienste im lokalen Netz oder auf einem Server</td></tr>
+          <tr><td><strong>Maschine · Datenträger · Updates</strong></td><td>Agent online; freier Platz (Warnung unter 15 %, Fehler unter 5 %); Sicherheitsupdates/Neustart (gelb), kritische Updates (rot)</td><td>Server und Entwicklungsrechner</td></tr>
+          <tr><td><strong>Backup · Replik</strong></td><td>Alter des letzten erfolgreichen Backups (Warnung 36 h, Fehler 72 h bei täglichem Plan) bzw. ob die Replik synchron ist</td><td>Backup-Jobs der Projekte und System-Backups von DevDeck</td></tr>
+          <tr><td><strong>Integration</strong></td><td>Ergebnis der Prüfung einer Integration (z. B. GitHub)</td><td>Projekt-Integrationen</td></tr>
+        </tbody></table>
+        <h3>Ampel eines Projekts</h3>
+        <p><strong>Produktion</strong> zählt voll: ein Ausfall macht das Projekt rot. <strong>Entwicklung</strong> macht es höchstens gelb. Bei einzelnen Monitoren lässt sich „zeigt höchstens Warnung“ einschalten (für Abhängigkeiten, die das Projekt nicht lahmlegen, z. B. einen Mail-Server, ein Backup oder Updates). Pausierte Monitore zählen nicht. Kurze Aussetzer lösen nichts aus: jede Prüfung wiederholt sich bei Netzfehler oder 5xx einmal nach 3 Sekunden.</p>
+        <h3>Anlegen</h3>
+        <ul>
+          <li><strong>Vorschläge:</strong> Bei jedem Projekt erkennt DevDeck passende Monitore aus Backup-Jobs (nur mit Zeitplan), Repliken, Integrationen, Supabase-Zugangsdaten im Vault (nur URL und öffentlicher anon-Schlüssel, nie der Service-Key) sowie Domains und Mail-Servern aus der Architektur-Karte – „Vorschläge“ zeigt sie, ein Klick legt die fehlenden an (wiederholtes Anlegen erzeugt keine Doppelten).</li>
+          <li><strong>Von Hand:</strong> „Monitor hinzufügen“ – Art, Adresse, Umgebung, Intervall (30 Sekunden bis 24 Stunden). Anlegen dürfen Maintainer/Owner des Projekts; System-Monitore (z. B. DevDeck-Backups) nur Administratoren. Nach dem Anlegen wird sofort einmal geprüft, „Jetzt prüfen“ wiederholt das jederzeit.</li>
+          <li><strong>Interne Adressen:</strong> Ziele im privaten Netz (localhost, 192.168.x.x …) darf vom DevDeck-Server aus nur ein Administrator überwachen. Alle anderen nutzen „Von Maschine aus prüfen“ – dort läuft die Prüfung per Agent am richtigen Ort.</li>
+        </ul>
+        <p>Pro Monitor stehen Antwortzeit, Verfügbarkeit der letzten 24 Stunden, ein Verlauf der letzten Prüfungen und die letzte Meldung da; der Verlauf wird 7 Tage aufbewahrt. Secret-Werte in Headern werden nie angezeigt.</p>`,
+    },
+    {
       id: 'projekt-tabs',
       icon: 'layers',
       title: 'Die Tabs eines Projekts',

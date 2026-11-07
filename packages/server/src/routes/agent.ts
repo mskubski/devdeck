@@ -21,6 +21,7 @@ import { pruneMachineLogs, sanitizeLogReport, storeMachineLogs } from '../servic
 import { getProjectMembership } from '../auth/middleware.js';
 import { ingestReport } from '../services/projectBackups.js';
 import { mountReplicaTransferRoutes } from './agentReplicas.js';
+import { ingestProbeResults, probesFor } from '../services/monitoring.js';
 
 /** Agent-Protokoll (pollbasiert, PLAN §11). */
 export function agentRoutes(ctx: AppContext): Router {
@@ -221,7 +222,9 @@ export function agentRoutes(ctx: AppContext): Router {
         for (const w of all) requestWorkspaceStatus(db, w, null, true);
       }
 
-      res.json({ data: { ok: true, server_time: now, workspaces: registered } });
+      // Monitoring: Ergebnisse der letzten Prüfungen übernehmen und die Prüfaufträge dieser Maschine zurückgeben
+      ingestProbeResults(ctx, machine, body.probe_results);
+      res.json({ data: { ok: true, server_time: now, workspaces: registered, probes: probesFor(ctx, machine.id) } });
     }),
   );
 

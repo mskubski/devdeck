@@ -25,6 +25,7 @@ import {
 } from '../auth/middleware.js';
 import { slugify } from '../auth/tokens.js';
 import { audit } from '../services/audit.js';
+import { projectMonitoring } from '../services/monitoring.js';
 import { deletePreview, listDeleted, purgeProject, restoreProject, softDeleteProject } from '../services/projectDelete.js';
 
 function toProjectDto(p: ProjectRecord, role?: ProjectRole): ProjectDto {
@@ -69,14 +70,16 @@ export function projectRoutes(ctx: AppContext): Router {
                WHERE p.deleted_at IS NULL ORDER BY p.name`,
               user.id,
             );
+      const mon = projectMonitoring(ctx, rows.map((p) => p.id));
       res.json({
-        data: rows.map((p) =>
-          toProjectDto(
+        data: rows.map((p) => ({
+          ...toProjectDto(
             p,
             (p.role as ProjectRole | null) ??
               (user.system_role === 'admin' ? 'owner' : undefined),
           ),
-        ),
+          monitoring: mon.get(p.id),
+        })),
       });
     }),
   );
