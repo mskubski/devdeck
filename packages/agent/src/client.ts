@@ -1,4 +1,4 @@
-import { AppError, type AgentCommandPayload, type MachineApplication, type MachineAutostart, type MachineInventory, type MachineLogEntry, type MachinePatches } from '@devdeck/shared';
+import { AppError, type AgentCommandPayload, type MachineApplication, type MachineAutostart, type MachineInventory, type MachineLogEntry, type MachinePatches, type ProbeResult, type ProbeSpec } from '@devdeck/shared';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import { Readable, Transform } from 'node:stream';
@@ -178,8 +178,9 @@ export class ServerClient {
     patches?: MachinePatches,
     logs?: { collected_at: string; entries: MachineLogEntry[]; notes: string[] },
     autostart?: MachineAutostart,
-  ): Promise<void> {
-    const res = await this.request('POST', '/api/agent/heartbeat', {
+    probeResults?: ProbeResult[],
+  ): Promise<{ probes: ProbeSpec[] }> {
+    const res = await this.request<{ probes?: ProbeSpec[] }>('POST', '/api/agent/heartbeat', {
       body: {
         agent_version: this.config.agentVersion,
         platform: process.platform,
@@ -190,6 +191,7 @@ export class ServerClient {
         ...(patches ? { patches } : {}),
         ...(logs ? { logs } : {}),
         ...(autostart ? { autostart } : {}),
+        ...(probeResults?.length ? { probe_results: probeResults } : {}),
         // Diagnose: aus welchem Code/Ordner läuft dieser Agent? (hilft, wenn ein Update „nicht ankommt“)
         agent_commit: getRunningHead(),
         agent_node: process.version,
@@ -203,6 +205,7 @@ export class ServerClient {
     if (res.status >= 400) {
       throw new AppError('AGENT_OFFLINE', `Serverfehler: HTTP ${res.status}`);
     }
+    return { probes: Array.isArray(res.data?.probes) ? res.data!.probes! : [] };
   }
 
   async pollCommands(waitSeconds = 25): Promise<AgentCommandPayload[]> {

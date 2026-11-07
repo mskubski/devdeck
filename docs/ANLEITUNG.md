@@ -225,6 +225,12 @@ Karten, Newsletter, Zahlung …) mit Beschreibungen und beschrifteten Beziehunge
 „Aktualisieren“ löst eine neue Prüfung aller Workspaces aus. Voraussetzung: Agent ab Version 0.6.0. Supabase-Größe, Vercel- und IONOS-Live-Daten folgen mit eigenen Konnektoren.
 Gestrichelt dargestellt ist, was noch offen ist (z. B. „Betrieb: noch nicht festgelegt“ – dann `kind: hosting` im Manifest ergänzen).
 
+## 7d. Monitoring
+
+Im Menü **Monitoring** überwacht DevDeck die Produktions- und Entwicklungsumgebungen jedes Projekts (Websites, Supabase, Vercel, Mail-Server, Karten-Kacheln, Server, Dienste, Backups) und zeigt sie als Ampel: grün = in Ordnung, gelb = Warnung, rot = Fehler/Ausfall. In der Projektübersicht gibt es dazu die Spalte **Monitoring** (Klick → Monitoring des Projekts).
+Bei jedem Projekt erkennt **„Vorschläge“** passende Monitore (Backup-Jobs, Repliken, Supabase aus dem Vault, Domains und Mail-Server aus der Architektur-Karte) und legt sie mit einem Klick an; weitere Monitore entstehen über **„Monitor hinzufügen“**.
+Interne Adressen (localhost, LAN) prüft ein Admin vom Server aus oder man wählt „Von Maschine aus prüfen“ (Agent ab 0.18.0). Produktion zählt voll, Entwicklung macht ein Projekt höchstens gelb.
+
 ## 8. Troubleshooting
 
 | Problem | Ursache / Lösung |

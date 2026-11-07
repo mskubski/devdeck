@@ -12,6 +12,7 @@ import type { AppContext } from './context.js';
 import { hashPassword } from './auth/passwords.js';
 import { audit } from './services/audit.js';
 import { runReplicaTick } from './services/backupReplicas.js';
+import { runMonitorTick } from './services/monitoring.js';
 import { requestWorkspaceStatus, sweepExpiredCommands, sweepOfflineAgents } from './services/provisioning.js';
 import type { UserRecord } from './auth/middleware.js';
 import { runAutoUpdateTick } from './services/autoUpdate.js';
@@ -160,6 +161,9 @@ export async function startServer(
     }
   }, 5 * 60_000);
   statusTimer.unref();
+  // Monitoring: fällige Prüfungen alle 20 Sekunden
+  const monitorTimer = setInterval(() => void runMonitorTick(ctx).catch(() => undefined), 20_000);
+  monitorTimer.unref();
   // Replikation von Backups auf zweite Maschinen: alle 20 Sekunden jeden aktiven Abgleich einen Schritt weiterbringen
   const replicaTimer = setInterval(() => {
     try {
@@ -215,6 +219,7 @@ export async function startServer(
       clearInterval(issueSyncTimer);
       clearInterval(statusTimer);
       clearInterval(replicaTimer);
+      clearInterval(monitorTimer);
       clearInterval(updateTimer);
       clearInterval(projectBackupTimer);
       await new Promise<void>((resolve) => server.close(() => resolve()));

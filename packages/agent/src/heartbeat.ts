@@ -6,6 +6,7 @@ import { collectApplications } from './applications.js';
 import { collectPatches } from './patches.js';
 import { collectLogs } from './logs.js';
 import { getAutostart } from './autostart.js';
+import { ProbeScheduler } from './probes.js';
 import type { MachineApplication, MachineAutostart, MachineInventory, MachineLogEntry, MachinePatches } from '@devdeck/shared';
 
 /** Heartbeat-Loop: hält die Maschine online (Spezifikation: alle ~30 s). */
@@ -97,6 +98,8 @@ export function startHeartbeat(
     }
   };
 
+  const probes = new ProbeScheduler();
+
   const beat = async (): Promise<void> => {
     if (stopped) return;
     try {
@@ -106,7 +109,10 @@ export function startHeartbeat(
       const sendingPatches = pendingPatches;
       const sendingLogs = pendingLogs;
       const sendingAutostart = pendingAutostart;
-      await client.heartbeat(workspaces, sending ?? undefined, sendingApps ?? undefined, sendingPatches ?? undefined, sendingLogs ?? undefined, sendingAutostart ?? undefined);
+      const sendingProbes = probes.pending();
+      const answer = await client.heartbeat(workspaces, sending ?? undefined, sendingApps ?? undefined, sendingPatches ?? undefined, sendingLogs ?? undefined, sendingAutostart ?? undefined, sendingProbes);
+      probes.confirm(sendingProbes);
+      probes.update(answer.probes); // Prüfaufträge des Monitorings (Server → Maschine)
       if (sendingAutostart && pendingAutostart === sendingAutostart) pendingAutostart = null;
       if (sendingLogs && pendingLogs === sendingLogs) pendingLogs = null;
       if (sendingPatches && pendingPatches === sendingPatches) pendingPatches = null;

@@ -147,6 +147,11 @@ Every project has the same tabs; together they are the project's memory and are 
 | Integrations | Connectors to external services (GitHub first); the token lives in the vault | maintainer |
 | Sync log | History of sync, provision and deploy jobs with errors | – |
 
+### Monitoring
+
+The **Monitoring** menu watches the production and development environments of each project with a green/yellow/red status: websites and APIs (status, latency, text/JSON rows, TLS certificate expiry, vault-backed headers), ports and mail servers (TCP/TLS), systemd services and local HTTP/TCP checks run by the agent on a machine (agent 0.18.0, via the heartbeat), plus machine online, disk space, pending updates, backup age, backup replica and integration health.
+The projects overview has a **Monitoring** column linking to the project's monitors. *Suggestions* detect monitors from backup jobs, replicas, integrations, Supabase secrets (URL + public anon key only) and the architecture map. Production counts fully, development at most yellow; private-network targets can only be monitored from the server by admins (otherwise run the check on a machine).
+
 ### Adding a machine
 
 **Machines → Add machine** creates a one-time enrollment token and opens an install dialog: pick the OS (Windows, Linux, macOS) and either download an install script (`install-devdeck-agent.ps1` / `.sh`) or copy the commands. The script checks git and Node.js ≥ 22.5, asks for install folder, workspace root, machine name and whether to start the agent at login/boot, then clones, builds, enrolls, sets up autostart and starts the agent. Scripts are generated in the browser; the token is not stored. The agent CLI also offers `autostart on|off|status` and `start-background`.
