@@ -4,6 +4,7 @@ import path from 'node:path';
 import type { Server } from 'node:http';
 import { createServerContext } from '../src/index.js';
 import { createApp } from '../src/app.js';
+import { attachRemoteRelay } from '../src/services/remoteRelay.js';
 import type { AppContext } from '../src/context.js';
 
 export interface TestResponse<T = any> {
@@ -53,6 +54,7 @@ export async function startTestServer(
     const s = app.listen(0, '127.0.0.1', () => resolve(s));
     s.on('error', reject);
   });
+  attachRemoteRelay(server, ctx);
   const address = server.address();
   if (address === null || typeof address === 'string') throw new Error('Kein Port');
   const base = `http://127.0.0.1:${address.port}`;

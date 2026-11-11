@@ -7,7 +7,8 @@ import { collectPatches } from './patches.js';
 import { collectLogs } from './logs.js';
 import { getAutostart } from './autostart.js';
 import { ProbeScheduler } from './probes.js';
-import type { MachineApplication, MachineAutostart, MachineInventory, MachineLogEntry, MachinePatches } from '@devdeck/shared';
+import { detectRemote } from './remote.js';
+import type { MachineApplication, MachineAutostart, MachineInventory, MachineLogEntry, MachinePatches, MachineRemote } from '@devdeck/shared';
 
 /** Heartbeat-Loop: hält die Maschine online (Spezifikation: alle ~30 s). */
 export function startHeartbeat(
@@ -30,6 +31,9 @@ export function startHeartbeat(
     /** Autostart-Zustand; Standard echt, stündlich neu. */
     collectAutostart?: () => Promise<MachineAutostart>;
     autostartIntervalMs?: number;
+    /** VNC-Zustand (Remote-Tab); Standard echt, stündlich neu. */
+    collectRemote?: () => Promise<MachineRemote>;
+    remoteIntervalMs?: number;
   } = {},
 ): { stop(): void } {
   const client = new ServerClient(config);
@@ -98,6 +102,17 @@ export function startHeartbeat(
     }
   };
 
+  const gatherRemote = options.collectRemote ?? (() => detectRemote());
+  const remoteEveryMs = options.remoteIntervalMs ?? 60 * 60_000;
+  let pendingRemote: MachineRemote | null = null;
+  const refreshRemote = async (): Promise<void> => {
+    try {
+      pendingRemote = await gatherRemote();
+    } catch (err) {
+      log.warn(`VNC-Zustand nicht ermittelbar: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
   const probes = new ProbeScheduler();
 
   const beat = async (): Promise<void> => {
@@ -109,10 +124,12 @@ export function startHeartbeat(
       const sendingPatches = pendingPatches;
       const sendingLogs = pendingLogs;
       const sendingAutostart = pendingAutostart;
+      const sendingRemote = pendingRemote;
       const sendingProbes = probes.pending();
-      const answer = await client.heartbeat(workspaces, sending ?? undefined, sendingApps ?? undefined, sendingPatches ?? undefined, sendingLogs ?? undefined, sendingAutostart ?? undefined, sendingProbes);
+      const answer = await client.heartbeat(workspaces, sending ?? undefined, sendingApps ?? undefined, sendingPatches ?? undefined, sendingLogs ?? undefined, sendingAutostart ?? undefined, sendingProbes, sendingRemote ?? undefined);
       probes.confirm(sendingProbes);
       probes.update(answer.probes); // Prüfaufträge des Monitorings (Server → Maschine)
+      if (sendingRemote && pendingRemote === sendingRemote) pendingRemote = null;
       if (sendingAutostart && pendingAutostart === sendingAutostart) pendingAutostart = null;
       if (sendingLogs && pendingLogs === sendingLogs) pendingLogs = null;
       if (sendingPatches && pendingPatches === sendingPatches) pendingPatches = null;
@@ -125,7 +142,7 @@ export function startHeartbeat(
   };
 
   void beat(); // sofort online melden; das Inventar folgt, sobald es gesammelt ist
-  void refreshInventory().then(() => refreshApplications()).then(() => refreshLogs()).then(() => refreshPatches()).then(() => refreshAutostart()); // nacheinander: zwei PowerShell-Prozesse gleichzeitig belasten den Start unnötig
+  void refreshInventory().then(() => refreshApplications()).then(() => refreshLogs()).then(() => refreshPatches()).then(() => refreshAutostart()).then(() => refreshRemote()); // nacheinander: zwei PowerShell-Prozesse gleichzeitig belasten den Start unnötig
   const timer = setInterval(() => void beat(), intervalMs);
   const inventoryTimer = setInterval(() => void refreshInventory(), inventoryEveryMs);
   const appsTimer = setInterval(() => void refreshApplications(), appsEveryMs);
@@ -134,6 +151,8 @@ export function startHeartbeat(
   patchesTimer.unref?.();
   const autostartTimer = setInterval(() => void refreshAutostart(), autostartEveryMs);
   autostartTimer.unref?.();
+  const remoteTimer = setInterval(() => void refreshRemote(), remoteEveryMs);
+  remoteTimer.unref?.();
   const logsTimer = setInterval(() => void refreshLogs(), logsEveryMs);
   logsTimer.unref?.();
   timer.unref?.();
@@ -147,6 +166,7 @@ export function startHeartbeat(
       clearInterval(patchesTimer);
       clearInterval(logsTimer);
       clearInterval(autostartTimer);
+      clearInterval(remoteTimer);
     },
   };
 }

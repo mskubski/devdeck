@@ -10,10 +10,13 @@
   },
   "dependencies": {
     "@devdeck/shared": "0.1.0",
+    "@novnc/novnc": "1.7.0",
     "express": "^5.2.1",
+    "ws": "8.22.2",
     "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "@types/express": "^5.0.0"
+    "@types/express": "^5.0.0",
+    "@types/ws": "^8.18.2"
   }
 }

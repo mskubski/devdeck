@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { Server } from 'node:http';
+import { attachRemoteRelay } from './services/remoteRelay.js';
 import { loadConfig, type Env, type ServerConfig } from './config.js';
 import { Database } from './db/database.js';
 import { migrate, SCHEMA_VERSION } from './db/schema.js';
@@ -123,6 +124,7 @@ export async function startServer(
     const s = app.listen(port, host, () => resolve(s));
     s.on('error', reject);
   });
+  attachRemoteRelay(server, ctx); // Fernzugriff (WebSocket-Tunnel)
   // Hintergrund-Sweeper: offline-Maschinen + abgelaufene Commands
   const sweeper = setInterval(() => {
     try {

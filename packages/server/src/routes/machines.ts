@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
-import { AppError, MAX_PATCH_INSTALL_IDS, PATCH_ID_PATTERN, agentSupportsAction, compareVersions, isAgentOutdated, supportsSelfUpdate, type MachineApplication, type MachineApplicationsDto, type MachineAutostart, type MachineCustomField, type MachineDetailDto, type MachineDto, type MachineInventory, type MachineLogsDto, type MachinePatchInstallOutcome, type MachineSecurityAlert, type MachinePatches, type MachinePatchesDto, type ProjectRole } from '@devdeck/shared';
+import { AppError, MAX_PATCH_INSTALL_IDS, PATCH_ID_PATTERN, agentSupportsAction, compareVersions, isAgentOutdated, supportsSelfUpdate, type MachineApplication, type MachineApplicationsDto, type MachineAutostart, type MachineCustomField, type MachineDetailDto, type MachineDto, type MachineInventory, type MachineLogsDto, type MachinePatchInstallOutcome, type MachineSecurityAlert, type MachinePatches, type MachineRemote, type MachinePatchesDto, type ProjectRole } from '@devdeck/shared';
 import {
   asyncHandler,
   clientIp,
@@ -62,7 +62,19 @@ function toMachineDto(row: MachineRecord, db: Database): MachineDto {
     autostart: parseAutostart(row.autostart_json),
     agent_can_autostart: agentSupportsAction(row.agent_version, 'agent.autostart'),
     agent_can_install_patches: agentSupportsAction(row.agent_version, 'patches.install'),
+    remote: parseRemote(row.remote_json),
+    agent_can_remote: agentSupportsAction(row.agent_version, 'remote.open'),
+    remote_password_set: Boolean(row.remote_secret_ref),
   };
+}
+
+function parseRemote(json: string | null | undefined): MachineRemote | null {
+  if (!json) return null;
+  try {
+    return JSON.parse(json) as MachineRemote;
+  } catch {
+    return null;
+  }
 }
 
 function parseAutostart(json: string | null | undefined): MachineAutostart | null {
@@ -75,7 +87,7 @@ function parseAutostart(json: string | null | undefined): MachineAutostart | nul
 }
 
 const MACHINE_COLUMNS = `id, owner_user_id, name, platform, agent_version, workspace_root, agent_commit, agent_node, agent_entry, agent_status,
-                         last_seen_at, token_hash, revoked_at, created_at, autostart_json`;
+                         last_seen_at, token_hash, revoked_at, created_at, autostart_json, remote_json, remote_secret_ref`;
 
 /** Machine Registry: Enrollment-Tokens, Übersicht, Widerruf (Spezifikation §15). */
 export function machineRoutes(ctx: AppContext): Router {

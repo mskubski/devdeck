@@ -282,6 +282,11 @@ npm run build</pre>
         <p><strong>Sicherheitshinweis in der Kopfleiste:</strong> Gibt es auf einer Maschine, auf die du Zugriff hast, ausstehende <em>sicherheitsrelevante</em> Updates (kritisch oder Sicherheit), erscheint ganz oben ein Schild-Symbol mit der Anzahl der betroffenen Maschinen
         (rot, wenn kritische dabei sind). Ein Klick listet die Maschinen; ein Eintrag öffnet direkt deren Tab <em>Patches</em>. Die Anzeige verschwindet, sobald die Updates installiert sind.</p>
 
+        <h3>Remote: Bildschirm der Maschine im Browser</h3>
+        <p>Auf der Detailseite einer Maschine zeigt der Tab <strong>Remote</strong>, ob dort ein VNC-Server läuft (Port, Software, ob er nur lokal oder auch im Netzwerk erreichbar ist) und öffnet mit <strong>Verbinden</strong> den Bildschirm direkt in DevDeck – mit
+        Strg+Alt+Entf, Einfügen aus der Zwischenablage und Vollbild. Der Agent baut die Verbindung <em>ausgehend</em> zum Server auf; es muss kein Port auf der Maschine freigegeben werden. Zugriff haben nur Besitzer und Admins, jede Sitzung steht im Audit-Log (nie die Inhalte).</p>
+        <p>Läuft noch kein VNC-Server, schlägt der Tab die Einrichtung vor: <strong>„Über den DevDeck-Agent einrichten“</strong> (Windows: TightVNC per winget, der Agent muss als Administrator laufen; Linux: x11vnc als Benutzerdienst auf X11-Desktops, Paketinstallation nur mit Root bzw. sudo ohne Passwort)
+        oder <strong>passende Befehle zum Kopieren</strong> – auch für Wayland, Server ohne Desktop und den Mac. Das Passwort wird zufällig erzeugt und verschlüsselt im Vault abgelegt; mit „Passwort“ trägst du ein selbst gesetztes ein. Voraussetzung: Agent ab 0.19.0.</p>
         <h3>Schalter „Autostart“ pro Maschine</h3>
         <p>Der Schalter <strong>Autostart</strong> (in der Maschinenliste und unter <em>Übersicht → Verwaltung</em>) legt fest, ob der Agent auf der Maschine beim Hochfahren bzw. Anmelden von selbst startet. Einschalten nimmt den Agenten in den Autostart auf,
         Ausschalten entfernt den Eintrag wieder – der gerade laufende Agent wird dabei weder gestoppt noch doppelt gestartet. Umgesetzt wird es je System ohne Administratorrechte:

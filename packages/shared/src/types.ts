@@ -125,6 +125,43 @@ export interface MachineDto {
   agent_can_autostart: boolean;
   /** Agent kann Updates installieren (`patches.install`, ≥ 0.15.0) */
   agent_can_install_patches: boolean;
+  /** VNC-Zustand der Maschine (Tab „Remote“); null = noch nicht gemeldet */
+  remote: MachineRemote | null;
+  /** Agent kennt die Remote-Aktionen (≥ 0.19.0) */
+  agent_can_remote: boolean;
+  /** Ist ein VNC-Passwort verschlüsselt hinterlegt? (Der Wert selbst wird nie angezeigt.) */
+  remote_password_set: boolean;
+}
+
+/** Fernzugriff per VNC: was läuft auf der Maschine, und was kann der Agent einrichten. */
+export interface MachineRemote {
+  checked_at: string;
+  vnc: {
+    running: boolean;
+    port: number | null;
+    /** z. B. „TightVNC“, „x11vnc“ (aus den laufenden Prozessen, kann fehlen) */
+    software: string | null;
+    /** true: nur lokal erreichbar (gut, DevDeck tunnelt es); false: auch im Netzwerk erreichbar; null: unbekannt */
+    local_only: boolean | null;
+  };
+  install: {
+    /** Der Agent kann einen VNC-Server selbst einrichten */
+    possible: boolean;
+    method: string | null;
+    /** Warum nicht (oder Hinweis) */
+    reason: string | null;
+  };
+  env: {
+    /** Linux: x11 | wayland | tty */
+    session: string | null;
+    package_manager: string | null;
+    /** Agent läuft mit Administrator-/Root-Rechten */
+    elevated: boolean;
+    /** Linux/macOS: sudo ohne Passwort möglich */
+    sudo: boolean | null;
+    winget: boolean | null;
+    x11vnc: boolean | null;
+  };
 }
 
 /** Autostart-Zustand des Agents auf der Maschine. */

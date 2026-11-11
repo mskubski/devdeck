@@ -34,6 +34,8 @@ export interface MachineRecord {
   agent_node?: string | null;
   agent_entry?: string | null;
   autostart_json?: string | null;
+  remote_json?: string | null;
+  remote_secret_ref?: string | null;
   agent_status: string;
   last_seen_at: string | null;
   token_hash: string | null;

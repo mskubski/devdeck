@@ -147,6 +147,10 @@ Every project has the same tabs; together they are the project's memory and are 
 | Integrations | Connectors to external services (GitHub first); the token lives in the vault | maintainer |
 | Sync log | History of sync, provision and deploy jobs with errors | – |
 
+### Remote desktop
+
+The machine page has a **Remote** tab that shows the machine's screen in the browser (VNC via noVNC, Windows and Linux; macOS via Screen Sharing). The agent opens an *outbound* WebSocket to the server and tunnels the local VNC port (5900–5999 only, the service must answer with an RFB banner), so no inbound ports are needed. Access requires the machine owner or an admin; every session is audited (duration and bytes, never content); the VNC password is stored encrypted in the vault and never shown. The agent detects running VNC servers hourly and can install one (Windows: TightVNC via winget when elevated; Linux: x11vnc as a user service on X11 desktops, localhost only); otherwise the tab shows copy-paste commands. Needs agent 0.19.0. noVNC (MPL-2.0) is served from the `@novnc/novnc` npm package.
+
 ### Monitoring
 
 The **Monitoring** menu watches the production and development environments of each project with a green/yellow/red status: websites and APIs (status, latency, text/JSON rows, TLS certificate expiry, vault-backed headers), ports and mail servers (TCP/TLS), systemd services and local HTTP/TCP checks run by the agent on a machine (agent 0.18.0, via the heartbeat), plus machine online, disk space, pending updates, backup age, backup replica and integration health.

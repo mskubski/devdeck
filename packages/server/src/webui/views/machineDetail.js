@@ -2,6 +2,7 @@ import { get, post, put, state } from '../lib/api.js';
 import { autostartSwitch, bindAutostart } from '../lib/autostart.js';
 import { $, $$, esc, badge, fmtDate, timeAgo, toast, formModal, confirmModal, closeModal, setModalError } from '../lib/ui.js';
 import { icon } from '../lib/icons.js';
+import { remoteTab } from './machineRemote.js';
 
 const PLATFORM = { win32: 'Windows', linux: 'Linux', darwin: 'macOS' };
 
@@ -427,6 +428,7 @@ const TABS = [
   { key: 'applications', label: 'Anwendungen', render: applicationsTab },
   { key: 'patches', label: 'Patches', render: patchesTab },
   { key: 'logs', label: 'Logs', render: logsTab },
+  { key: 'remote', label: 'Remote', render: remoteTab },
 ];
 
 export async function renderMachineDetail(el, idAndQuery, setBreadcrumb) {

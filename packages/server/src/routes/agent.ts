@@ -11,12 +11,14 @@ import type { AppContext } from '../context.js';
 import { requireAgent } from '../auth/middleware.js';
 import { generateToken, hashToken } from '../auth/tokens.js';
 import { audit } from '../services/audit.js';
+import { VaultService } from '../vault/vault.js';
+import { endRemoteSession } from '../services/remoteRelay.js';
 import { completeCommand, pollCommands, requestWorkspaceStatus } from '../services/provisioning.js';
 import { buildProjectContext } from '../services/contextBuilder.js';
 import { projectSecretsFor, secretVersionsFor } from '../vault/projection.js';
 import { importProjectData, type ImportSecret } from '../services/projectImport.js';
 import { sanitizeFacts } from '../services/architecture/facts.js';
-import { sanitizeApplications, sanitizeAutostart, sanitizeInventory, sanitizePatches } from '../services/inventory.js';
+import { sanitizeApplications, sanitizeAutostart, sanitizeInventory, sanitizePatches, sanitizeRemote } from '../services/inventory.js';
 import { pruneMachineLogs, sanitizeLogReport, storeMachineLogs } from '../services/machineLogs.js';
 import { getProjectMembership } from '../auth/middleware.js';
 import { ingestReport } from '../services/projectBackups.js';
@@ -153,6 +155,9 @@ export function agentRoutes(ctx: AppContext): Router {
       const autostart = sanitizeAutostart(body.autostart);
       if (autostart) db.run('UPDATE machines SET autostart_json = ? WHERE id = ?', JSON.stringify(autostart), machine.id);
 
+      const remote = sanitizeRemote(body.remote);
+      if (remote) db.run('UPDATE machines SET remote_json = ? WHERE id = ?', JSON.stringify(remote), machine.id);
+
       const logReport = sanitizeLogReport(body.logs);
       if (logReport) {
         storeMachineLogs(db, machine.id, logReport.entries);
@@ -252,15 +257,33 @@ export function agentRoutes(ctx: AppContext): Router {
       if (status !== 'done' && status !== 'failed') {
         throw new AppError('VALIDATION', 'status muss done oder failed sein');
       }
+      const cmdRow = db.get<{ action: string; payload_json: string | null }>('SELECT action, payload_json FROM agent_commands WHERE id = ? AND machine_id = ?', commandId, machine.id);
+      let resultData = req.body?.data ?? undefined;
+      // Das vom Agent erzeugte VNC-Passwort gehört in den Vault und nie in das gespeicherte Befehlsergebnis
+      if (status === 'done' && cmdRow?.action === 'remote.install' && resultData && typeof resultData.password === 'string') {
+        if (!ctx.vault) throw new AppError('VAULT_ERROR', 'Vault ist auf diesem Server nicht initialisiert');
+        db.run('UPDATE machines SET remote_secret_ref = ? WHERE id = ?', ctx.vault.put(resultData.password, VaultService.aad(`machine:${machine.id}`, 'remote', 'vnc', 1)), machine.id);
+        resultData = { ...resultData };
+        delete resultData.password;
+      }
       const outcome = completeCommand(db, commandId, machine.id, {
         status,
-        data: req.body?.data ?? undefined,
+        data: resultData,
         error: req.body?.error ?? undefined,
       });
+      if (status === 'failed' && cmdRow?.action === 'remote.open') {
+        try {
+          endRemoteSession(ctx, String(JSON.parse(cmdRow.payload_json ?? '{}').session_id ?? ''), 'agent-failed');
+        } catch {
+          /* Payload nicht lesbar */
+        }
+      }
       if (status === 'done' && outcome.first) {
         const cmd = db.get<{ action: string }>('SELECT action FROM agent_commands WHERE id = ?', commandId);
         const state = cmd?.action === 'agent.autostart' ? sanitizeAutostart(req.body?.data) : null;
         if (state) db.run('UPDATE machines SET autostart_json = ? WHERE id = ?', JSON.stringify(state), machine.id);
+        const remoteState = cmd?.action === 'remote.detect' || cmd?.action === 'remote.install' ? sanitizeRemote(req.body?.data?.remote) : null;
+        if (remoteState) db.run('UPDATE machines SET remote_json = ? WHERE id = ?', JSON.stringify(remoteState), machine.id);
         // Nach einer Installation steht der frische Patch-Stand im Ergebnis: sofort übernehmen
         const fresh = cmd?.action === 'patches.install' ? sanitizePatches(req.body?.data?.patches) : null;
         if (fresh) db.run('UPDATE machines SET patches_json = ?, patches_at = ? WHERE id = ?', JSON.stringify(fresh), fresh.collected_at, machine.id);

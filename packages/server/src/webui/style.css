@@ -548,3 +548,11 @@ tr.muted-row { opacity: .6; }
 .mon-table th { white-space: nowrap; }
 .btn.ghost.icon-only.danger { background: transparent; color: var(--danger); }
 .btn.ghost.icon-only.danger:hover { background: var(--danger-soft); filter: none; }
+
+/* ---------- Fernzugriff (Tab „Remote“) ---------- */
+.rd-screen { height: min(72vh, 900px); background: #000; border-radius: var(--radius-sm); overflow: hidden; }
+.rd-screen:fullscreen { height: 100vh; border-radius: 0; }
+.rd-hints > summary { cursor: pointer; font-size: var(--fs-sm); color: var(--accent); }
+.cmd-row { display: flex; gap: var(--space-2); align-items: flex-start; }
+.cmd-row pre { flex: 1; margin: var(--space-1) 0; white-space: pre-wrap; word-break: break-all; }
+.cmd-row .btn { margin-top: var(--space-1); }
