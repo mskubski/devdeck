@@ -48,6 +48,59 @@ export function probeVnc(port: number, host = '127.0.0.1', timeoutMs = 1500): Pr
   });
 }
 
+/**
+ * Vorabprüfung ohne Anmeldung: Begrüßung lesen, Version zurückschicken, die Sicherheitsarten lesen.
+ * „blocked“ = der Server verweigert Verbindungen von localhost (z. B. TightVNC mit ausgeschalteter Loopback-Option), „unreachable“ = kein VNC.
+ */
+export function preflightVnc(host: string, port: number, timeoutMs = 1500): Promise<'ok' | 'blocked' | 'unreachable'> {
+  return new Promise((resolve) => {
+    const socket = net.connect({ host, port });
+    let stage = 0;
+    let done = false;
+    const finish = (r: 'ok' | 'blocked' | 'unreachable'): void => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      socket.destroy();
+      resolve(r);
+    };
+    const timer = setTimeout(() => finish(stage === 0 ? 'unreachable' : 'ok'), timeoutMs);
+    socket.once('error', () => finish('unreachable'));
+    socket.on('data', (buf) => {
+      if (stage === 0) {
+        if (!BANNER.test(buf.toString('latin1', 0, 12))) return finish('unreachable');
+        stage = 1;
+        socket.write('RFB 003.008\n');
+        return;
+      }
+      // Antwort: Anzahl Sicherheitsarten; 0 = Verbindung abgelehnt, danach Länge und Text des Grundes
+      const text = buf.toString('latin1');
+      finish(buf[0] === 0 && /loopback/i.test(text) ? 'blocked' : 'ok');
+    });
+  });
+}
+
+/** Eigene IPv4-Adressen (ohne localhost) – nur diese darf der Tunnel als Ausweichziel nutzen. */
+export function ownAddresses(): string[] {
+  const out: string[] = [];
+  for (const list of Object.values(os.networkInterfaces())) for (const a of list ?? []) if (a.family === 'IPv4' && !a.internal) out.push(a.address);
+  return out;
+}
+
+/**
+ * Über welche Adresse der Maschine ist der VNC-Server erreichbar? Normalerweise 127.0.0.1. Verweigert der Server localhost
+ * (TightVNC-Standard: „Loopback-Verbindungen zulassen“ aus), wird eine eigene Netzwerkadresse der Maschine genutzt – es bleibt dieselbe Maschine.
+ */
+export async function chooseVncHost(port: number): Promise<string> {
+  const first = await preflightVnc('127.0.0.1', port);
+  if (first === 'ok') return '127.0.0.1';
+  if (first === 'unreachable') throw new AppError('VALIDATION', `Auf Port ${port} antwortet kein VNC-Server`);
+  for (const addr of ownAddresses().slice(0, 6)) {
+    if ((await preflightVnc(addr, port)) === 'ok') return addr;
+  }
+  throw new AppError('VALIDATION', 'Der VNC-Server verweigert Verbindungen von localhost und ist über keine Netzwerkadresse der Maschine erreichbar. Bei TightVNC: Server-Konfiguration → „Loopback-Verbindungen zulassen“ einschalten.');
+}
+
 /** Ist der VNC-Port auch über eine Netzwerkadresse der Maschine erreichbar? true = ja (Warnung), false = nur lokal, null = unbekannt. */
 export async function exposedToNetwork(port: number): Promise<boolean | null> {
   const addrs: string[] = [];
@@ -168,14 +221,16 @@ export async function detectRemote(exec: Runner = run, ports: number[] = VNC_POR
   const env = await inspectEnv(exec);
   let software: string | null = null;
   let localOnly: boolean | null = null;
+  let loopbackBlocked: boolean | null = null;
   if (port !== null) {
     software = softwareFromProcesses(await processNames(exec));
+    loopbackBlocked = (await preflightVnc('127.0.0.1', port)) === 'blocked';
     const exposed = await exposedToNetwork(port);
     localOnly = exposed === null ? null : !exposed;
   }
   return {
     checked_at: new Date().toISOString(),
-    vnc: { running: port !== null, port, software, local_only: localOnly },
+    vnc: { running: port !== null, port, software, local_only: localOnly, loopback_blocked: loopbackBlocked },
     install: planInstall(env, port !== null),
     env,
   };
