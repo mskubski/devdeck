@@ -24,10 +24,13 @@ export const AGENT_ACTIONS = [
   'backup.export',
   'backup.import',
   'backup.prune',
+  'remote.detect',
+  'remote.install',
+  'remote.open',
 ] as const;
 
 /** Aktuelle Agent-Version; ältere Agenten kennen neuere Aktionen nicht und gelten als veraltet. */
-export const CURRENT_AGENT_VERSION = '0.18.1';
+export const CURRENT_AGENT_VERSION = '0.19.0';
 
 function versionParts(v: string): number[] {
   return v.split('.').map((p) => Number.parseInt(p, 10) || 0);
@@ -64,6 +67,9 @@ export const MIN_AGENT_VERSION_FOR_ACTION: Partial<Record<string, string>> = {
   'backup.export': '0.17.0',
   'backup.import': '0.17.0',
   'backup.prune': '0.17.0',
+  'remote.detect': '0.19.0',
+  'remote.install': '0.19.0',
+  'remote.open': '0.19.0',
 };
 
 export function agentSupportsAction(version: string | null | undefined, action: string): boolean {
@@ -140,6 +146,8 @@ export interface HeartbeatRequest {
   probe_results?: import('./monitoring.js').ProbeResult[];
   /** Autostart-Zustand des Agents (ab Agent 0.14.0, beim Start und danach stündlich) */
   autostart?: import('./types.js').MachineAutostart;
+  /** VNC-Zustand für den Remote-Tab (ab Agent 0.19.0, beim Start und danach stündlich) */
+  remote?: import('./types.js').MachineRemote;
   workspaces?: Array<{
     workspace_id?: string;
     project?: string;

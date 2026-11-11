@@ -7,6 +7,7 @@ import { projectRoutes } from './projects.js';
 import { taskRoutes } from './tasks.js';
 import { auditRoutes } from './audit.js';
 import { machineRoutes } from './machines.js';
+import { remoteRoutes } from './remote.js';
 import { agentRoutes } from './agent.js';
 import { workspaceRoutes } from './workspaces.js';
 import { sessionRoutes } from './sessions.js';
@@ -28,6 +29,7 @@ export function apiRoutes(ctx: AppContext): Router {
   router.use('/users', requireUser(db), userRoutes(ctx));
   router.use('/projects', requireUser(db), projectRoutes(ctx));
   router.use('/machines', machineRoutes(ctx));
+  router.use('/machines', remoteRoutes(ctx));
   router.use('/audit', requireUser(db), auditRoutes(ctx));
   // Agent-Protokoll: eigene Auth (Maschinen-Token), keine Browser-Session
   router.use('/agent', agentRoutes(ctx));

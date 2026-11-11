@@ -1,3 +1,5 @@
+import { createRequire } from 'node:module';
+import path from 'node:path';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import { AppError } from '@devdeck/shared';
 import type { AppContext } from './context.js';
@@ -32,6 +34,14 @@ export function createApp(ctx: AppContext): Express {
   app.use('/api', (_req, res) => {
     sendError(res, 404, 'NOT_FOUND', 'API-Endpunkt nicht gefunden');
   });
+
+  // noVNC (VNC-Client im Browser, MPL-2.0) aus dem npm-Paket ausliefern
+  try {
+    const entry = createRequire(import.meta.url).resolve('@novnc/novnc'); // …/core/rfb.js
+    app.use('/vendor/novnc', express.static(path.dirname(path.dirname(entry)), { maxAge: '1h' }));
+  } catch {
+    /* Paket fehlt: Fernzugriff im Browser nicht verfügbar */
+  }
 
   // Statische Web UI
   app.use(express.static(config.webuiDir, { index: 'index.html', extensions: ['html'] }));

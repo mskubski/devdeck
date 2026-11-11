@@ -586,6 +586,11 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX idx_monitor_checks ON monitor_checks(monitor_id, checked_at);
   `,
+  // v23: Fernzugriff (VNC) je Maschine: gemeldeter Zustand und Verweis auf das verschlüsselte Passwort im Vault
+  `
+  ALTER TABLE machines ADD COLUMN remote_json TEXT;
+  ALTER TABLE machines ADD COLUMN remote_secret_ref TEXT;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

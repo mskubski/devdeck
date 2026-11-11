@@ -1,4 +1,4 @@
-import type { InventoryLevel, MachineApplication, MachineAutostart, MachineCustomField, MachineInventory, MachinePatches, PatchStatus } from '@devdeck/shared';
+import type { InventoryLevel, MachineApplication, MachineAutostart, MachineCustomField, MachineInventory, MachinePatches, MachineRemote, PatchStatus } from '@devdeck/shared';
 
 const str = (v: unknown, max = 200): string | null => (typeof v === 'string' && v.trim() !== '' ? v.trim().slice(0, max) : null);
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v < 1e9 ? Math.round(v * 100) / 100 : null);
@@ -150,6 +150,29 @@ export function sanitizeAutostart(raw: unknown): MachineAutostart | null {
     enabled: r.enabled,
     method: r.method.slice(0, 80),
     detail: typeof r.detail === 'string' && r.detail ? r.detail.slice(0, 300) : null,
+  };
+}
+
+/** VNC-Zustand des Agents prüfen: nur bekannte Felder, begrenzte Längen. */
+export function sanitizeRemote(raw: unknown): MachineRemote | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as any;
+  if (!r.vnc || typeof r.vnc !== 'object' || typeof r.vnc.running !== 'boolean') return null;
+  const port = Number.isInteger(r.vnc.port) && r.vnc.port >= 1 && r.vnc.port <= 65535 ? (r.vnc.port as number) : null;
+  const text = (v: unknown, max: number): string | null => (typeof v === 'string' && v ? v.slice(0, max) : null);
+  const bool = (v: unknown): boolean | null => (typeof v === 'boolean' ? v : null);
+  return {
+    checked_at: text(r.checked_at, 40) ?? new Date().toISOString(),
+    vnc: { running: r.vnc.running, port, software: text(r.vnc.software, 60), local_only: bool(r.vnc.local_only) },
+    install: { possible: r.install?.possible === true, method: text(r.install?.method, 160), reason: text(r.install?.reason, 400) },
+    env: {
+      session: text(r.env?.session, 20),
+      package_manager: text(r.env?.package_manager, 20),
+      elevated: r.env?.elevated === true,
+      sudo: bool(r.env?.sudo),
+      winget: bool(r.env?.winget),
+      x11vnc: bool(r.env?.x11vnc),
+    },
   };
 }
 
