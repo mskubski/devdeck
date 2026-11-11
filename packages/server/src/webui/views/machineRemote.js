@@ -5,6 +5,8 @@ import { remoteHints, exposureNote } from '../lib/remoteHints.js';
 
 /** Aktive Sitzung (eine pro Seite): wird beim Verlassen des Tabs getrennt. */
 let active = null;
+/** Maschinen, bei denen das hinterlegte Passwort abgelehnt wurde – dort beim nächsten Verbinden nachfragen */
+const skipStored = new Set();
 
 function disconnect() {
   if (!active) return;
@@ -120,7 +122,7 @@ async function connect(m, el) {
     status.textContent = 'Lade Anzeige …';
     const { default: RFB } = await import('/vendor/novnc/core/rfb.js');
     const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${s.ws_path}`;
-    const rfb = new RFB(screen, url, { credentials: s.password ? { password: s.password } : undefined, wsProtocols: ['binary'] });
+    const rfb = new RFB(screen, url, { credentials: s.password && !skipStored.has(m.id) ? { password: s.password } : undefined, wsProtocols: ['binary'] });
     rfb.scaleViewport = true;
     rfb.resizeSession = false;
     rfb.background = '#000';
@@ -132,10 +134,28 @@ async function connect(m, el) {
       $('#rd-connect', el).disabled = false;
       toast(e.detail?.clean ? 'Verbindung beendet' : 'Verbindung getrennt', e.detail?.clean ? 'info' : 'error');
     });
-    rfb.addEventListener('securityfailure', () => toast('Anmeldung am VNC-Server abgelehnt – Passwort prüfen („Passwort hinterlegen“)', 'error'));
-    rfb.addEventListener('credentialsrequired', async () => {
-      const r = await formModal({ title: 'VNC-Passwort', submitLabel: 'Anmelden', bodyHtml: `<p class="muted text-sm">Für „${esc(m.name)}“ ist kein Passwort hinterlegt. Hinterlege es über „Passwort“, dann entfällt diese Abfrage.</p><label>Passwort <input type="password" name="password" autocomplete="off" required autofocus></label>` });
-      if (r) { closeModal(); rfb.sendCredentials({ password: r.data.password }); } else disconnect();
+    rfb.addEventListener('securityfailure', (e) => {
+      const reason = e.detail?.reason;
+      toast(reason ? `VNC-Server lehnt die Anmeldung ab: ${reason}` : 'Anmeldung am VNC-Server abgelehnt – Passwort prüfen („Passwort“ oben)', 'error');
+      skipStored.add(m.id); // das hinterlegte Passwort passt offenbar nicht: beim nächsten Versuch nachfragen
+    });
+    rfb.addEventListener('credentialsrequired', async (e) => {
+      const types = e.detail?.types ?? ['password'];
+      const r = await formModal({
+        title: 'Anmeldung am VNC-Server',
+        submitLabel: 'Anmelden',
+        bodyHtml: `<p class="muted text-sm">${skipStored.has(m.id) ? 'Das hinterlegte Passwort wurde abgelehnt. ' : 'Für „' + esc(m.name) + '“ ist kein Passwort hinterlegt. '}Gib die Zugangsdaten des VNC-Servers ein. Mit „Merken“ wird das Passwort verschlüsselt im Vault abgelegt (kein Benutzername).</p>
+          ${types.includes('username') ? '<label>Benutzername <input type="text" name="username" autocomplete="off" required autofocus></label>' : ''}
+          <label>Passwort <input type="password" name="password" autocomplete="off" required ${types.includes('username') ? '' : 'autofocus'}></label>
+          <label class="toggle"><input type="checkbox" role="switch" name="remember" value="1"><span class="track"></span>Merken</label>`,
+      });
+      if (!r) { disconnect(); return; }
+      closeModal();
+      const creds = { password: r.data.password };
+      if (types.includes('username')) creds.username = r.data.username;
+      if (types.includes('target')) creds.target = '';
+      if (r.data.remember) { try { await put(`/api/machines/${m.id}/remote/password`, { password: r.data.password }); skipStored.delete(m.id); } catch { /* nicht kritisch */ } }
+      rfb.sendCredentials(creds);
     });
     rfb.addEventListener('clipboard', (e) => { navigator.clipboard?.writeText(e.detail.text).catch(() => {}); });
     $('#rd-cad', el).onclick = () => rfb.sendCtrlAltDel();
@@ -183,6 +203,7 @@ export function remoteTab(el, m, _inv, reload) {
           ['Port', r?.vnc.port ? String(r.vnc.port) : null],
           ['Software', r?.vnc.software],
           ['Erreichbarkeit', running ? html(r.vnc.local_only === true ? badge('Nur lokal (gut)', 'ok') : r.vnc.local_only === false ? badge('Auch im Netzwerk', 'warn') : '<span class="muted">unbekannt</span>') : null],
+          ['Hinweis', r?.vnc.loopback_blocked ? html('<span class="muted">Der VNC-Server verweigert localhost – DevDeck verbindet über die Netzwerkadresse der Maschine.</span>') : null],
           ['Passwort', html(m.remote_password_set ? badge('Hinterlegt', 'ok') : '<span class="muted">nicht hinterlegt – wird beim Verbinden abgefragt</span>')],
           ['Zuletzt geprüft', r ? fmtDate(r.checked_at) : null],
         ])}

@@ -1,6 +1,6 @@
 import net from 'node:net';
 import { AppError } from '@devdeck/shared';
-import { VNC_PORT_MAX, VNC_PORT_MIN } from './remote.js';
+import { VNC_PORT_MAX, VNC_PORT_MIN, chooseVncHost } from './remote.js';
 import { log } from './logger.js';
 
 const MAX_LIFETIME_MS = 12 * 60 * 60_000;
@@ -35,7 +35,8 @@ export async function openTunnel(opts: TunnelOptions): Promise<{ close(): void }
   }
 
   // 1) lokal verbinden und die RFB-Begrüßung abwarten (der VNC-Server spricht zuerst)
-  const socket = net.connect({ host: '127.0.0.1', port: opts.port });
+  const host = await chooseVncHost(opts.port); // normalerweise 127.0.0.1, bei gesperrtem localhost die eigene Netzwerkadresse
+  const socket = net.connect({ host, port: opts.port });
   socket.setNoDelay(true);
   const first = await new Promise<Buffer>((resolve, reject) => {
     const timer = setTimeout(() => { socket.destroy(); reject(new AppError('VALIDATION', `Auf Port ${opts.port} antwortet kein VNC-Server`)); }, 5000);

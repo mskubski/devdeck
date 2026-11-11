@@ -1,6 +1,6 @@
 import net from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
-import { detectRemote, generateVncPassword, planInstall, probeVnc, softwareFromProcesses, windowsInstallArgs, x11vncUnit, type Runner } from '../src/remote.js';
+import { chooseVncHost, detectRemote, generateVncPassword, ownAddresses, preflightVnc, planInstall, probeVnc, softwareFromProcesses, windowsInstallArgs, x11vncUnit, type Runner } from '../src/remote.js';
 import { openTunnel } from '../src/remoteTunnel.js';
 
 const servers: net.Server[] = [];
@@ -10,7 +10,7 @@ afterEach(async () => {
 
 function listen(onConn: (s: net.Socket) => void): Promise<number> {
   return new Promise((resolve) => {
-    const s = net.createServer(onConn);
+    const s = net.createServer((c) => { c.on("error", () => undefined); c.resume(); onConn(c); });
     servers.push(s);
     s.listen(0, '127.0.0.1', () => resolve((s.address() as net.AddressInfo).port));
   });
@@ -49,6 +49,44 @@ describe('VNC-Erkennung (Agent)', () => {
     expect(softwareFromProcesses(['Xtigervnc'])).toBe('TigerVNC');
     expect(softwareFromProcesses(['screensharingd'])).toBe('macOS Bildschirmfreigabe');
     expect(softwareFromProcesses(['node', 'bash'])).toBeNull();
+  });
+});
+
+describe('VNC-Server, der localhost verweigert (TightVNC-Standard)', () => {
+  /** Meldet sich mit RFB, verweigert aber Verbindungen von 127.0.0.1 wie TightVNC ohne „Loopback zulassen“. */
+  const strict = (): Promise<number> =>
+    new Promise((resolve) => {
+      const s = net.createServer((c) => {
+        c.write('RFB 003.008\n');
+        c.on('data', () => undefined);
+        c.once('data', () => {
+          const loop = c.remoteAddress === '127.0.0.1' || c.remoteAddress === '::ffff:127.0.0.1';
+          if (loop) {
+            const msg = Buffer.from('Sorry, loopback connections are not enabled');
+            const head = Buffer.alloc(5);
+            head.writeUInt32BE(0, 0);
+            head[4] = 0;
+            const len = Buffer.alloc(4);
+            len.writeUInt32BE(msg.length, 0);
+            c.write(Buffer.concat([Buffer.from([0]), len, msg]));
+          } else c.write(Buffer.from([1, 2]));
+        });
+        c.on('error', () => undefined);
+      });
+      servers.push(s);
+      s.listen(0, '0.0.0.0', () => resolve((s.address() as net.AddressInfo).port));
+    });
+
+  it('erkennt die Sperre und weicht auf die eigene Netzwerkadresse aus (falls vorhanden)', async () => {
+    const port = await strict();
+    expect(await preflightVnc('127.0.0.1', port)).toBe('blocked');
+    const ok = await vncServer();
+    expect(await preflightVnc('127.0.0.1', ok, 400)).toBe('ok'); // meldet sich, antwortet aber nicht: kein Hinweis auf eine Sperre
+    const detected = await detectRemote(noRunner, [port]);
+    expect(detected.vnc.loopback_blocked).toBe(true);
+    const addrs = ownAddresses();
+    if (addrs.length) expect(addrs).toContain(await chooseVncHost(port));
+    else await expect(chooseVncHost(port)).rejects.toThrow(/verweigert/);
   });
 });
 

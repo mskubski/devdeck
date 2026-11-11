@@ -143,6 +143,8 @@ export interface MachineRemote {
     software: string | null;
     /** true: nur lokal erreichbar (gut, DevDeck tunnelt es); false: auch im Netzwerk erreichbar; null: unbekannt */
     local_only: boolean | null;
+    /** Der VNC-Server verweigert localhost (z. B. TightVNC ohne „Loopback zulassen“); DevDeck verbindet dann über die Netzwerkadresse der Maschine */
+    loopback_blocked?: boolean | null;
   };
   install: {
     /** Der Agent kann einen VNC-Server selbst einrichten */

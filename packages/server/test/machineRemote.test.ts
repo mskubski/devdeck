@@ -50,7 +50,7 @@ describe('Fernzugriff (VNC-Tunnel über den DevDeck-Server)', () => {
     expect((await machine()).remote).toBeNull();
     await beat({ remote: { ...remote(), evil: 'x', vnc: { running: true, port: 5901, software: 'x11vnc', local_only: false, extra: 1 } } });
     const m = await machine();
-    expect(m.remote.vnc).toEqual({ running: true, port: 5901, software: 'x11vnc', local_only: false });
+    expect(m.remote.vnc).toEqual({ running: true, port: 5901, software: 'x11vnc', local_only: false, loopback_blocked: null });
     expect(m.agent_can_remote).toBe(true);
     expect(m.remote_password_set).toBe(false);
     await beat({ remote: { vnc: { running: 'ja' } } }); // ungültig → ignoriert

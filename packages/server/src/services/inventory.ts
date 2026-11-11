@@ -163,7 +163,7 @@ export function sanitizeRemote(raw: unknown): MachineRemote | null {
   const bool = (v: unknown): boolean | null => (typeof v === 'boolean' ? v : null);
   return {
     checked_at: text(r.checked_at, 40) ?? new Date().toISOString(),
-    vnc: { running: r.vnc.running, port, software: text(r.vnc.software, 60), local_only: bool(r.vnc.local_only) },
+    vnc: { running: r.vnc.running, port, software: text(r.vnc.software, 60), local_only: bool(r.vnc.local_only), loopback_blocked: bool(r.vnc.loopback_blocked) },
     install: { possible: r.install?.possible === true, method: text(r.install?.method, 160), reason: text(r.install?.reason, 400) },
     env: {
       session: text(r.env?.session, 20),
