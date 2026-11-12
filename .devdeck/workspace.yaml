@@ -1,0 +1,11 @@
+version: 1
+project:
+  name: DevDeck
+runtime:
+  node: "22"
+  npm: "10"
+package_manager:
+  type: npm
+  install: npm ci
+tools:
+  - git

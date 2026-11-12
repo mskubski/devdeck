@@ -17,6 +17,10 @@ vault.key
 agent.json
 devdeck.config.json
 
+# Generierter DevDeck-Kontext (nur das Manifest ist versioniert)
+.devdeck/*
+!.devdeck/workspace.yaml
+
 # Logs & OS
 *.log
 npm-debug.log*
