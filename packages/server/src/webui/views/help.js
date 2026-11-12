@@ -282,6 +282,9 @@ npm run build</pre>
         <p><strong>Sicherheitshinweis in der Kopfleiste:</strong> Gibt es auf einer Maschine, auf die du Zugriff hast, ausstehende <em>sicherheitsrelevante</em> Updates (kritisch oder Sicherheit), erscheint ganz oben ein Schild-Symbol mit der Anzahl der betroffenen Maschinen
         (rot, wenn kritische dabei sind). Ein Klick listet die Maschinen; ein Eintrag öffnet direkt deren Tab <em>Patches</em>. Die Anzeige verschwindet, sobald die Updates installiert sind.</p>
 
+        <h3>Pushen: lokale Commits nach GitHub</h3>
+        <p>Im Tab <strong>Workspaces</strong> pusht <strong>Pushen</strong> (Maintainer/Owner/Admin) die lokalen Commits der Maschine nach GitHub – ein normaler Push, nie Force. Er ist hervorgehoben, wenn Commits zu pushen sind (z. B. Selbstheilungs-Commits auf einem Server). Auf der Maschine brauchst du Zugangsdaten mit Schreibrecht (Deploy-Key oder Token).
+        Hat GitHub neuere Commits, zuerst <em>Sync</em> (bei Abweichung <em>Zusammenführen &amp; syncen</em>), dann pushen. Voraussetzung: Agent ab 0.19.2.</p>
         <h3>Remote: Bildschirm der Maschine im Browser</h3>
         <p>Auf der Detailseite einer Maschine zeigt der Tab <strong>Remote</strong>, ob dort ein VNC-Server läuft (Port, Software, ob er nur lokal oder auch im Netzwerk erreichbar ist) und öffnet mit <strong>Verbinden</strong> den Bildschirm direkt in DevDeck – mit
         Strg+Alt+Entf, Einfügen aus der Zwischenablage und Vollbild. Der Agent baut die Verbindung <em>ausgehend</em> zum Server auf; es muss kein Port auf der Maschine freigegeben werden. Zugriff haben nur Besitzer und Admins, jede Sitzung steht im Audit-Log (nie die Inhalte).</p>

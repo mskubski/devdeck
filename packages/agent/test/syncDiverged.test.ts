@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { pullFFOnly } from '../src/git.js';
+import { pullFFOnly, pushCurrentBranch } from '../src/git.js';
 
 const g = (cwd: string, ...args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', env: { ...process.env, LC_ALL: 'C' } }).trim();
 
@@ -40,6 +40,31 @@ describe('Sync bei abgewichenem Branch (Agent)', () => {
     g(b, 'config', 'user.name', 'Test');
   });
   afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
+
+  it('Push: lokale Commits landen auf dem Remote (normaler Push)', async () => {
+    commit(b, 'lokal.txt', 'x\n', 'Selbstheilung');
+    await pushCurrentBranch(b);
+    expect(g(bare, 'log', '-1', '--format=%s', 'main')).toBe('Selbstheilung');
+  });
+
+  it('Push abgelehnt, wenn GitHub neuere Commits hat: klare Meldung, Remote unverändert (kein Force)', async () => {
+    commit(b, 'lokal.txt', 'x\n', 'Nur auf dem Server');
+    commit(a, 'neu.txt', 'n\n', 'Vom Arbeits-PC');
+    g(a, 'push', '-q');
+    const remoteHead = g(bare, 'rev-parse', 'main');
+    const err = await pushCurrentBranch(b).then(() => null, (e: Error) => e);
+    expect(err!.message).toContain('Push abgelehnt');
+    expect(err!.message).toContain('Sync');
+    expect(g(bare, 'rev-parse', 'main')).toBe(remoteHead);
+  });
+
+  it('Push ohne Tracking-Branch legt ihn an', async () => {
+    g(b, 'checkout', '-q', '-b', 'feature');
+    commit(b, 'f.txt', 'f\n', 'Feature');
+    await pushCurrentBranch(b);
+    expect(g(bare, 'log', '-1', '--format=%s', 'feature')).toBe('Feature');
+    expect(g(b, 'rev-parse', '--abbrev-ref', '@{u}')).toBe('origin/feature');
+  });
 
   it('lokal nur voraus (nichts Neues auf dem Remote): kein Fehler', async () => {
     commit(b, 'lokal.txt', 'x\n', 'nur lokal');

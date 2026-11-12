@@ -194,6 +194,7 @@ export async function renderWorkspaces(el, project) {
         ${canManage ? `
           <button class="btn ghost sm" data-check="${w.id}" title="Nur prüfen (Git-Zustand, Voraussetzungen) – ändert nichts">Prüfen</button>
           <button class="btn ghost sm" data-sync="${w.id}">Sync</button>
+          ${roleAtLeast(project.role, 'maintainer') ? `<button class="btn ${w.git_state?.ahead > 0 ? '' : 'ghost'} sm" data-push="${w.id}" data-ahead="${w.git_state?.ahead ?? 0}" data-branch="${esc(w.git_state?.branch ?? w.branch ?? '')}" title="Lokale Commits nach GitHub pushen (normaler Push, nie Force)">${icon('upload', { size: 14 })}<span>Pushen${w.git_state?.ahead > 0 ? ` (${w.git_state.ahead})` : ''}</span></button>` : ''}
           ${roleAtLeast(project.role, 'maintainer') ? `<button class="btn ghost sm" data-import="${w.id}">Importieren</button>` : ''}
           <button class="btn ghost sm" data-provision="${w.id}">Provision</button>
           ${roleAtLeast(project.role, 'maintainer') ? `<button class="btn ghost sm" data-deploy="${w.id}" data-path="${esc(w.local_path)}" title="Neuesten Stand holen und die Dienste dieses Workspaces neu starten">Deploy</button>` : ''}
@@ -302,6 +303,25 @@ export async function renderWorkspaces(el, project) {
           await run('merge');
           toast('Zusammengeführt und synchronisiert', 'success');
         }
+        renderWorkspaces(el, project);
+      } catch (err) { toast(err.message, 'error'); }
+    });
+  }
+  for (const btn of $$('[data-push]', el)) {
+    btn.addEventListener('click', async () => {
+      const ahead = Number(btn.dataset.ahead) || 0;
+      const ok = await confirmModal({
+        title: 'Nach GitHub pushen',
+        message: `${ahead ? `${ahead} lokale Commit(s)` : 'Die lokalen Commits'} von „${btn.dataset.branch || 'dem aktuellen Branch'}“ werden normal nach GitHub gepusht (nie Force, nichts wird überschrieben). Auf der Maschine müssen dafür Zugangsdaten mit Schreibrecht eingerichtet sein.`,
+        confirmLabel: 'Pushen',
+        danger: false,
+      });
+      if (!ok) return;
+      try {
+        const { command_id } = await post(`/api/workspaces/${btn.dataset.push}/push`);
+        toast('Push läuft …', 'info');
+        await waitForCommand(btn.dataset.push, command_id);
+        toast('Gepusht', 'success');
         renderWorkspaces(el, project);
       } catch (err) { toast(err.message, 'error'); }
     });

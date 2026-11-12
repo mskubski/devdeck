@@ -147,6 +147,10 @@ Every project has the same tabs; together they are the project's memory and are 
 | Integrations | Connectors to external services (GitHub first); the token lives in the vault | maintainer |
 | Sync log | History of sync, provision and deploy jobs with errors | – |
 
+### Push from a workspace
+
+The Workspaces tab has a **Push** button (maintainer/owner/admin) that pushes a machine's local commits to GitHub (plain push, never force; agent 0.19.2). It reports clearly when GitHub has newer commits, the branch is protected, or the machine has no write credentials.
+
 ### Remote desktop
 
 The machine page has a **Remote** tab that shows the machine's screen in the browser (VNC via noVNC, Windows and Linux; macOS via Screen Sharing). The agent opens an *outbound* WebSocket to the server and tunnels the local VNC port (5900–5999 only, the service must answer with an RFB banner), so no inbound ports are needed. Access requires the machine owner or an admin; every session is audited (duration and bytes, never content); the VNC password is stored encrypted in the vault and never shown. The agent detects running VNC servers hourly and can install one (Windows: TightVNC via winget when elevated; Linux: x11vnc as a user service on X11 desktops, localhost only); otherwise the tab shows copy-paste commands. Needs agent 0.19.0. noVNC (MPL-2.0) is served from the `@novnc/novnc` npm package.
