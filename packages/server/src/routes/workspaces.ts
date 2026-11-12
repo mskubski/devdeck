@@ -95,7 +95,7 @@ export function workspaceRoutes(ctx: AppContext): Router {
   // Command an die Maschine eines Workspaces schicken
   function enqueueForWorkspace(
     workspace: WorkspaceRow,
-    action: 'workspace.sync' | 'workspace.provision' | 'workspace.deploy' | 'project.import' | 'workspace.status',
+    action: 'workspace.sync' | 'workspace.push' | 'workspace.provision' | 'workspace.deploy' | 'project.import' | 'workspace.status',
     payload: Record<string, unknown>,
     requestedBy: string,
   ): string {
@@ -323,6 +323,33 @@ export function workspaceRoutes(ctx: AppContext): Router {
         target_id: ws.id,
         result: 'success',
         detail: { command_id: commandId, strategy: merge ? 'merge' : 'ff' },
+      });
+      res.status(202).json({ data: { command_id: commandId } });
+    }),
+  );
+
+  // Pushen: lokale Commits der Maschine nach GitHub (normaler Push, nie Force) – nach außen wirksam, daher Maintainer/Owner oder Admin
+  router.post(
+    '/workspaces/:id/push',
+    asyncHandler(async (req, res) => {
+      const ws = loadWorkspace(param(req, 'id')!);
+      const user = req.user!;
+      const role = db.get<{ role: string }>('SELECT role FROM project_members WHERE project_id = ? AND user_id = ?', ws.project_id, user.id);
+      if (user.system_role !== 'admin' && !['owner', 'maintainer'].includes(role?.role ?? '')) {
+        throw new AppError('FORBIDDEN', 'Pushen dürfen nur Maintainer, Owner oder Admin');
+      }
+      const commandId = enqueueForWorkspace(ws, 'workspace.push', {}, user.id);
+      audit(db, {
+        actor_type: 'user',
+        actor_id: user.id,
+        actor_label: user.email,
+        action: 'workspace.push.request',
+        project_id: ws.project_id,
+        machine_id: ws.machine_id,
+        target_type: 'workspace',
+        target_id: ws.id,
+        result: 'success',
+        detail: { command_id: commandId },
       });
       res.status(202).json({ data: { command_id: commandId } });
     }),

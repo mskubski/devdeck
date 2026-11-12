@@ -216,3 +216,34 @@ async function mergeUpstream(cwd: string, upstreamRef: string): Promise<{ update
   const files = conflicts.stdout.split('\n').filter(Boolean).slice(0, 10);
   throw new AppError('GIT_CONFLICT', `Zusammenführen abgebrochen – Konflikte in: ${files.join(', ') || '(unbekannt)'}. Es wurde nichts verändert; bitte auf der Maschine von Hand lösen.`);
 }
+
+/** Fehler eines abgelehnten/fehlgeschlagenen Pushs verständlich machen. */
+export function pushError(result: GitResult): AppError {
+  const err = `${result.stderr}\n${result.stdout}`;
+  const low = err.toLowerCase();
+  if (low.includes('gh006') || low.includes('protected branch')) {
+    return new AppError('GIT_CONFLICT', 'Push abgelehnt: Der Branch ist auf GitHub geschützt – direkt pushen ist nicht erlaubt (Pull Request nötig).');
+  }
+  if (low.includes('non-fast-forward') || low.includes('fetch first') || low.includes('[rejected]') || low.includes('failed to push some refs')) {
+    return new AppError('GIT_CONFLICT', 'Push abgelehnt: Auf GitHub gibt es neuere Commits. Bitte zuerst „Sync“ (bei abgewichenem Branch „Zusammenführen & syncen“) und danach erneut pushen.');
+  }
+  if (low.includes('authentication failed') || low.includes('could not read username') || low.includes('permission denied') || low.includes('publickey') || low.includes('403') || low.includes('denied to')) {
+    return new AppError('GIT_UNREACHABLE', 'Push nicht erlaubt: Auf dieser Maschine fehlen Zugangsdaten mit Schreibrecht für GitHub (Deploy-Key mit Schreibrecht oder Token einrichten).');
+  }
+  if (low.includes('could not resolve host') || low.includes('unable to access') || low.includes('connection refused') || low.includes('network is unreachable')) {
+    return new AppError('GIT_UNREACHABLE', 'GitHub nicht erreichbar beim Push.');
+  }
+  return new AppError('GIT_UNREACHABLE', `Git-Fehler bei push: ${result.stderr.trim().slice(0, 300)}`);
+}
+
+/**
+ * Pusht den aktuellen Branch nach origin – nie Force. Mit Tracking-Branch ein einfaches `git push`,
+ * sonst wird der Tracking-Branch mit `-u origin HEAD` angelegt. Fragt nie interaktiv nach Zugangsdaten.
+ */
+export async function pushCurrentBranch(cwd: string): Promise<void> {
+  const noPrompt = { GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', GIT_SSH_COMMAND: process.env.GIT_SSH_COMMAND ?? 'ssh -o BatchMode=yes' };
+  const upstream = await git(cwd, ['rev-parse', '--abbrev-ref', '@{u}']);
+  const args = upstream.code === 0 ? ['push'] : ['push', '-u', 'origin', 'HEAD'];
+  const res = await git(cwd, args, 90_000, noPrompt);
+  if (res.code !== 0) throw pushError(res);
+}

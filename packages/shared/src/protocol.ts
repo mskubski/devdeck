@@ -4,6 +4,7 @@
 export const AGENT_ACTIONS = [
   'workspace.status',
   'workspace.sync',
+  'workspace.push',
   'workspace.provision',
   'workspace.deploy',
   'context.refresh',
@@ -30,7 +31,7 @@ export const AGENT_ACTIONS = [
 ] as const;
 
 /** Aktuelle Agent-Version; ältere Agenten kennen neuere Aktionen nicht und gelten als veraltet. */
-export const CURRENT_AGENT_VERSION = '0.19.1';
+export const CURRENT_AGENT_VERSION = '0.19.2';
 
 function versionParts(v: string): number[] {
   return v.split('.').map((p) => Number.parseInt(p, 10) || 0);
@@ -70,6 +71,7 @@ export const MIN_AGENT_VERSION_FOR_ACTION: Partial<Record<string, string>> = {
   'remote.detect': '0.19.0',
   'remote.install': '0.19.0',
   'remote.open': '0.19.0',
+  'workspace.push': '0.19.2',
 };
 
 export function agentSupportsAction(version: string | null | undefined, action: string): boolean {

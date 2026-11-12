@@ -98,6 +98,24 @@ describe('Phase C: Workspace Registry (Server)', () => {
     expect((await srv.request('POST', `/api/workspaces/${wsId}/sync`, { cookie: vcookie })).status).toBe(202);
   });
 
+  it('Pushen: nur Maintainer/Owner/Admin, braucht einen neuen Agent; Auftrag wird eingereiht', async () => {
+    const wsId = await registerWorkspace();
+    const old = await srv.request('POST', `/api/workspaces/${wsId}/push`, { cookie });
+    expect(old.status).toBe(400);
+    expect(old.body.error.message).toContain('Version');
+    srv.ctx.db.run(`UPDATE machines SET agent_version = '0.19.2' WHERE id = ?`, machineId);
+    const ok = await srv.request('POST', `/api/workspaces/${wsId}/push`, { cookie });
+    expect(ok.status).toBe(202);
+    const poll = await srv.request('GET', '/api/agent/commands?wait=0', { token: machineToken });
+    expect(poll.body.data.find((c: any) => c.action === 'workspace.push').payload.workspace_id).toBe(wsId);
+    await srv.request('POST', '/api/users', { cookie, body: { email: 'dev2@devdeck.test', password: 'dev2-pass-1234', system_role: 'developer' } });
+    const dcookie = await srv.login('dev2@devdeck.test', 'dev2-pass-1234');
+    await srv.request('POST', `/api/projects/${projectId}/members`, { cookie, body: { email: 'dev2@devdeck.test', role: 'developer' } });
+    expect((await srv.request('POST', `/api/workspaces/${wsId}/push`, { cookie: dcookie })).status).toBe(403);
+    const log = await srv.request('GET', `/api/projects/${projectId}/sync-log`, { cookie });
+    expect(log.body.data.some((e: any) => e.action === 'workspace.push')).toBe(true);
+  });
+
   it('Sync-Log zeigt Fehler und setzt last_sync_at nur bei Erfolg', async () => {
     const wsId = await registerWorkspace();
     const first = await srv.request('POST', `/api/workspaces/${wsId}/sync`, { cookie });
