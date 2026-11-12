@@ -43,7 +43,15 @@ export async function renderProjectDetail(el, idAndQuery, setBreadcrumb) {
   el.innerHTML = `
     <div class="page-head">
       <div>
-        <h1>${esc(project.name)} ${badge(project.role || 'member', 'accent')}</h1>
+        <div class="title-row">
+          <div class="menu-wrap">
+            <button class="btn ghost icon-only" id="project-menu-btn" type="button" aria-haspopup="true" aria-expanded="false" title="Alle Bereiche des Projekts" aria-label="Projektmenü">${icon('menu', { size: 18 })}</button>
+            <div class="menu-pop hidden" id="project-menu" role="menu">
+              ${TABS.map((t) => `<button class="menu-item ${t.key === activeTab ? 'active' : ''}" role="menuitem" data-tab="${t.key}">${icon(t.icon, { size: 16 })}<span>${t.label}</span></button>`).join('')}
+            </div>
+          </div>
+          <h1>${esc(project.name)} ${badge(project.role || 'member', 'accent')}</h1>
+        </div>
         <p class="lede">${esc(project.description || 'Keine Beschreibung hinterlegt.')}</p>
       </div>
       ${canEdit ? `<div class="page-actions"><button class="btn ghost sm" id="btn-edit-project">Bearbeiten</button>${canDelete ? `<button class="btn ghost sm danger" id="btn-delete-project">${icon('trash', { size: 16 })}<span>Löschen</span></button>` : ''}</div>` : ''}
@@ -62,6 +70,22 @@ export async function renderProjectDetail(el, idAndQuery, setBreadcrumb) {
       location.hash = `#/projects/${id}?tab=${btn.dataset.tab}`;
     });
   }
+
+  // Menü mit allen Bereichen (statt Scrollen in der Tab-Leiste); die Leiste bleibt zusätzlich bestehen
+  const menuBtn = $('#project-menu-btn', el);
+  const menu = $('#project-menu', el);
+  const closeMenu = () => { menu.classList.add('hidden'); menuBtn.setAttribute('aria-expanded', 'false'); };
+  menuBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = menu.classList.toggle('hidden') === false;
+    menuBtn.setAttribute('aria-expanded', String(open));
+  });
+  menu.addEventListener('click', (e) => e.stopPropagation());
+  const onDocClick = () => { if (document.body.contains(menu)) closeMenu(); else document.removeEventListener('click', onDocClick); };
+  document.addEventListener('click', onDocClick);
+  el.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeMenu(); menuBtn.focus(); } });
+  // aktiven Tab in der Leiste sichtbar machen
+  $('#project-tabs .tab.active', el)?.scrollIntoView({ block: 'nearest', inline: 'center' });
 
   $('#btn-delete-project', el)?.addEventListener('click', () => projectDeleteModal(project, () => { location.hash = '#/projects'; }));
 

@@ -372,6 +372,19 @@ td.actions { white-space: nowrap; text-align: right; }
 .tab:hover { color: var(--text); }
 .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
+/* Projektmenü (alle Bereiche als Liste) */
+.title-row { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.title-row h1 { margin: 0; }
+.menu-wrap { position: relative; }
+.menu-pop {
+  position: absolute; z-index: 50; top: calc(100% + 6px); left: 0; min-width: 230px; max-height: 70vh; overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-md, 0 8px 24px rgba(0,0,0,.18)); padding: var(--space-2);
+}
+.menu-pop.hidden { display: none; }
+.menu-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border: 0; background: transparent; color: var(--text); font-size: var(--fs-sm); text-align: left; border-radius: var(--radius-sm); cursor: pointer; }
+.menu-item:hover { background: var(--panel-hover); }
+.menu-item.active { color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+
 /* ---------- Links ---------- */
 a.link { color: var(--accent); cursor: pointer; text-decoration: none; }
 a.link:hover { text-decoration: underline; }
