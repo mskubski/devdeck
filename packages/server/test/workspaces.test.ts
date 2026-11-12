@@ -84,6 +84,20 @@ describe('Phase C: Workspace Registry (Server)', () => {
     expect(sync.payload.workspace_id).toBe(wsId);
   });
 
+  it('Sync mit Zusammenführen: Strategie landet im Auftrag; Viewer dürfen das nicht', async () => {
+    const wsId = await registerWorkspace();
+    expect((await srv.request('POST', `/api/workspaces/${wsId}/sync`, { cookie, body: { strategy: 'merge' } })).status).toBe(202);
+    const poll = await srv.request('GET', '/api/agent/commands?wait=0', { token: machineToken });
+    expect(poll.body.data.find((c: any) => c.action === 'workspace.sync').payload.strategy).toBe('merge');
+    const viewer = await srv.request('POST', '/api/users', { cookie, body: { email: 'v@devdeck.test', password: 'viewer-pass-123', system_role: 'developer' } });
+    expect(viewer.status).toBeLessThan(300);
+    const vcookie = await srv.login('v@devdeck.test', 'viewer-pass-123');
+    await srv.request('POST', `/api/projects/${projectId}/members`, { cookie, body: { email: 'v@devdeck.test', role: 'viewer' } });
+    const denied = await srv.request('POST', `/api/workspaces/${wsId}/sync`, { cookie: vcookie, body: { strategy: 'merge' } });
+    expect(denied.status).toBe(403);
+    expect((await srv.request('POST', `/api/workspaces/${wsId}/sync`, { cookie: vcookie })).status).toBe(202);
+  });
+
   it('Sync-Log zeigt Fehler und setzt last_sync_at nur bei Erfolg', async () => {
     const wsId = await registerWorkspace();
     const first = await srv.request('POST', `/api/workspaces/${wsId}/sync`, { cookie });

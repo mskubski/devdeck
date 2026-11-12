@@ -22,7 +22,8 @@ export async function git(
     const { stdout, stderr } = await exec('git', args, {
       cwd,
       timeout: timeoutMs,
-      ...(env ? { env: { ...process.env, ...env } } : {}),
+      // Meldungen immer englisch, damit die Fehlererkennung auf deutschen/anderssprachigen Systemen greift
+      env: { ...process.env, LC_ALL: 'C', LANGUAGE: 'C', ...(env ?? {}) },
       windowsHide: true,
       maxBuffer: 10 * 1024 * 1024,
     });
@@ -157,15 +158,61 @@ export async function clone(url: string, targetDir: string, branch?: string | nu
   }
 }
 
-/** Nur Fast-Forward – niemals reset/stash/clean (Spezifikation §10). */
-export async function pullFFOnly(cwd: string): Promise<{ updated: boolean }> {
+export type SyncStrategy = 'ff' | 'merge';
+
+/** Fehlertext für abgewichene Branches; beginnt immer mit „Branch abgewichen“ (die Oberfläche bietet dann das Zusammenführen an). */
+export function divergedMessage(ahead: number, behind: number, localOnly: string[]): string {
+  const shown = localOnly.slice(0, 5).map((l) => `„${l}“`).join(', ');
+  return `Branch abgewichen: ${ahead} lokale Commit(s), die nicht auf dem Remote sind, und ${behind} neue Commit(s) auf dem Remote – ein reines Vorspulen (Fast-Forward) ist nicht möglich. `
+    + `Lokal nur: ${shown}${localOnly.length > 5 ? ' …' : ''}. Es wurde nichts verändert. `
+    + 'Lösung: „Zusammenführen & syncen“ (Merge, nie ein Überschreiben) oder die lokalen Commits auf der Maschine pushen/rebasen.';
+}
+
+/**
+ * Remote-Stand holen und den Workspace aktualisieren – niemals reset/stash/clean (Spezifikation §10).
+ * 'ff': nur Fast-Forward; weichen lokaler und Remote-Branch ab, gibt es einen klaren Fehler samt den lokalen Commits.
+ * 'merge': nur auf ausdrücklichen Wunsch – führt den Remote-Stand per Merge-Commit hinein; bei Konflikten wird abgebrochen und nichts verändert.
+ */
+export async function pullFFOnly(cwd: string, strategy: SyncStrategy = 'ff'): Promise<{ updated: boolean; merged?: boolean }> {
   // Ohne Tracking-Branch gibt es nichts zu holen – kein Fehler.
   const upstream = await git(cwd, ['rev-parse', '--abbrev-ref', '@{u}']);
   if (upstream.code !== 0) return { updated: false };
+  const upstreamRef = upstream.stdout.trim();
 
   const fetchRes = await git(cwd, ['fetch', '--all', '--prune']);
   if (fetchRes.code !== 0) throw gitError(fetchRes, 'fetch');
+
+  const counts = await git(cwd, ['rev-list', '--left-right', '--count', `HEAD...${upstreamRef}`]);
+  const [aheadStr, behindStr] = counts.code === 0 ? counts.stdout.trim().split(/\s+/) : [];
+  const ahead = Number.parseInt(aheadStr ?? '', 10);
+  const behind = Number.parseInt(behindStr ?? '', 10);
+
+  if (Number.isFinite(ahead) && Number.isFinite(behind)) {
+    if (behind === 0) return { updated: false }; // nichts Neues (lokal höchstens voraus)
+    if (ahead > 0) {
+      if (strategy !== 'merge') {
+        const log = await git(cwd, ['log', '--format=%h %s', '--max-count=10', `${upstreamRef}..HEAD`]);
+        throw new AppError('GIT_CONFLICT', divergedMessage(ahead, behind, log.stdout.split('\n').filter(Boolean)));
+      }
+      return mergeUpstream(cwd, upstreamRef);
+    }
+  }
   const pullRes = await git(cwd, ['pull', '--ff-only']);
   if (pullRes.code === 0) return { updated: true };
   throw gitError(pullRes, 'pull --ff-only');
+}
+
+/** Merge des Upstreams; fehlt eine Git-Identität, wird nur für diesen Commit eine neutrale gesetzt. Bei Konflikten: abbrechen. */
+async function mergeUpstream(cwd: string, upstreamRef: string): Promise<{ updated: boolean; merged: boolean }> {
+  const name = await git(cwd, ['config', 'user.name']);
+  const email = await git(cwd, ['config', 'user.email']);
+  const identity: Record<string, string> = {};
+  if (!name.stdout.trim()) Object.assign(identity, { GIT_AUTHOR_NAME: 'DevDeck', GIT_COMMITTER_NAME: 'DevDeck' });
+  if (!email.stdout.trim()) Object.assign(identity, { GIT_AUTHOR_EMAIL: 'devdeck@localhost', GIT_COMMITTER_EMAIL: 'devdeck@localhost' });
+  const res = await git(cwd, ['merge', '--no-ff', '--no-edit', upstreamRef], 120_000, identity);
+  if (res.code === 0) return { updated: true, merged: true };
+  const conflicts = await git(cwd, ['diff', '--name-only', '--diff-filter=U']);
+  await git(cwd, ['merge', '--abort']);
+  const files = conflicts.stdout.split('\n').filter(Boolean).slice(0, 10);
+  throw new AppError('GIT_CONFLICT', `Zusammenführen abgebrochen – Konflikte in: ${files.join(', ') || '(unbekannt)'}. Es wurde nichts verändert; bitte auf der Maschine von Hand lösen.`);
 }
