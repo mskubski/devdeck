@@ -44,7 +44,8 @@ export function createApp(ctx: AppContext): Express {
   }
 
   // Statische Web UI
-  app.use(express.static(config.webuiDir, { index: 'index.html', extensions: ['html'] }));
+  // Immer beim Server nachfragen (ETag): nach einem Update sehen alle sofort die neue Oberfläche statt einer zwischengespeicherten
+  app.use(express.static(config.webuiDir, { index: 'index.html', extensions: ['html'], setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache') }));
 
   // Zentraler Fehlerhandler (AppError → Envelope, sonst 500 ohne Stack)
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
