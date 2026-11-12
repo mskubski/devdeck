@@ -51,7 +51,7 @@ syncing source code through a file-sync service or a proprietary mechanism.
 
 - Multi-user, multi-project with roles (owner, maintainer, developer, viewer)
 - Machine enrollment and command queue between server and agents; per-machine detail page with an automatically collected inventory (disks, device, OS, security status, CPU, BIOS, memory modules, network connections for Windows/Linux/macOS) and an installed-software list (registry on Windows, dpkg/rpm/pacman/snap/flatpak on Linux, system_profiler/Homebrew on macOS) and a patch status (pending OS updates and outdated apps: Windows Update + winget, apt/dnf/checkupdates, softwareupdate/Homebrew; critical/security/update, reboot hint, recently installed updates) and the latest system error logs (Windows Event Log, journald/dmesg, macOS unified log and crash reports; critical/error only, kept 30 days, capped per machine) and free custom fields
-- Workspace registry, `workspace.yaml` manifest, provisioning, sync and readiness checks
+- Workspace registry, `workspace.yaml` manifest, provisioning, sync (with a safe merge when the branch diverged) and readiness checks, plus a one-click **Push** of a machine's local commits to GitHub
 - Per-workspace **Deploy** for software that runs on a machine (Linux, systemd user units): fast-forward to the branch, restart the services listed in `.devdeck/workspace.yaml`, health check, automatic rollback
 - Tasks, decisions, changelog, known issues and a project history timeline
 - Architecture map on the project dashboard: development machines → GitHub → hosting → database → external services (mail, Telegram, LLM providers, maps …) with descriptions and relations; detected automatically (env var names, hosts without credentials, dependencies, hosting files, SQLite sizes), described in a versioned `.devdeck/architecture.yaml` that Claude Code keeps up to date, and editable in the UI
@@ -61,6 +61,10 @@ syncing source code through a file-sync service or a proprietary mechanism.
 - `devdeck` CLI (status, sync, sessions, handovers, `env run`) and launchers for Claude Code / Codex (`devdeck claude`, `devdeck codex`)
 - System backups (database + encrypted vault) with verification, retention and a scheduler; restore is terminal-only by design
 - Project backups (Supabase DB + storage, PostgreSQL, SQLite, data folders) on any registered machine with auto-detection, schedule and retention; restore only with typed confirmation
+- **Backup replication** to a second machine (system backups and project jobs, retention mirrored)
+- **Monitoring** per project (websites/APIs, ports, services, machine, disk, patches, backups, integrations) with a green/yellow/red status and suggestions
+- **Remote desktop** in the browser (VNC via noVNC through an outbound agent tunnel; the agent can install a VNC server)
+- Install pending OS/app updates from a machine's Patches tab (never reboots) and a security-update alert in the top bar; installer script download per OS; agent autostart switch
 - Service connectors with vault-backed credentials (GitHub first)
 - Plain HTML/CSS/JS web UI – no frontend build step
 - Audit log for security-relevant actions
@@ -130,24 +134,27 @@ Off by default; turning it on asks for confirmation and creates at most 50 issue
 
 ### Project tabs
 
-Every project has the same tabs; together they are the project's memory and are partly fed into the generated coding context (`.devdeck/CONTEXT.md`, `CURRENT_STATE.md`, `CHANGELOG_RECENT.md`) that coding agents read at the start of a session.
+Every project has the same tabs (a menu icon left of the project name lists them all, so the tab bar needs no scrolling); together they are the project's memory and are partly fed into the generated coding context (`.devdeck/CONTEXT.md`, `CURRENT_STATE.md`, `CHANGELOG_RECENT.md`) that coding agents read at the start of a session.
 
 | Tab | Purpose | Write access |
 |---|---|---|
 | Overview | Key figures, project info, latest coding sessions and the architecture map | project edit: maintainer |
 | Members | Who has access, with which role (viewer, developer, maintainer, owner) | maintainer |
-| Tasks | Task list with priority 1–5 and status open → in progress → done (or cancelled); open tasks go into the coding context | maintainer |
+| Tasks | Task list with priority 1–5 and status open → in progress → done (or cancelled); open tasks go into the coding context; "Remove duplicates" cleans up repeated imports | maintainer |
 | Decisions | Log of important decisions with rationale, context and rejected alternative (architecture decision records): *proposed* → *accepted*/*rejected* → optionally *superseded*; the 15 newest accepted ones go into the coding context | propose: developer, rate: maintainer |
 | Changelog | Chronicle of changes (summary, optional version/details); manual, `devdeck changelog` or imported from `CHANGELOG.md` | developer |
 | Known Issues | Known unresolved problems with severity and open/resolved status; open ones go into the coding context | developer |
 | History | Read-only timeline across changelog, decisions, issues, tasks and sessions (latest 200 events) | – |
 | Sessions | Coding sessions with handovers; Claude Code sessions on registered workspaces appear automatically (metadata only) | developer |
 | Secrets | Encrypted vault entries per environment (development/staging/production) | maintainer |
-| Workspaces | Working copies on machines: check, sync, import, provision, deploy | developer (import/deploy/remove: maintainer) |
+| Workspaces | Working copies on machines: check, sync (merge when diverged), push, import, provision, deploy | developer (push/import/deploy/remove: maintainer) |
 | Integrations | Connectors to external services (GitHub first); the token lives in the vault | maintainer |
-| Sync log | History of sync, provision and deploy jobs with errors | – |
+| Backups / Backup log | Project backups and their history | maintainer / – |
+| Sync log | History of sync, push, provision and deploy jobs with errors (with a merge button for diverged branches) | – |
 
-### Push from a workspace
+### Sync and push from a workspace
+
+If a machine has local commits that are not on GitHub while GitHub has new ones, **Sync** stops with "Branch abgewichen" (listing the local commits, changing nothing); **Merge & sync** (maintainer/owner/admin, agent 0.19.1; on the Sync button and in the Sync log) merges the GitHub state in with a merge commit, aborting on conflicts and never pushing.
 
 The Workspaces tab has a **Push** button (maintainer/owner/admin) that pushes a machine's local commits to GitHub (plain push, never force; agent 0.19.2). It reports clearly when GitHub has newer commits, the branch is protected, or the machine has no write credentials.
 

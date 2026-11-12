@@ -77,6 +77,7 @@ export async function renderHelp(el) {
       body: `
         <p>Jedes Projekt hat dieselben Tabs. Sie bilden das „Gedächtnis“ des Projekts: Was ist geplant, was wurde entschieden, was ist kaputt, was ist passiert – und wo läuft die Arbeit. Vieles davon wird
         automatisch in den <strong>Coding-Kontext</strong> übernommen (Dateien in <code>.devdeck/</code>), den Claude Code und andere Coding-Agents zu Beginn einer Sitzung lesen – so wissen sie ohne Nachfragen, woran sie sind.</p>
+        <p><strong>Projektmenü:</strong> Links vom Projektnamen öffnet das Menü-Symbol eine Liste aller Bereiche – so musst du nicht in der Tab-Leiste scrollen. Die Leiste bleibt zusätzlich bestehen und scrollt zum aktiven Tab.</p>
         <table><thead><tr><th>Tab</th><th>Wofür?</th><th>Wer darf schreiben?</th></tr></thead><tbody>
           <tr><td><strong>Übersicht</strong></td><td>Kennzahlen (offene Tasks, laufende Sessions, Workspaces, Secrets), Projektinfo (Kennung, Repository, Standard-Branch), die letzten Coding Sessions und unten die <em>Architektur-Karte</em>.</td><td>Projekt bearbeiten: maintainer</td></tr>
           <tr><td><strong>Mitglieder</strong></td><td>Wer hat Zugriff und mit welcher Rolle (viewer, developer, maintainer, owner – siehe oben).</td><td>maintainer</td></tr>
@@ -87,11 +88,11 @@ export async function renderHelp(el) {
           <tr><td><strong>Verlauf</strong></td><td>Reine Zeitleiste über alles andere (Changelog, Entscheidungen, Issues angelegt/gelöst, Tasks angelegt/erledigt, Sessions) – nur Lesen, die letzten 200 Ereignisse.</td><td>– (automatisch)</td></tr>
           <tr><td><strong>Sessions</strong></td><td>Coding Sessions inklusive Handover (siehe „Coding Sessions &amp; Handover“). Claude-Code-Sitzungen auf registrierten Workspaces erscheinen automatisch (nur Metadaten, kein Inhalt der Unterhaltung).</td><td>developer</td></tr>
           <tr><td><strong>Secrets</strong></td><td>Zugangsdaten und Secret-Dateien, verschlüsselt im Vault, getrennt nach development/staging/production (siehe „Secrets &amp; DevDeck Vault“).</td><td>maintainer</td></tr>
-          <tr><td><strong>Workspaces</strong></td><td>Die Arbeitskopien des Projekts auf den Maschinen: Prüfen, Sync, Importieren, Provision, Deploy, Bearbeiten, Entfernen (siehe „Workspaces“).</td><td>developer (Import/Deploy/Entfernen: maintainer)</td></tr>
+          <tr><td><strong>Workspaces</strong></td><td>Die Arbeitskopien des Projekts auf den Maschinen: Prüfen, Sync, Pushen, Importieren, Provision, Deploy, Bearbeiten, Entfernen (siehe „Workspaces“).</td><td>developer (Pushen/Import/Deploy/Entfernen: maintainer)</td></tr>
           <tr><td><strong>Integrationen</strong></td><td>Konnektoren zu externen Diensten (derzeit GitHub). Das Zugangs-Token liegt als Secret im Vault und wird nur serverseitig benutzt; „Prüfen“ testet die Verbindung.</td><td>maintainer</td></tr>
           <tr><td><strong>Backups</strong></td><td>Sicherung der Projektdaten (Datenbank, Storage, SQLite-Dateien, Datenordner) auf einer eingetragenen Maschine – siehe „Projekt-Backups“.</td><td>Einrichten/Sichern: maintainer · Restore: owner</td></tr>
           <tr><td><strong>Backup-Log</strong></td><td>Verlauf aller Backup- und Restore-Läufe mit Fehlermeldungen – auch geplante Backups, die nicht starten konnten (z. B. Maschine offline), und fehlgeschlagene Agent-Aufträge. Filter „nur Fehler“.</td><td>– (automatisch)</td></tr>
-          <tr><td><strong>Sync-Log</strong></td><td>Verlauf aller Sync-, Provision- und Deploy-Aufträge mit Maschine, Pfad, Status und – bei Fehlern – der genauen Meldung.</td><td>– (automatisch)</td></tr>
+          <tr><td><strong>Sync-Log</strong></td><td>Verlauf aller Sync-, Push-, Provision- und Deploy-Aufträge mit Maschine, Pfad, Status und – bei Fehlern – der genauen Meldung. Scheitert der letzte Sync eines Workspaces an einem abgewichenen Branch, steht hier der Knopf „Zusammenführen &amp; syncen“.</td><td>– (automatisch)</td></tr>
         </tbody></table>
 
         <h3>Entscheidungen – wofür?</h3>
@@ -282,9 +283,6 @@ npm run build</pre>
         <p><strong>Sicherheitshinweis in der Kopfleiste:</strong> Gibt es auf einer Maschine, auf die du Zugriff hast, ausstehende <em>sicherheitsrelevante</em> Updates (kritisch oder Sicherheit), erscheint ganz oben ein Schild-Symbol mit der Anzahl der betroffenen Maschinen
         (rot, wenn kritische dabei sind). Ein Klick listet die Maschinen; ein Eintrag öffnet direkt deren Tab <em>Patches</em>. Die Anzeige verschwindet, sobald die Updates installiert sind.</p>
 
-        <h3>Pushen: lokale Commits nach GitHub</h3>
-        <p>Im Tab <strong>Workspaces</strong> pusht <strong>Pushen</strong> (Maintainer/Owner/Admin) die lokalen Commits der Maschine nach GitHub – ein normaler Push, nie Force. Er ist hervorgehoben, wenn Commits zu pushen sind (z. B. Selbstheilungs-Commits auf einem Server). Auf der Maschine brauchst du Zugangsdaten mit Schreibrecht (Deploy-Key oder Token).
-        Hat GitHub neuere Commits, zuerst <em>Sync</em> (bei Abweichung <em>Zusammenführen &amp; syncen</em>), dann pushen. Voraussetzung: Agent ab 0.19.2.</p>
         <h3>Remote: Bildschirm der Maschine im Browser</h3>
         <p>Auf der Detailseite einer Maschine zeigt der Tab <strong>Remote</strong>, ob dort ein VNC-Server läuft (Port, Software, ob er nur lokal oder auch im Netzwerk erreichbar ist) und öffnet mit <strong>Verbinden</strong> den Bildschirm direkt in DevDeck – mit
         Strg+Alt+Entf, Einfügen aus der Zwischenablage und Vollbild. Der Agent baut die Verbindung <em>ausgehend</em> zum Server auf; es muss kein Port auf der Maschine freigegeben werden. Zugriff haben nur Besitzer und Admins, jede Sitzung steht im Audit-Log (nie die Inhalte).</p>
@@ -358,6 +356,11 @@ npm run build</pre>
         <strong>bricht der Agent sofort ab</strong> (nichts wird überschrieben) – erst danach folgen
         <code>fetch</code> + <code>pull --ff-only</code> (nie <code>reset</code>/<code>stash</code>/<code>clean</code>),
         ein Dependency-Check und ein Context-Refresh.</p>
+        <p><strong>Branch abgewichen?</strong> Liegen auf der Maschine Commits, die nicht auf GitHub sind (z. B. Selbstheilungs-Commits eines Servers), während GitHub neue bekommen hat, ist ein reines Vorspulen nicht möglich. Der Sync bricht dann mit
+        „Branch abgewichen“ ab, nennt die lokalen Commits und ändert nichts. Mit <strong>„Zusammenführen &amp; syncen“</strong> (Maintainer/Owner/Admin; erscheint beim Sync-Knopf und im Tab <em>Sync-Log</em>) führt DevDeck den GitHub-Stand per Merge-Commit hinein:
+        lokale Commits bleiben erhalten, bei Konflikten wird abgebrochen und nichts verändert, gepusht wird dabei nichts. Voraussetzung: Agent ab 0.19.1.</p>
+        <p><strong>Pushen</strong> (Maintainer/Owner/Admin) schickt die lokalen Commits der Maschine nach GitHub – ein normaler Push, nie Force. Der Knopf ist hervorgehoben und zeigt die Zahl, wenn Commits zu pushen sind; danach verschwindet die Warnung „n lokale Commits nicht gepusht“.
+        Auf der Maschine brauchst du Zugangsdaten mit Schreibrecht (Deploy-Key oder Token), sonst meldet DevDeck das klar; ist der Branch geschützt, braucht es einen Pull Request. Hat GitHub neuere Commits, zuerst <em>Sync</em>, dann pushen. Voraussetzung: Agent ab 0.19.2.</p>
         <p><strong>Provision</strong> richtet einen neuen oder leeren Workspace komplett ein: Clone → Toolchain
         prüfen → Dependencies installieren → autorisierte Secrets/<code>.env</code> projizieren → Context erzeugen →
         Readiness bewerten. Trifft Provision auf ein nicht-leeres, nicht-Git-Verzeichnis, bricht es mit einer

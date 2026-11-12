@@ -2,6 +2,9 @@
 
 ## Unreleased - 2026-10-23
 
+### Changed
+- **Dokumentation und Hilfe aktualisiert** (README, Anleitung, Hilfe-Seite, Umsetzungsstand): Funktionsliste um Monitoring, Remote-Desktop, Backup-Replikation, Patch-Installation und Pushen ergänzt; Projektmenü, „Doppelte bereinigen“, Sync bei abgewichenem Branch („Zusammenführen & syncen“) und Pushen beschrieben; der Pushen-Abschnitt der Hilfe steht jetzt im Kapitel „Workspaces“ statt bei den Maschinen.
+
 ### Added
 - **Pushen-Knopf bei Workspaces** (Agent 0.19.2): Im Tab „Workspaces“ pusht **„Pushen“** (Maintainer/Owner/Admin) die lokalen Commits einer Maschine nach GitHub – ein normaler Push, nie Force, nichts wird überschrieben (z. B. Selbstheilungs-Commits auf einem Server; die Warnung „n lokale Commits nicht gepusht“ verschwindet danach). Ohne Tracking-Branch wird er angelegt. Der Knopf ist hervorgehoben, wenn Commits zu pushen sind und zeigt deren Zahl. Klare Meldungen bei: GitHub hat neuere Commits (erst „Sync“), Branch geschützt (Pull Request nötig), fehlende Schreib-Zugangsdaten auf der Maschine (Deploy-Key/Token), GitHub nicht erreichbar. Git fragt nie interaktiv nach Passwörtern. Der Push steht im Sync-Log und im Audit-Log.
 - **Projektmenü**: Links vom Projektnamen öffnet ein Menü-Symbol eine Liste aller Bereiche des Projekts (Übersicht, Tasks, Backups …), damit man nicht mehr in der Tab-Leiste scrollen muss. Die Leiste bleibt zusätzlich bestehen und scrollt jetzt zum aktiven Tab.
