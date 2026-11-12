@@ -16,6 +16,7 @@ Stand: 2026-10-23. Aktualisiert nach jeder Phase (Code → Tests → Typecheck �
 | G | DevDeck Vault: Metadata, Values, Files, Permissions, Projektion | ✅ abgeschlossen |
 | H | DevDeck CLI ✅ · Claude-/Codex-Launcher | ✅ abgeschlossen (`devdeck claude\|codex` startet den Agent im Workspace mit Kontext + Session) |
 | I | Backups, Restore, Retention | ✅ System-Backup, Verify, Retention, Scheduler, Terminal-Restore; Projekt-Backups (Tab „Backups“/„Backup-Log“, Agent 0.16.0, UI-Restore nur mit Texteingabe) |
+| K | Betrieb: Monitoring (Ampel je Projekt, Agent 0.18.0), Backup-Replikation auf eine zweite Maschine (Agent 0.17.0), Remote-Desktop im Browser (VNC/noVNC, Agent 0.19.0), Patch-Installation, Projekt löschen, Workspace-Push und Zusammenführen (Agent 0.19.2) | ✅ abgeschlossen (Details: CHANGELOG.md) |
 | J | Service-Integrationen (Konnektoren) | ⏳ Interface + GitHub fertig; GitLab, Supabase, Vercel, Brevo, Apple, Google Play, IONOS offen |
 
 ## Review & Vervollständigung – 2026-10-08

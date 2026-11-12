@@ -108,7 +108,11 @@ curl http://localhost:8080/api/health
 ### Die Tabs eines Projekts
 
 Übersicht (Kennzahlen, Projektinfo, Architektur-Karte) · Mitglieder (Rollen) · Tasks (Aufgaben, Priorität 1–5) · **Entscheidungen** · Changelog · Known Issues · Verlauf ·
-Sessions · Secrets · Workspaces · Integrationen · Sync-Log. Eine ausführliche Beschreibung jedes Tabs steht in der Hilfe unter „Die Tabs eines Projekts“.
+Sessions · Secrets · Workspaces · Integrationen · Backups · Backup-Log · Sync-Log. Eine ausführliche Beschreibung jedes Tabs steht in der Hilfe unter „Die Tabs eines Projekts“.
+
+**Projektmenü:** Links vom Projektnamen öffnet das Menü-Symbol eine Liste aller Bereiche, damit du nicht in der Tab-Leiste scrollen musst (die Leiste bleibt zusätzlich bestehen).
+
+**Doppelte Tasks:** Stehen Tasks doppelt da (z. B. nach mehrfachem Import), räumt **„Doppelte bereinigen“** im Tab „Tasks“ auf: erst eine Vorschau, dann bleibt je Gruppe der Task mit dem weitesten Stand.
 
 **Entscheidungen** halten wichtige Festlegungen mit Begründung fest („Wir nutzen SQLite statt PostgreSQL, weil …“), damit später nachvollziehbar bleibt, was beschlossen wurde und warum.
 Ein developer schlägt vor (Titel, Begründung, Kontext, verworfene Alternative; auch per `devdeck decision add <titel>`), ein maintainer akzeptiert oder lehnt ab und löst eine akzeptierte
@@ -208,6 +212,8 @@ DevDeck verwaltet nur die Labels `P1`–`P5` (Priorität), `in-progress`, `known
 - **Sync/Provision schlägt mit „außerhalb des Workspace-Root“ fehl:** Der Workspace-Pfad muss immer unterhalb des Workspace-Roots der Maschine
   liegen. DevDeck prüft das jetzt schon beim Registrieren/Bearbeiten und zeigt den Root an. Falsche Pfade korrigierst du im Tab **Workspaces**
   mit **Bearbeiten** (oder **Entfernen** – löscht nur die Registrierung, nie Dateien). Den Root selbst änderst du unter **Maschinen** → „Root ändern“.
+
+**Sync bei abgewichenem Branch:** Liegen auf der Maschine Commits, die nicht auf GitHub sind, und GitHub hat neue, meldet der Sync „Branch abgewichen“ (mit den lokalen Commits) und ändert nichts. **„Zusammenführen & syncen“** (Maintainer/Owner/Admin; beim Sync-Knopf und im Tab „Sync-Log“) führt den GitHub-Stand per Merge-Commit hinein – lokale Commits bleiben, bei Konflikten wird abgebrochen, gepusht wird nichts. Agent ab 0.19.1.
 
 **Pushen:** Im Tab „Workspaces“ pusht **Pushen** (Maintainer/Owner/Admin) die lokalen Commits einer Maschine nach GitHub – normaler Push, nie Force. Sinnvoll, wenn dort Commits entstehen (z. B. Selbstheilung) und die Warnung „n lokale Commits nicht gepusht“ erscheint. Auf der Maschine müssen Zugangsdaten mit Schreibrecht eingerichtet sein (Deploy-Key oder Token); sonst meldet DevDeck das klar. Hat GitHub neuere Commits, erst „Sync“ (bei Abweichung „Zusammenführen & syncen“), dann pushen. Agent ab 0.19.2.
 
