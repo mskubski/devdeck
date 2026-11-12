@@ -39,7 +39,8 @@ registerAction('workspace.sync', async (ctx) => {
   }
 
   // 2) Sicheres Git-Update (nur Fast-Forward)
-  await pullFFOnly(workspacePath);
+  const strategy = ctx.payload.strategy === 'merge' ? 'merge' : 'ff';
+  await pullFFOnly(workspacePath, strategy);
   const afterSync = await gitStatus(workspacePath);
 
   // 3) Dependency-Check: Lockfile-Hash gegen letzten Installationsstand

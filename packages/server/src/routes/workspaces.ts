@@ -306,7 +306,12 @@ export function workspaceRoutes(ctx: AppContext): Router {
       if (!role && user.system_role !== 'admin') {
         throw new AppError('FORBIDDEN', 'Kein Zugriff auf diesen Workspace');
       }
-      const commandId = enqueueForWorkspace(ws, 'workspace.sync', {}, user.id);
+      // „Zusammenführen & syncen“ (Merge) verändert die Commits auf der Maschine: nur Maintainer/Owner oder Admin
+      const merge = req.body?.strategy === 'merge';
+      if (merge && user.system_role !== 'admin' && !['owner', 'maintainer'].includes(role?.role ?? '')) {
+        throw new AppError('FORBIDDEN', 'Zusammenführen dürfen nur Maintainer, Owner oder Admin');
+      }
+      const commandId = enqueueForWorkspace(ws, 'workspace.sync', merge ? { strategy: 'merge' } : {}, user.id);
       audit(db, {
         actor_type: 'user',
         actor_id: user.id,
@@ -317,7 +322,7 @@ export function workspaceRoutes(ctx: AppContext): Router {
         target_type: 'workspace',
         target_id: ws.id,
         result: 'success',
-        detail: { command_id: commandId },
+        detail: { command_id: commandId, strategy: merge ? 'merge' : 'ff' },
       });
       res.status(202).json({ data: { command_id: commandId } });
     }),
@@ -345,7 +350,7 @@ export function workspaceRoutes(ctx: AppContext): Router {
         ws.machine_id,
         ws.id,
       );
-      if (running) throw new AppError('CONFLICT', 'F�r diesen Workspace l�uft bereits ein Deploy');
+      if (running) throw new AppError('CONFLICT', 'Für diesen Workspace läuft bereits ein Deploy');
       const project = db.get<{ default_branch: string | null }>(
         'SELECT default_branch FROM projects WHERE id = ?',
         ws.project_id,

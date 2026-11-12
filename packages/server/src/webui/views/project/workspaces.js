@@ -279,9 +279,30 @@ export async function renderWorkspaces(el, project) {
 
   for (const btn of $$('[data-sync]', el)) {
     btn.addEventListener('click', async () => {
+      const wsId = btn.dataset.sync;
+      const run = async (strategy) => {
+        const { command_id } = await post(`/api/workspaces/${wsId}/sync`, strategy ? { strategy } : {});
+        toast(strategy ? 'Zusammenführen & Sync läuft …' : 'Sync läuft …', 'info');
+        return waitForCommand(wsId, command_id);
+      };
       try {
-        await post(`/api/workspaces/${btn.dataset.sync}/sync`);
-        toast('Sync beauftragt – Ergebnis siehe Tab „Sync-Log“', 'success');
+        try {
+          await run();
+          toast('Sync abgeschlossen', 'success');
+        } catch (err) {
+          // Lokaler und Remote-Branch sind auseinandergelaufen: Zusammenführen anbieten (nie ein Überschreiben)
+          if (!String(err.message).startsWith('Branch abgewichen')) throw err;
+          const ok = await confirmModal({
+            title: 'Branch ist abgewichen',
+            message: `${err.message} Soll DevDeck den Remote-Stand per Merge-Commit hineinführen? Lokale Commits bleiben erhalten, bei Konflikten wird abgebrochen und nichts verändert. Gepusht wird dabei nichts.`,
+            confirmLabel: 'Zusammenführen & syncen',
+            danger: false,
+          });
+          if (!ok) return;
+          await run('merge');
+          toast('Zusammengeführt und synchronisiert', 'success');
+        }
+        renderWorkspaces(el, project);
       } catch (err) { toast(err.message, 'error'); }
     });
   }
